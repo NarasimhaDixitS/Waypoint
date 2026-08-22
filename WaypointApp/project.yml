@@ -7,6 +7,10 @@ options:
 configs:
   Debug: debug
   Release: release
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift.git
+    from: "2.5.1"
 targets:
   Waypoint:
     type: application
@@ -14,6 +18,9 @@ targets:
     sources:
       - path: Sources
       - path: Resources
+    dependencies:
+      - package: Supabase
+        product: Supabase
     info:
       path: Generated/Info.plist
       properties:
