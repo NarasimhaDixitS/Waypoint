@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>body{margin:0}</style>
+</helmet>
+<div style="{{ S.page }}">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" width="{{ deviceWidth }}" height="{{ deviceHeight }}" hint-size="402,874">
+    <div style="{{ S.screen }}">
+      <div style="{{ S.titleRow }}">
+        <div style="{{ S.titleCol }}">
+          <h1 style="{{ S.title }}">New goal</h1>
+          <p style="{{ S.subtitle }}">What are you working toward?</p>
+        </div>
+        <div style="{{ S.controls }}">
+          <button style="{{ S.moonBtn }}" onClick="{{ toggleTheme }}" aria-label="Toggle theme">
+            <svg width="18" height="18" viewBox="0 0 20 20" style="{{ S.sunIconDisplay }}">
+              <circle cx="10" cy="10" r="4.2" fill="{{ S.iconColor }}"></circle>
+              <path d="M10 1.5v2.4M10 16.1v2.4M18.5 10h-2.4M3.9 10H1.5M15.9 4.1l-1.7 1.7M5.8 14.2l-1.7 1.7M15.9 15.9l-1.7-1.7M5.8 5.8L4.1 4.1" stroke="{{ S.iconColor }}" stroke-width="1.6" stroke-linecap="round"></path>
+            </svg>
+            <svg width="18" height="18" viewBox="0 0 20 20" style="{{ S.moonIconDisplay }}">
+              <path d="M16.5 12.7A7 7 0 018 4.2a7 7 0 108.5 8.5z" fill="{{ S.iconColor }}"></path>
+            </svg>
+          </button>
+          <div style="{{ S.dotsRow }}">
+            <div style="{{ S.dotGreen }}" onClick="{{ setAccentGreen }}"><div style="{{ S.dotGreenInner }}"></div></div>
+            <div style="{{ S.dotBlue }}" onClick="{{ setAccentBlue }}"><div style="{{ S.dotBlueInner }}"></div></div>
+            <div style="{{ S.dotOrange }}" onClick="{{ setAccentOrange }}"><div style="{{ S.dotOrangeInner }}"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="{{ S.field }}">
+        <span style="{{ S.fieldPlaceholder }}">e.g. Pass the CFA exam</span>
+      </div>
+      <div style="{{ S.field }}">
+        <span style="{{ S.fieldValue }}">Target date - Oct 12</span>
+      </div>
+
+      <p style="{{ S.sectionLabel }}">How should the plan be built?</p>
+
+      <div style="{{ S.aiOption }}" onClick="{{ selectAI }}">
+        <svg width="18" height="18" viewBox="0 0 18 18" style="{{ S.sparkleIcon }}">
+          <path d="M9 1l1.6 5.4L16 8l-5.4 1.6L9 15l-1.6-5.4L2 8l5.4-1.6z" fill="{{ S.fillAccent }}"></path>
+        </svg>
+        <div style="{{ S.optionTextCol }}">
+          <div style="{{ S.optionTitleRow }}">
+            <span style="{{ S.aiTitle }}">AI-planned</span>
+            <span style="{{ S.proBadge }}">Pro</span>
+          </div>
+          <span style="{{ S.aiSubtitle }}">Describe your routine, AI builds daily tasks</span>
+        </div>
+      </div>
+
+      <div style="{{ S.manualOption }}" onClick="{{ selectManual }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" style="{{ S.pencilIcon }}">
+          <path d="M11 1.5l3.5 3.5L5 14.5H1.5V11z" stroke="{{ S.iconColor }}" stroke-width="1.4" fill="none" stroke-linejoin="round"></path>
+        </svg>
+        <span style="{{ S.manualTitle }}">I'll plan it myself</span>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:950},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;light&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#3B6D11&quot;,&quot;options&quot;:[&quot;#3B6D11&quot;,&quot;#378ADD&quot;,&quot;#EEFF00&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  state = { theme: this.props.theme || 'light', accent: this.props.accentColor || '#3B6D11', mode: 'ai' };
+
+  hexToRgb(hex) { const h = hex.replace('#', ''); return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) }; }
+  rgbToHex(r, g, b) { const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'); return `#${c(r)}${c(g)}${c(b)}`; }
+  mix(hex1, hex2, pct1) { const c1 = this.hexToRgb(hex1), c2 = this.hexToRgb(hex2); return this.rgbToHex(c1.r * pct1 + c2.r * (1 - pct1), c1.g * pct1 + c2.g * (1 - pct1), c1.b * pct1 + c2.b * (1 - pct1)); }
+  contrastOn(hex) { const { r, g, b } = this.hexToRgb(hex); const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255; return luma > 0.6 ? '#000000' : '#FFFFFF'; }
+
+  getTokens() {
+    const light = this.state.theme === 'light';
+    const accent = this.state.accent;
+    const isDefaultBlue = accent.toUpperCase() === '#378ADD';
+    const fillAccent = isDefaultBlue ? (light ? '#378ADD' : '#85B7EB') : (light ? accent : this.mix(accent, '#FFFFFF', 0.6));
+    const textAccent = isDefaultBlue ? (light ? '#185FA5' : '#B5D4F4') : (light ? this.mix(accent, '#000000', 0.44) : this.mix(accent, '#FFFFFF', 0.93));
+    const surface1 = light ? '#FFFFFF' : '#242422';
+    const bgAccentTint = this.mix(fillAccent, surface1, light ? 0.16 : 0.4);
+    return {
+      light, surface1,
+      surface0: light ? '#F5F5F3' : '#1C1C1A',
+      textPrimary: light ? '#2C2C2A' : '#F1EFE8',
+      textSecondary: light ? '#5F5E5A' : '#B4B2A9',
+      textMuted: '#888780',
+      border: light ? '#E5E3DB' : '#3A3A37',
+      fillAccent, textAccent, bgAccentTint,
+      shadow: light ? '0 1px 3px rgba(0,0,0,0.07)' : '0 1px 3px rgba(0,0,0,0.4)',
+    };
+  }
+
+  renderVals() {
+    const t = this.getTokens();
+    const FS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+    const aiSelected = this.state.mode === 'ai';
+    const S = {
+      page: { display: 'flex', justifyContent: 'center', padding: '40px 0', background: '#e9e7e1', minHeight: '100%', fontFamily: FS },
+      screen: { height: '100%', overflow: 'auto', background: t.surface0, fontFamily: FS, boxSizing: 'border-box', padding: '52px 20px 20px' },
+      titleRow: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' },
+      titleCol: { display: 'flex', flexDirection: 'column' },
+      title: { fontSize: 28, fontWeight: 700, color: t.textPrimary, letterSpacing: '-0.5px', margin: 0 },
+      subtitle: { fontSize: 15, fontWeight: 400, color: t.textSecondary, margin: '4px 0 0' },
+      controls: { display: 'flex', alignItems: 'center', gap: 10, paddingTop: 6, flexShrink: 0 },
+      moonBtn: { width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textSecondary, background: 'none', border: 'none', padding: 0 },
+      iconColor: t.textSecondary,
+      moonIconDisplay: { display: t.light ? 'block' : 'none' },
+      sunIconDisplay: { display: t.light ? 'none' : 'block' },
+      dotsRow: { display: 'flex', alignItems: 'center', gap: 7 },
+      dotGreen: { width: this.state.accent === '#3B6D11' ? 18 : 16, height: this.state.accent === '#3B6D11' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#3B6D11' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #3B6D11` : 'none' },
+      dotBlue: { width: this.state.accent === '#378ADD' ? 18 : 16, height: this.state.accent === '#378ADD' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#378ADD' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #378ADD` : 'none' },
+      dotOrange: { width: this.state.accent === '#EEFF00' ? 18 : 16, height: this.state.accent === '#EEFF00' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#EEFF00' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #EEFF00` : 'none' },
+      dotGreenInner: { width: 12, height: 12, borderRadius: '50%', background: '#3B6D11' },
+      dotBlueInner: { width: 12, height: 12, borderRadius: '50%', background: '#378ADD' },
+      dotOrangeInner: { width: 12, height: 12, borderRadius: '50%', background: '#EEFF00' },
+      field: { background: t.surface1, border: `1px solid ${t.border}`, borderRadius: 18, padding: '15px 18px', marginTop: 20 },
+      fieldPlaceholder: { fontSize: 15, color: t.textMuted, fontWeight: 400 },
+      fieldValue: { fontSize: 15, color: t.textPrimary, fontWeight: 400 },
+      sectionLabel: { fontSize: 13, fontWeight: 400, color: t.textSecondary, margin: '24px 0 10px' },
+      fillAccent: aiSelected ? (t.light ? '#000000' : '#FFFFFF') : t.fillAccent,
+      aiOption: { background: aiSelected ? t.bgAccentTint : t.surface1, border: `1.5px solid ${aiSelected ? t.fillAccent : t.border}`, borderRadius: 18, padding: '15px 16px', display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' },
+      sparkleIcon: { flexShrink: 0, marginTop: 3 },
+      optionTextCol: { display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 },
+      optionTitleRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+      aiTitle: { fontSize: 16, fontWeight: 700, color: aiSelected ? (t.light ? '#000000' : '#FFFFFF') : t.textPrimary },
+      proBadge: { fontSize: 11, fontWeight: 700, color: this.contrastOn(t.fillAccent), background: t.fillAccent, borderRadius: 20, padding: '3px 10px' },
+      aiSubtitle: { fontSize: 13, fontWeight: 400, color: aiSelected ? (t.light ? '#000000' : '#FFFFFF') : t.textSecondary, opacity: aiSelected ? 0.75 : 1 },
+      manualOption: { background: t.surface1, border: `1px solid ${t.border}`, borderRadius: 18, padding: '15px 16px', display: 'flex', alignItems: 'center', gap: 10, marginTop: 9, cursor: 'pointer' },
+      pencilIcon: { flexShrink: 0 },
+      manualTitle: { fontSize: 15, fontWeight: 500, color: t.textPrimary },
+    };
+    return {
+      S, isDark: !t.light, deviceWidth: 402, deviceHeight: 874,
+      toggleTheme: () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+      setAccentGreen: () => this.setState({ accent: '#3B6D11' }),
+      setAccentBlue: () => this.setState({ accent: '#378ADD' }),
+      setAccentOrange: () => this.setState({ accent: '#EEFF00' }),
+      selectAI: () => this.setState({ mode: 'ai' }),
+      selectManual: () => this.setState({ mode: 'manual' }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

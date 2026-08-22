@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0}
+  @keyframes wp-bump{0%{transform:scale(1)}35%{transform:scale(1.18)}60%{transform:scale(0.94)}100%{transform:scale(1)}}
+  @keyframes wp-check-bounce{0%{transform:scale(0.3);opacity:0}55%{transform:scale(1.12);opacity:1}75%{transform:scale(0.94)}100%{transform:scale(1)}}
+  @keyframes wp-fade-up{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+</style>
+</helmet>
+<div style="{{ S.page }}">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" width="{{ deviceWidth }}" height="{{ deviceHeight }}" hint-size="402,874">
+    <div style="{{ S.screen }}">
+
+      <div style="{{ S.topBar }}">
+        <div style="{{ S.leftGroup }}">
+          <sc-if value="{{ showBack }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ S.backBtn }}" onClick="{{ goBack }}">
+              <svg width="9" height="15" viewBox="0 0 9 15"><path d="M7.5 1.5l-6 6 6 6" stroke="{{ S.iconColor }}" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </div>
+          </sc-if>
+          <h1 style="{{ S.title }}">{{ screenTitle }}</h1>
+        </div>
+      </div>
+
+      <sc-if value="{{ isWelcome }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.welcomeBody }}">
+          <div style="{{ S.logoBox }}">
+            <svg width="46" height="46" viewBox="0 0 52 52"><circle cx="22" cy="22" r="15" stroke="{{ S.iconColor }}" stroke-width="2" fill="none"></circle><circle cx="22" cy="22" r="9.5" stroke="{{ S.iconColor }}" stroke-width="2" fill="none"></circle><circle cx="22" cy="22" r="4" fill="#639922"></circle><path d="M22 22 L29 40 L36 22 L43 40 L50 22" stroke="{{ S.iconColor }}" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <h2 style="{{ S.welcomeTitle }}">Waypoint</h2>
+          <p style="{{ S.tagline }}">Plan your goals. Live your days.</p>
+          <div style="{{ S.buttonCol }}">
+            <button style="{{ S.appleBtn }}" onClick="{{ goToday }}">Continue with Apple</button>
+            <button style="{{ S.emailBtn }}" onClick="{{ goToday }}">Continue with email</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isToday }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.contentWrap }}">
+          <p style="{{ S.dateText }}">Thursday, Aug 13</p>
+          <div style="{{ S.goalCard }}" onClick="{{ goGoalDetail }}">
+            <div style="{{ S.goalLeft }}">
+              <span style="{{ S.goalTitle }}">Exam prep</span>
+              <span style="{{ S.goalLabel }}">Day 12 of 60</span>
+            </div>
+            <div style="{{ S.ringBox }}">
+              <svg width="72" height="72" viewBox="0 0 84 84" style="{{ S.ringSvg }}">
+                <circle cx="42" cy="42" r="35" stroke="{{ S.trackColor }}" stroke-width="7" fill="none"></circle>
+                <circle cx="42" cy="42" r="35" stroke="{{ S.fillAccent }}" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="{{ ringCircumference }}" stroke-dashoffset="{{ ringOffset }}"></circle>
+              </svg>
+              <div style="{{ S.ringLabel }}">70%</div>
+            </div>
+          </div>
+          <div style="{{ S.plusRow }}" onClick="{{ goGoalCreate }}">
+            <span style="{{ S.plusIcon }}">+</span><span style="{{ S.plusLabel }}">New goal</span>
+          </div>
+
+          <div style="{{ S.fixedRow }}">
+            <span style="{{ S.fixedText }}">7:30-8:30 - Gym (fixed)</span>
+          </div>
+          <div style="{{ S.doneCard }}">
+            <div style="{{ S.taskTextCol }}"><span style="{{ S.doneTitle }}">Morning run, 30 min</span><span style="{{ S.doneMeta }}">8:30-9:00 - done</span></div>
+            <div style="{{ S.doneBubble }}"><svg width="15" height="12" viewBox="0 0 15 12"><path d="M1.5 6.2l4 4L13.5 1.5" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+          </div>
+          <div style="{{ S.progressCard }}" onClick="{{ goPomodoro }}">
+            <div style="{{ S.taskTextCol }}"><span style="{{ S.progressTitle }}">Deep work: thesis ch. 3</span><span style="{{ S.progressMeta }}">9:00-11:00 - in progress</span></div>
+            <div style="{{ S.progressRing }}"></div>
+          </div>
+          <div style="{{ S.fixedRow }}"><span style="{{ S.fixedText }}">11:30-1:00 - Team meeting (fixed)</span></div>
+          <div style="{{ S.pendingCard }}"><div style="{{ S.taskTextCol }}"><span style="{{ S.pendingTitle }}">Review lecture notes</span><span style="{{ S.pendingMeta }}">2:00-3:00</span></div><div style="{{ S.pendingCircle }}"></div></div>
+          <div style="{{ S.pendingCard }}"><div style="{{ S.taskTextCol }}"><span style="{{ S.pendingTitle }}">Meal prep for tomorrow</span><span style="{{ S.pendingMeta }}">6:00-6:30</span></div><div style="{{ S.pendingCircle }}"></div></div>
+        </div>
+        <div style="{{ S.fab }}" onClick="{{ goNewTask }}">
+          <svg width="22" height="22" viewBox="0 0 22 22"><path d="M11 3v16M3 11h16" stroke="{{ S.fabIconColor }}" stroke-width="2.4" stroke-linecap="round"></path></svg>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isSchedule }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.contentWrap }}">
+          <p style="{{ S.subtitle }}">So Waypoint can plan around real life.</p>
+          <div style="{{ S.list }}">
+            <div style="{{ S.row }}"><div style="{{ S.rowText }}"><span style="{{ S.rowTitle }}">Work</span><span style="{{ S.rowMeta }}">Mon-Fri 9:00-17:00</span></div></div>
+            <div style="{{ S.row }}"><div style="{{ S.rowText }}"><span style="{{ S.rowTitle }}">Gym</span><span style="{{ S.rowMeta }}">Mon, Wed, Fri 7:30-8:30</span></div></div>
+            <div style="{{ S.addRow }}"><span style="{{ S.addPlus }}">+</span><span style="{{ S.addLabel }}">Add a commitment</span></div>
+          </div>
+          <div style="{{ S.weekLink }}" onClick="{{ goWeek }}"><span style="{{ S.weekLinkText }}">View full week</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="{{ S.textAccent }}" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isWeek }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.contentWrap }}">
+          <div style="{{ S.dateStrip }}">
+            <sc-for list="{{ days }}" as="day" hint-placeholder-count="7">
+              <div style="{{ S.dateCol }}"><span style="{{ S.dateLabel }}">{{ day.label }}</span><div style="{{ day.circleStyle }}">{{ day.num }}</div></div>
+            </sc-for>
+          </div>
+          <div style="{{ S.list }}">
+            <sc-for list="{{ days }}" as="day" hint-placeholder-count="7">
+              <div style="{{ S.card }}"><span style="{{ S.cardDate }}">{{ day.fullDate }}</span><span style="{{ S.cardSummary }}">{{ day.summary }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isNewTask }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.contentWrap }}">
+          <div style="{{ S.nameField }}"><span style="{{ S.fieldPlaceholder }}">Task name</span></div>
+          <div style="{{ S.rowFields }}"><div style="{{ S.smallField }}"><span style="{{ S.fieldValue }}">9:00 AM</span></div><div style="{{ S.smallField }}"><span style="{{ S.fieldValue }}">60 min</span></div></div>
+          <p style="{{ S.sectionLabel }}">Priority</p>
+          <div style="{{ S.priorityRow }}">
+            <div style="{{ S.priorityHigh }}" onClick="{{ selectHigh }}">High</div>
+            <div style="{{ S.priorityMedium }}" onClick="{{ selectMedium }}">Medium</div>
+            <div style="{{ S.priorityLow }}" onClick="{{ selectLow }}">Low</div>
+          </div>
+          <button style="{{ S.primaryBtn }}" onClick="{{ saveTask }}">Save task</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAdhoc }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.contentWrap }}">
+          <div style="{{ S.modal }}">
+            <div style="{{ S.alertRow }}">
+              <svg width="22" height="22" viewBox="0 0 22 22"><path d="M11 2.5L21 19.5H1z" stroke="#FF9500" stroke-width="1.6" fill="none" stroke-linejoin="round"></path><path d="M11 9v4.5" stroke="#FF9500" stroke-width="1.6" stroke-linecap="round"></path><circle cx="11" cy="16" r="1" fill="#FF9500"></circle></svg>
+              <h2 style="{{ S.alertTitle }}">New task needs a slot</h2>
+            </div>
+            <p style="{{ S.alertBody }}">"Task name" - your day is full. Pick a task to move to tomorrow.</p>
+            <div style="{{ S.optionList }}">
+              <div style="{{ S.option }}" onClick="{{ selectLecture }}"><div style="{{ S.radio }}"><div style="{{ S.lectureDotStyle }}"></div></div><div style="{{ S.optionText }}"><span style="{{ S.optionTitle }}">Review lecture notes</span><span style="{{ S.optionMeta }}">Low priority - 2:00-3:00</span></div></div>
+              <div style="{{ S.option }}" onClick="{{ selectMeal }}"><div style="{{ S.radio }}"><div style="{{ S.mealDotStyle }}"></div></div><div style="{{ S.optionText }}"><span style="{{ S.optionTitle }}">Meal prep</span><span style="{{ S.optionMeta }}">Medium priority - 6:00-6:30</span></div></div>
+            </div>
+            <button style="{{ S.primaryBtn }}" onClick="{{ goToday }}">Bump selected task</button>
+            <span style="{{ S.secondaryLink }}" onClick="{{ goToday }}">Or bump the new task instead</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isGoalCreate }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.contentWrap }}">
+          <p style="{{ S.subtitle }}">What are you working toward?</p>
+          <div style="{{ S.field }}"><span style="{{ S.fieldPlaceholder }}">e.g. Pass the CFA exam</span></div>
+          <div style="{{ S.field }}"><span style="{{ S.fieldValue }}">Target date - Oct 12</span></div>
+          <p style="{{ S.sectionLabel }}">How should the plan be built?</p>
+          <div style="{{ S.aiOption }}" onClick="{{ selectAI }}">
+            <svg width="18" height="18" viewBox="0 0 18 18" style="{{ S.sparkleIcon }}"><path d="M9 1l1.6 5.4L16 8l-5.4 1.6L9 15l-1.6-5.4L2 8l5.4-1.6z" fill="{{ S.aiSparkleFill }}"></path></svg>
+            <div style="{{ S.optionTextCol }}"><div style="{{ S.optionTitleRow }}"><span style="{{ S.aiTitle }}">AI-planned</span><span style="{{ S.proBadge }}">Pro</span></div><span style="{{ S.aiSubtitle }}">Describe your routine, AI builds daily tasks</span></div>
+          </div>
+          <div style="{{ S.manualOption }}" onClick="{{ selectManual }}">
+            <svg width="16" height="16" viewBox="0 0 16 16" style="{{ S.pencilIcon }}"><path d="M11 1.5l3.5 3.5L5 14.5H1.5V11z" stroke="{{ S.iconColor }}" stroke-width="1.4" fill="none" stroke-linejoin="round"></path></svg>
+            <span style="{{ S.manualTitle }}">I'll plan it myself</span>
+          </div>
+          <button style="{{ S.primaryBtn }}" onClick="{{ goGoalDetail }}">Create goal</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isGoalDetail }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.contentWrap }}">
+          <div style="{{ S.ringWrap }}">
+            <div style="{{ S.ringBoxBig }}">
+              <svg width="130" height="130" viewBox="0 0 140 140" style="{{ S.ringSvg }}"><circle cx="70" cy="70" r="60" stroke="{{ S.trackColor }}" stroke-width="10" fill="none"></circle><circle cx="70" cy="70" r="60" stroke="{{ S.fillAccent }}" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="{{ ringCircumference }}" stroke-dashoffset="{{ ringOffset }}"></circle></svg>
+              <div style="{{ S.ringLabelBig }}">70%</div>
+            </div>
+            <p style="{{ S.ringCaption }}">Day 12 of 60 - 48 days to go</p>
+          </div>
+          <div style="{{ S.statRow }}">
+            <div style="{{ S.statCard }}"><span style="{{ S.statNum }}">32</span><span style="{{ S.statLabel }}">Tasks done</span></div>
+            <div style="{{ S.statCard }}"><span style="{{ S.statNum }}">6</span><span style="{{ S.statLabel }}">Day streak</span></div>
+          </div>
+          <p style="{{ S.sectionLabel }}">Upcoming</p>
+          <div style="{{ S.list }}">
+            <div style="{{ S.row }}"><div style="{{ S.rowText }}"><span style="{{ S.rowTitle }}">Practice test 3</span><span style="{{ S.rowMeta }}">Tomorrow</span></div></div>
+            <div style="{{ S.row }}"><div style="{{ S.rowText }}"><span style="{{ S.rowTitle }}">Review chapter 4</span><span style="{{ S.rowMeta }}">Fri</span></div></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPomodoro }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.pomoBody }}">
+          <span style="{{ S.focusLabel }}">Focusing on</span>
+          <span style="{{ S.focusTitle }}">Deep work: thesis ch. 3</span>
+          <div style="{{ S.ringBoxPomo }}">
+            <svg width="160" height="160" viewBox="0 0 180 180" style="{{ S.ringSvg }}"><circle cx="90" cy="90" r="78" stroke="{{ S.trackColor }}" stroke-width="11" fill="none"></circle><circle cx="90" cy="90" r="78" stroke="{{ S.fillAccent }}" stroke-width="11" fill="none" stroke-linecap="round" stroke-dasharray="{{ ringCircumference }}" stroke-dashoffset="{{ ringOffset }}"></circle></svg>
+            <div style="{{ S.ringLabelPomo }}">18:24</div>
+          </div>
+          <div style="{{ S.intervalRow }}">
+            <div style="{{ S.chip25 }}" onClick="{{ select25 }}">25 min</div>
+            <div style="{{ S.chip30 }}" onClick="{{ select30 }}">30 min</div>
+            <div style="{{ S.chip45 }}" onClick="{{ select45 }}">45 min</div>
+          </div>
+          <div style="{{ S.playBtn }}" onClick="{{ togglePlay }}">
+            <svg width="20" height="20" viewBox="0 0 22 22" style="{{ S.pauseIconDisplay }}"><rect x="5" y="4" width="4" height="14" rx="1" fill="{{ S.playIconColor }}"></rect><rect x="13" y="4" width="4" height="14" rx="1" fill="{{ S.playIconColor }}"></rect></svg>
+            <svg width="18" height="20" viewBox="0 0 20 22" style="{{ S.playIconDisplay }}"><path d="M2 1.5v19l17-9.5z" fill="{{ S.playIconColor }}"></path></svg>
+          </div>
+          <span style="{{ S.markCompleteLink }}" onClick="{{ goCompletion }}">Mark session complete</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCompletion }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.centerCol }}">
+          <div style="{{ S.checkBubble }}"><svg width="42" height="42" viewBox="0 0 46 46"><path d="M12 24l7 7 15-16" stroke="{{ S.checkColor }}" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+          <h1 style="{{ S.headline }}">Day complete</h1>
+          <p style="{{ S.tagline2 }}">All 5 tasks done. 6-day streak.</p>
+          <div style="{{ S.readoutCard }}"><span style="{{ S.readoutLabel }}">Goal progress</span><span style="{{ S.readoutValue }}">70% -&gt; 72%</span></div>
+          <button style="{{ S.primaryBtnWide }}" onClick="{{ goToday }}">Back to Today</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isProgress }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.contentWrap }}">
+          <p style="{{ S.subtitle }}">Last 4 weeks</p>
+          <div style="{{ S.chartRow }}">
+            <sc-for list="{{ bars }}" as="bar" hint-placeholder-count="4"><div style="{{ bar.style }}"></div></sc-for>
+          </div>
+          <div style="{{ S.statRow }}">
+            <div style="{{ S.statCard }}"><span style="{{ S.statNum }}">84%</span><span style="{{ S.statLabel }}">Avg completion</span></div>
+            <div style="{{ S.statCard }}"><span style="{{ S.statNum }}">12</span><span style="{{ S.statLabel }}">Best streak</span></div>
+          </div>
+          <div style="{{ S.insightCard }}"><span style="{{ S.insightText }}">Mornings are your most productive time - 91% completion before noon.</span></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.contentWrap }}">
+          <div style="{{ S.group }}">
+            <div style="{{ S.rowSb }}"><span style="{{ S.rowLabel }}">Appearance</span>
+              <div style="{{ S.appearanceToggle }}" onClick="{{ toggleTheme }}">
+                <span style="{{ S.lightWord }}">Light</span><span style="{{ S.slashWord }}">/</span><span style="{{ S.darkWord }}">Dark</span>
+              </div>
+            </div>
+            <div style="{{ S.divider }}"></div>
+            <div style="{{ S.rowSb }}"><span style="{{ S.rowLabel }}">Accent color</span>
+              <div style="{{ S.dotsRow }}">
+                <div style="{{ S.dotGreen }}" onClick="{{ setAccentGreen }}"><div style="{{ S.dotGreenInner }}"></div></div>
+                <div style="{{ S.dotBlue }}" onClick="{{ setAccentBlue }}"><div style="{{ S.dotBlueInner }}"></div></div>
+                <div style="{{ S.dotOrange }}" onClick="{{ setAccentOrange }}"><div style="{{ S.dotOrangeInner }}"></div></div>
+              </div>
+            </div>
+          </div>
+          <div style="{{ S.group }}">
+            <div style="{{ S.rowSb }}"><span style="{{ S.rowLabel }}">Notifications</span><div style="{{ S.switchTrack }}" onClick="{{ toggleNotif }}"><div style="{{ S.switchKnob }}"></div></div></div>
+          </div>
+          <div style="{{ S.group }}"><div style="{{ S.rowSb }}" onClick="{{ goPaywall }}"><span style="{{ S.rowLabel }}">Manage subscription</span><svg width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="{{ S.iconColor }}" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPaywall }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.paywallBody }}">
+          <div style="{{ S.iconBox }}"><svg width="30" height="30" viewBox="0 0 18 18"><path d="M9 1l1.6 5.4L16 8l-5.4 1.6L9 15l-1.6-5.4L2 8l5.4-1.6z" fill="{{ S.iconFillContrast }}"></path></svg></div>
+          <h1 style="{{ S.headline }}">Waypoint Pro</h1>
+          <p style="{{ S.tagline2 }}">Let AI plan your days for you.</p>
+          <div style="{{ S.featureList }}">
+            <sc-for list="{{ features }}" as="f" hint-placeholder-count="4"><div style="{{ S.featureRow }}"><div style="{{ S.featureDot }}"></div><span style="{{ S.featureText }}">{{ f.text }}</span></div></sc-for>
+          </div>
+          <button style="{{ S.trialBtn }}" onClick="{{ goSettings }}">Start free trial</button>
+          <span style="{{ S.freeLink }}" onClick="{{ goSettings }}">Continue with free plan</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showTabBar }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ S.tabBar }}">
+          <div style="{{ S.tabToday }}" onClick="{{ goToday }}">Today</div>
+          <div style="{{ S.tabSchedule }}" onClick="{{ goSchedule }}">Schedule</div>
+          <div style="{{ S.tabProgress }}" onClick="{{ goProgress }}">Progress</div>
+          <div style="{{ S.tabSettings }}" onClick="{{ goSettings }}">Settings</div>
+        </div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const TAB_SCREENS = ['today', 'schedule', 'progress', 'settings'];
+const BACK_TARGET = { week: 'schedule', newtask: 'today', goalcreate: 'today', goaldetail: 'today', adhoc: 'today', pomodoro: 'today', completion: 'today', paywall: 'settings' };
+const TITLES = { welcome: '', today: 'Waypoint', schedule: 'Your schedule', week: 'This week', newtask: 'New task', adhoc: '', goalcreate: 'New goal', goaldetail: 'Exam prep', pomodoro: '', completion: '', progress: 'Progress', settings: 'Settings', paywall: '' };
+const RADIUS = { sm: 8, md: 10, lg: 20 };
+const SPACE = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
+const EASE = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
+
+class Component extends DCLogic {
+  state = {
+    screen: 'welcome', theme: 'light', accent: '#34C759',
+    priority: 'high', bumpSel: 'lecture', aiMode: 'ai', interval: 30, playing: true, notif: true,
+  };
+
+  hexToRgb(hex) { const h = hex.replace('#', ''); return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) }; }
+  rgbToHex(r, g, b) { const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'); return `#${c(r)}${c(g)}${c(b)}`; }
+  mix(hex1, hex2, pct1) { const c1 = this.hexToRgb(hex1), c2 = this.hexToRgb(hex2); return this.rgbToHex(c1.r * pct1 + c2.r * (1 - pct1), c1.g * pct1 + c2.g * (1 - pct1), c1.b * pct1 + c2.b * (1 - pct1)); }
+  contrastOn(hex) { const { r, g, b } = this.hexToRgb(hex); const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255; return luma > 0.6 ? '#000000' : '#FFFFFF'; }
+
+  getTokens() {
+    const light = this.state.theme === 'light';
+    const fillAccent = this.state.accent;
+    // iOS grouped surfaces swap roles between light/dark
+    const bgScreen = light ? '#F2F2F7' : '#000000';
+    const bgCard = light ? '#FFFFFF' : '#1C1C1E';
+    const textPrimary = light ? '#000000' : '#FFFFFF';
+    const textSecondary = light ? 'rgba(60,60,67,0.6)' : 'rgba(235,235,245,0.6)';
+    const textMuted = light ? 'rgba(60,60,67,0.3)' : 'rgba(235,235,245,0.3)';
+    const border = light ? 'rgba(60,60,67,0.29)' : 'rgba(84,84,88,0.65)';
+    const bgAccentTint = this.mix(fillAccent, bgCard, light ? 0.14 : 0.3);
+    const fillSuccess = '#34C759';
+    const bgSuccessTint = this.mix(fillSuccess, bgCard, light ? 0.14 : 0.28);
+    return {
+      light, fillAccent, textAccent: fillAccent, bgAccentTint, fillSuccess, textSuccess: fillSuccess, bgSuccessTint,
+      surface0: bgScreen, surface1: bgCard, textPrimary, textSecondary, textMuted, border,
+      shadowSm: light ? '0 1px 3px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.5)',
+      shadowMd: light ? '0 4px 12px rgba(0,0,0,0.15)' : '0 4px 12px rgba(0,0,0,0.6)',
+    };
+  }
+
+  go(screen) { this.setState({ screen }); }
+
+  renderVals() {
+    const t = this.getTokens();
+    const FS = '-apple-system, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+    const { screen } = this.state;
+    const contrastText = '#FFFFFF';
+    const showTabBar = TAB_SCREENS.includes(screen);
+    const showBack = !!BACK_TARGET[screen];
+    const dotStyle = active => ({ width: active ? 20 : 18, height: active ? 20 : 18, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: `width ${EASE} 200ms, height ${EASE} 200ms`, boxShadow: active ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px currentColor` : 'none' });
+
+    const r84 = 35, r140 = 60, r180 = 78;
+    const cGoal = 2 * Math.PI * r84, cDetail = 2 * Math.PI * r140, cPomo = 2 * Math.PI * r180;
+    const ringCircumference = screen === 'pomodoro' ? cPomo : screen === 'goaldetail' ? cDetail : cGoal;
+    const pct = screen === 'pomodoro' ? 61.2 : 70;
+    const ringOffset = ringCircumference * (1 - pct / 100);
+
+    const pillBase = { flex: 1, textAlign: 'center', borderRadius: RADIUS.md, padding: '13px 8px', fontSize: 15, fontWeight: 600, cursor: 'pointer', boxSizing: 'border-box' };
+    const priorityColor = '#FF3B30';
+    const chipStyle = active => ({ flex: 1, textAlign: 'center', padding: '11px 8px', borderRadius: RADIUS.md, fontSize: 15, fontWeight: 600, cursor: 'pointer', background: active ? t.bgAccentTint : t.surface1, border: `1.5px solid ${active ? t.fillAccent : t.border}`, color: active ? contrastText : t.textPrimary });
+    const dotRadio = filled => ({ width: 12, height: 12, borderRadius: '50%', background: filled ? t.textPrimary : 'transparent' });
+
+    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const nums = [11, 12, 13, 14, 15, 16, 17];
+    const fullDates = ['Mon, Aug 11', 'Tue, Aug 12', 'Wed, Aug 13', 'Thu, Aug 14', 'Fri, Aug 15', 'Sat, Aug 16', 'Sun, Aug 17'];
+    const summaries = ['5 of 5 tasks done', '4 of 4 tasks done', '3 of 5 tasks done', '4 tasks planned', '3 tasks planned', '2 tasks planned', 'No tasks yet'];
+    const circleBase = { width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, fontFamily: FS };
+    const days = labels.map((label, i) => {
+      let circleStyle;
+      if (i < 2) circleStyle = { ...circleBase, background: t.fillSuccess, color: contrastText };
+      else if (i === 2) circleStyle = { ...circleBase, background: t.fillAccent, color: contrastText };
+      else circleStyle = { ...circleBase, background: 'transparent', border: `1.5px solid ${t.border}`, color: t.textSecondary };
+      return { label, num: nums[i], fullDate: fullDates[i], summary: summaries[i], circleStyle };
+    });
+
+    const heights = [58, 92, 76, 108];
+    const bars = heights.map(h => ({ style: { width: 46, height: h, borderRadius: RADIUS.sm, background: t.fillSuccess } }));
+    const features = [{ text: 'AI goal breakdown and daily planning' }, { text: 'Smart priority and adhoc-swap suggestions' }, { text: 'Task notes' }, { text: 'Progress analytics and insights' }];
+
+    const S = {
+      page: { display: 'flex', justifyContent: 'center', padding: '40px 0', background: '#E5E5EA', minHeight: '100%', fontFamily: FS },
+      screen: { height: '100%', overflow: 'auto', background: t.surface0, fontFamily: FS, boxSizing: 'border-box', position: 'relative', paddingBottom: showTabBar ? 64 : 0 },
+      topBar: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: `52px ${SPACE.md}px 4px`, gap: SPACE.sm },
+      leftGroup: { display: 'flex', alignItems: 'center', gap: SPACE.sm },
+      backBtn: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: t.surface1, boxShadow: t.shadowSm, flexShrink: 0 },
+      title: { fontSize: 28, lineHeight: '34px', fontWeight: 700, color: t.textPrimary, letterSpacing: '-0.4px', margin: 0 },
+      iconColor: t.textSecondary,
+      moonIconDisplay: { display: t.light ? 'block' : 'none' },
+      sunIconDisplay: { display: t.light ? 'none' : 'block' },
+      dotsRow: { display: 'flex', alignItems: 'center', gap: SPACE.sm },
+      dotGreen: { ...dotStyle(this.state.accent === '#34C759'), color: '#34C759' },
+      dotBlue: { ...dotStyle(this.state.accent === '#007AFF'), color: '#007AFF' },
+      dotOrange: { ...dotStyle(this.state.accent === '#FF9500'), color: '#FF9500' },
+      dotGreenInner: { width: 14, height: 14, borderRadius: '50%', background: '#34C759' },
+      dotBlueInner: { width: 14, height: 14, borderRadius: '50%', background: '#007AFF' },
+      dotOrangeInner: { width: 14, height: 14, borderRadius: '50%', background: '#FF9500' },
+
+      welcomeBody: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 28px 40px', textAlign: 'center', minHeight: 'calc(100% - 84px)', boxSizing: 'border-box' },
+      logoBox: { width: 84, height: 84, borderRadius: RADIUS.lg, background: t.surface1, boxShadow: t.shadowSm, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      welcomeTitle: { fontSize: 34, lineHeight: '41px', fontWeight: 700, color: t.textPrimary, letterSpacing: '-0.5px', margin: '18px 0 0' },
+      tagline: { fontSize: 15, lineHeight: '20px', fontWeight: 400, color: t.textSecondary, margin: '4px 0 0' },
+      buttonCol: { width: '100%', display: 'flex', flexDirection: 'column', gap: SPACE.sm, marginTop: 'auto' },
+      appleBtn: { width: '100%', height: 50, borderRadius: RADIUS.lg, border: 'none', background: t.light ? '#000000' : '#FFFFFF', color: t.light ? '#FFFFFF' : '#000000', fontSize: 17, fontWeight: 600, fontFamily: FS, cursor: 'pointer', transition: `background ${EASE} 200ms` },
+      emailBtn: { width: '100%', height: 50, borderRadius: RADIUS.lg, border: `1px solid ${t.border}`, background: t.surface1, color: t.textPrimary, fontSize: 17, fontWeight: 600, fontFamily: FS, cursor: 'pointer' },
+
+      contentWrap: { padding: `4px ${SPACE.md}px ${SPACE.md}px`, display: 'flex', flexDirection: 'column', gap: SPACE.sm },
+      dateText: { fontSize: 15, lineHeight: '20px', fontWeight: 400, color: t.textSecondary, margin: '0 0 4px' },
+      subtitle: { fontSize: 15, lineHeight: '20px', fontWeight: 400, color: t.textSecondary, margin: '0 0 8px' },
+      goalCard: { background: t.surface1, borderRadius: RADIUS.lg, padding: SPACE.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: t.shadowSm, cursor: 'pointer' },
+      goalLeft: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 },
+      goalLabel: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSecondary, whiteSpace: 'nowrap' },
+      goalTitle: { fontSize: 22, lineHeight: '28px', fontWeight: 700, color: t.textPrimary, whiteSpace: 'nowrap' },
+      ringBox: { position: 'relative', width: 72, height: 72, flexShrink: 0 },
+      ringBoxBig: { position: 'relative', width: 130, height: 130, margin: '0 auto' },
+      ringBoxPomo: { position: 'relative', width: 160, height: 160, marginTop: 32 },
+      ringSvg: { transform: 'rotate(-90deg)' },
+      trackColor: t.border, fillAccent: t.fillAccent,
+      ringLabel: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: t.textPrimary },
+      ringLabelBig: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: t.textPrimary },
+      ringLabelPomo: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, fontWeight: 700, color: t.textPrimary },
+      ringWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 10 },
+      ringCaption: { fontSize: 15, lineHeight: '20px', fontWeight: 400, color: t.textSecondary, marginTop: 10 },
+      plusRow: { display: 'flex', alignItems: 'center', gap: 6, padding: '2px 4px', cursor: 'pointer' },
+      plusIcon: { fontSize: 15, color: t.textAccent, fontWeight: 700 },
+      plusLabel: { fontSize: 13, color: t.textAccent, fontWeight: 600 },
+      fixedRow: { display: 'flex', alignItems: 'center', padding: '2px 4px' },
+      fixedText: { fontSize: 13, lineHeight: '18px', color: t.textSecondary, fontWeight: 400 },
+      taskTextCol: { display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 },
+      doneCard: { background: t.bgSuccessTint, border: `1.5px solid ${t.fillSuccess}`, borderRadius: RADIUS.lg, padding: SPACE.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+      doneTitle: { fontSize: 17, lineHeight: '22px', fontWeight: 600, color: t.textSuccess },
+      doneMeta: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSuccess, opacity: 0.85 },
+      doneBubble: { width: 32, height: 32, borderRadius: '50%', background: t.fillSuccess, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+      progressCard: { background: t.bgAccentTint, border: `${t.light ? 1.5 : 2}px dashed ${t.fillAccent}`, borderRadius: RADIUS.lg, padding: SPACE.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer' },
+      progressTitle: { fontSize: 17, lineHeight: '22px', fontWeight: 600, color: t.textPrimary },
+      progressMeta: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSecondary },
+      progressRing: { width: 28, height: 28, borderRadius: '50%', border: `2.5px solid ${t.fillAccent}`, boxSizing: 'border-box', flexShrink: 0 },
+      pendingCard: { background: t.surface1, border: `1px solid ${t.border}`, borderRadius: RADIUS.lg, padding: SPACE.md, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, boxShadow: t.shadowSm },
+      pendingTitle: { fontSize: 17, lineHeight: '22px', fontWeight: 600, color: t.textPrimary },
+      pendingMeta: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSecondary },
+      pendingCircle: { width: 28, height: 28, borderRadius: '50%', border: `2px solid ${t.border}`, boxSizing: 'border-box', flexShrink: 0 },
+      fab: { position: 'absolute', right: SPACE.md, bottom: showTabBar ? 84 : 28, width: 56, height: 56, borderRadius: '50%', background: t.fillAccent, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: t.shadowMd },
+      fabIconColor: contrastText,
+
+      list: { display: 'flex', flexDirection: 'column', gap: SPACE.sm, marginTop: 6 },
+      row: { background: t.surface1, borderRadius: RADIUS.md, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: t.shadowSm },
+      rowSb: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', minHeight: 44 },
+      rowText: { display: 'flex', flexDirection: 'column', gap: 4 },
+      rowTitle: { fontSize: 17, lineHeight: '22px', fontWeight: 600, color: t.textPrimary },
+      rowMeta: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSecondary },
+      rowLabel: { fontSize: 17, lineHeight: '22px', fontWeight: 400, color: t.textPrimary },
+      addRow: { border: `1.5px dashed ${t.border}`, borderRadius: RADIUS.md, padding: SPACE.md, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
+      addPlus: { fontSize: 16, color: t.textSecondary, lineHeight: 1 },
+      addLabel: { fontSize: 15, fontWeight: 600, color: t.textSecondary },
+      weekLink: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 4px', cursor: 'pointer', marginTop: 4, minHeight: 44, boxSizing: 'border-box' },
+      weekLinkText: { fontSize: 17, fontWeight: 400, color: t.textAccent },
+      textAccent: t.textAccent,
+
+      dateStrip: { display: 'flex', justifyContent: 'space-between', marginBottom: 8 },
+      dateCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
+      dateLabel: { fontSize: 12, fontWeight: 500, color: t.textSecondary },
+      card: { background: t.surface1, borderRadius: RADIUS.md, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 5, boxShadow: t.shadowSm },
+      cardDate: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSecondary },
+      cardSummary: { fontSize: 17, lineHeight: '22px', fontWeight: 600, color: t.textPrimary },
+
+      nameField: { background: t.surface1, border: `1px solid ${t.border}`, borderRadius: RADIUS.md, padding: '15px 18px' },
+      fieldPlaceholder: { fontSize: 17, color: t.textMuted, fontWeight: 400 },
+      fieldValue: { fontSize: 17, color: t.textPrimary, fontWeight: 400 },
+      rowFields: { display: 'flex', gap: SPACE.sm },
+      smallField: { flex: 1, background: t.surface1, border: `1px solid ${t.border}`, borderRadius: RADIUS.md, padding: '15px 8px', textAlign: 'center' },
+      field: { background: t.surface1, border: `1px solid ${t.border}`, borderRadius: RADIUS.md, padding: '15px 18px' },
+      sectionLabel: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSecondary, margin: '10px 0 2px', textTransform: 'uppercase', letterSpacing: '0.02em' },
+      priorityRow: { display: 'flex', gap: SPACE.sm },
+      priorityHigh: { ...pillBase, background: t.surface1, border: `1.5px solid ${this.state.priority === 'high' ? priorityColor : t.border}`, color: this.state.priority === 'high' ? priorityColor : t.textPrimary },
+      priorityMedium: { ...pillBase, background: t.surface1, border: `1.5px solid ${this.state.priority === 'medium' ? priorityColor : t.border}`, color: this.state.priority === 'medium' ? priorityColor : t.textPrimary },
+      priorityLow: { ...pillBase, background: t.surface1, border: `1.5px solid ${this.state.priority === 'low' ? priorityColor : t.border}`, color: this.state.priority === 'low' ? priorityColor : t.textPrimary },
+      primaryBtn: { width: '100%', height: 50, marginTop: 12, borderRadius: RADIUS.lg, border: 'none', background: t.light ? '#000000' : '#FFFFFF', color: t.light ? '#FFFFFF' : '#000000', fontSize: 17, fontWeight: 600, fontFamily: FS, cursor: 'pointer' },
+      primaryBtnWide: { width: '80%', height: 50, marginTop: 26, borderRadius: RADIUS.lg, border: 'none', background: t.light ? '#000000' : '#FFFFFF', color: t.light ? '#FFFFFF' : '#000000', fontSize: 17, fontWeight: 600, fontFamily: FS, cursor: 'pointer' },
+
+      modal: { background: t.surface1, borderRadius: RADIUS.lg, padding: SPACE.lg, marginTop: 40, boxShadow: t.shadowMd },
+      alertRow: { display: 'flex', alignItems: 'center', gap: SPACE.sm },
+      alertTitle: { fontSize: 20, lineHeight: '25px', fontWeight: 600, color: t.textPrimary, margin: 0 },
+      alertBody: { fontSize: 15, lineHeight: '20px', fontWeight: 400, color: t.textSecondary, margin: '10px 0 0' },
+      optionList: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 18 },
+      option: { background: t.surface0, borderRadius: RADIUS.md, padding: '13px 14px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' },
+      radio: { width: 22, height: 22, borderRadius: '50%', border: `1.5px solid ${t.textPrimary}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' },
+      optionText: { display: 'flex', flexDirection: 'column', gap: 3 },
+      optionTitle: { fontSize: 16, lineHeight: '21px', fontWeight: 400, color: t.textPrimary },
+      optionMeta: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSecondary },
+      secondaryLink: { display: 'block', textAlign: 'center', fontSize: 15, fontWeight: 400, color: t.textAccent, marginTop: 14, cursor: 'pointer' },
+      lectureDotStyle: dotRadio(this.state.bumpSel === 'lecture'),
+      mealDotStyle: dotRadio(this.state.bumpSel === 'meal'),
+
+      aiOption: { background: this.state.aiMode === 'ai' ? t.bgAccentTint : t.surface1, border: `1.5px solid ${this.state.aiMode === 'ai' ? t.fillAccent : t.border}`, borderRadius: RADIUS.md, padding: '15px 16px', display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' },
+      aiSparkleFill: t.fillAccent,
+      sparkleIcon: { flexShrink: 0, marginTop: 3 },
+      optionTextCol: { display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 },
+      optionTitleRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+      aiTitle: { fontSize: 17, lineHeight: '22px', fontWeight: 600, color: t.textPrimary },
+      proBadge: { fontSize: 11, lineHeight: '13px', fontWeight: 700, color: '#FFFFFF', background: t.fillAccent, borderRadius: RADIUS.sm, padding: '3px 10px' },
+      aiSubtitle: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSecondary },
+      manualOption: { background: t.surface1, border: `1px solid ${t.border}`, borderRadius: RADIUS.md, padding: '15px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' },
+      pencilIcon: { flexShrink: 0 },
+      manualTitle: { fontSize: 17, lineHeight: '22px', fontWeight: 400, color: t.textPrimary },
+
+      statRow: { display: 'flex', gap: SPACE.sm, marginTop: 20 },
+      statCard: { flex: 1, background: t.surface1, borderRadius: RADIUS.md, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, boxShadow: t.shadowSm },
+      statNum: { fontSize: 20, lineHeight: '25px', fontWeight: 700, color: t.textPrimary },
+      statLabel: { fontSize: 13, lineHeight: '18px', fontWeight: 400, color: t.textSecondary },
+      chartRow: { display: 'flex', alignItems: 'flex-end', gap: 14, height: 130, marginTop: 12 },
+      insightCard: { background: t.surface1, borderRadius: RADIUS.md, padding: '18px 20px', boxShadow: t.shadowSm },
+      insightText: { fontSize: 15, lineHeight: '20px', fontWeight: 400, color: t.textPrimary },
+
+      group: { background: t.surface1, borderRadius: RADIUS.md, padding: '16px 18px', boxShadow: t.shadowSm, display: 'flex', flexDirection: 'column' },
+      divider: { height: 1, background: t.border, margin: '14px 0' },
+      appearanceToggle: { display: 'flex', gap: 4, cursor: 'pointer', minHeight: 44, alignItems: 'center' },
+      lightWord: { fontSize: 15, fontWeight: t.light ? 700 : 400, color: t.light ? t.textPrimary : t.textSecondary },
+      slashWord: { fontSize: 15, fontWeight: 400, color: t.textSecondary },
+      darkWord: { fontSize: 15, fontWeight: t.light ? 400 : 700, color: t.light ? t.textSecondary : t.textPrimary },
+      switchTrack: { width: 51, height: 31, borderRadius: 16, background: this.state.notif ? t.fillAccent : t.border, position: 'relative', cursor: 'pointer', boxSizing: 'border-box', transition: `background ${EASE} 200ms` },
+      switchKnob: { width: 27, height: 27, borderRadius: '50%', background: '#FFFFFF', position: 'absolute', top: 2, left: this.state.notif ? 22 : 2, boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: `left ${EASE} 200ms` },
+
+      pomoBody: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `4px ${SPACE.md}px ${SPACE.md}px` },
+      focusLabel: { fontSize: 13, fontWeight: 400, color: t.textSecondary },
+      focusTitle: { fontSize: 20, lineHeight: '25px', fontWeight: 600, color: t.textPrimary, marginTop: 4 },
+      intervalRow: { display: 'flex', gap: SPACE.sm, marginTop: 30, width: '100%' },
+      chip25: chipStyle(this.state.interval === 25), chip30: chipStyle(this.state.interval === 30), chip45: chipStyle(this.state.interval === 45),
+      playBtn: { width: 72, height: 72, borderRadius: '50%', background: t.light ? '#000000' : '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 28, cursor: 'pointer' },
+      playIconColor: t.light ? '#FFFFFF' : '#000000',
+      playIconDisplay: { display: this.state.playing ? 'none' : 'block' },
+      pauseIconDisplay: { display: this.state.playing ? 'block' : 'none' },
+      markCompleteLink: { fontSize: 15, fontWeight: 600, color: t.textAccent, marginTop: 20, cursor: 'pointer' },
+
+      centerCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `30px ${SPACE.md}px ${SPACE.md}px` },
+      checkBubble: { width: 88, height: 88, borderRadius: '50%', background: t.fillSuccess, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'wp-check-bounce 0.6s cubic-bezier(.34,1.56,.64,1)' },
+      checkColor: '#FFFFFF',
+      headline: { fontSize: 25, lineHeight: '30px', fontWeight: 700, color: t.textPrimary, margin: '20px 0 0' },
+      tagline2: { fontSize: 15, lineHeight: '20px', fontWeight: 400, color: t.textSecondary, margin: '6px 0 0' },
+      readoutCard: { background: t.surface1, borderRadius: RADIUS.md, padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 10, marginTop: 22, boxShadow: t.shadowSm },
+      readoutLabel: { fontSize: 13, fontWeight: 400, color: t.textSecondary },
+      readoutValue: { fontSize: 15, fontWeight: 600, color: t.textPrimary },
+
+      paywallBody: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `4px ${SPACE.lg}px 30px` },
+      iconBox: { width: 70, height: 70, borderRadius: RADIUS.lg, background: t.bgAccentTint, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      iconFillContrast: t.fillAccent,
+      featureList: { display: 'flex', flexDirection: 'column', gap: 16, marginTop: 28, width: '100%' },
+      featureRow: { display: 'flex', alignItems: 'center', gap: 14 },
+      featureDot: { width: 18, height: 18, borderRadius: '50%', background: t.fillSuccess, flexShrink: 0 },
+      featureText: { fontSize: 15, lineHeight: '20px', fontWeight: 400, color: t.textPrimary },
+      trialBtn: { width: '100%', height: 50, marginTop: 28, borderRadius: RADIUS.lg, border: 'none', background: t.light ? '#000000' : '#FFFFFF', color: t.light ? '#FFFFFF' : '#000000', fontSize: 17, fontWeight: 600, fontFamily: FS, cursor: 'pointer' },
+      freeLink: { fontSize: 15, fontWeight: 400, color: t.textAccent, marginTop: 14, cursor: 'pointer' },
+
+      tabBar: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 64, background: t.surface1, borderTop: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-around', boxSizing: 'border-box', paddingBottom: 6 },
+    };
+    const tabStyle = active => ({ fontSize: 12, fontWeight: active ? 600 : 400, color: active ? t.fillAccent : t.textSecondary, cursor: 'pointer' });
+    S.tabToday = tabStyle(screen === 'today');
+    S.tabSchedule = tabStyle(screen === 'schedule');
+    S.tabProgress = tabStyle(screen === 'progress');
+    S.tabSettings = tabStyle(screen === 'settings');
+
+    return {
+      S, isDark: !t.light, deviceWidth: 402, deviceHeight: 874,
+      screenTitle: TITLES[screen] || '', showBack, showTabBar,
+      isWelcome: screen === 'welcome', isToday: screen === 'today', isSchedule: screen === 'schedule', isWeek: screen === 'week',
+      isNewTask: screen === 'newtask', isAdhoc: screen === 'adhoc', isGoalCreate: screen === 'goalcreate', isGoalDetail: screen === 'goaldetail',
+      isPomodoro: screen === 'pomodoro', isCompletion: screen === 'completion', isProgress: screen === 'progress', isSettings: screen === 'settings', isPaywall: screen === 'paywall',
+      ringCircumference, ringOffset, days, bars, features,
+      toggleTheme: () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+      setAccentGreen: () => this.setState({ accent: '#34C759' }),
+      setAccentBlue: () => this.setState({ accent: '#007AFF' }),
+      setAccentOrange: () => this.setState({ accent: '#FF9500' }),
+      goBack: () => this.go(BACK_TARGET[screen] || 'today'),
+      goToday: () => this.go('today'), goSchedule: () => this.go('schedule'), goWeek: () => this.go('week'),
+      goNewTask: () => this.go('newtask'), goGoalCreate: () => this.go('goalcreate'), goGoalDetail: () => this.go('goaldetail'),
+      goPomodoro: () => this.go('pomodoro'), goCompletion: () => this.go('completion'), goProgress: () => this.go('progress'),
+      goSettings: () => this.go('settings'), goPaywall: () => this.go('paywall'),
+      saveTask: () => this.go('adhoc'),
+      selectHigh: () => this.setState({ priority: 'high' }), selectMedium: () => this.setState({ priority: 'medium' }), selectLow: () => this.setState({ priority: 'low' }),
+      selectLecture: () => this.setState({ bumpSel: 'lecture' }), selectMeal: () => this.setState({ bumpSel: 'meal' }),
+      selectAI: () => this.setState({ aiMode: 'ai' }), selectManual: () => this.setState({ aiMode: 'manual' }),
+      select25: () => this.setState({ interval: 25 }), select30: () => this.setState({ interval: 30 }), select45: () => this.setState({ interval: 45 }),
+      togglePlay: () => this.setState(s => ({ playing: !s.playing })),
+      toggleNotif: () => this.setState(s => ({ notif: !s.notif })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

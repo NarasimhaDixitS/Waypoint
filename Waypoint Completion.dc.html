@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+@keyframes wp-check-bounce{0%{transform:scale(0.3);opacity:0}55%{transform:scale(1.12);opacity:1}75%{transform:scale(0.94)}100%{transform:scale(1)}}
+@keyframes wp-fade-up{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+</style>
+</helmet>
+<div style="{{ S.page }}">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" width="{{ deviceWidth }}" height="{{ deviceHeight }}" hint-size="402,874">
+    <div style="{{ S.screen }}">
+      <div style="{{ S.controls }}">
+        <button style="{{ S.moonBtn }}" onClick="{{ toggleTheme }}" aria-label="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 20 20" style="{{ S.sunIconDisplay }}">
+            <circle cx="10" cy="10" r="4.2" fill="{{ S.iconColor }}"></circle>
+            <path d="M10 1.5v2.4M10 16.1v2.4M18.5 10h-2.4M3.9 10H1.5M15.9 4.1l-1.7 1.7M5.8 14.2l-1.7 1.7M15.9 15.9l-1.7-1.7M5.8 5.8L4.1 4.1" stroke="{{ S.iconColor }}" stroke-width="1.6" stroke-linecap="round"></path>
+          </svg>
+          <svg width="18" height="18" viewBox="0 0 20 20" style="{{ S.moonIconDisplay }}">
+            <path d="M16.5 12.7A7 7 0 018 4.2a7 7 0 108.5 8.5z" fill="{{ S.iconColor }}"></path>
+          </svg>
+        </button>
+        <div style="{{ S.dotsRow }}">
+          <div style="{{ S.dotGreen }}" onClick="{{ setAccentGreen }}"><div style="{{ S.dotGreenInner }}"></div></div>
+          <div style="{{ S.dotBlue }}" onClick="{{ setAccentBlue }}"><div style="{{ S.dotBlueInner }}"></div></div>
+          <div style="{{ S.dotOrange }}" onClick="{{ setAccentOrange }}"><div style="{{ S.dotOrangeInner }}"></div></div>
+        </div>
+      </div>
+
+      <div style="{{ S.centerCol }}">
+        <div style="{{ S.checkBubble }}">
+          <svg width="46" height="46" viewBox="0 0 46 46">
+            <path d="M12 24l7 7 15-16" stroke="{{ S.checkColor }}" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </div>
+        <h1 style="{{ S.headline }}">Day complete</h1>
+        <p style="{{ S.subtitle }}">All 5 tasks done. 6-day streak.</p>
+        <div style="{{ S.readoutCard }}">
+          <span style="{{ S.readoutLabel }}">Goal progress</span>
+          <span style="{{ S.readoutValue }}">70% -&gt; 72%</span>
+        </div>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:950},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;light&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#3B6D11&quot;,&quot;options&quot;:[&quot;#3B6D11&quot;,&quot;#378ADD&quot;,&quot;#EEFF00&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  state = { theme: this.props.theme || 'light', accent: this.props.accentColor || '#3B6D11' };
+
+  contrastOn(hex) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
+    const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luma > 0.6 ? '#000000' : '#FFFFFF';
+  }
+
+  getTokens() {
+    const light = this.state.theme === 'light';
+    return {
+      light,
+      surface0: light ? '#F5F5F3' : '#1C1C1A',
+      surface1: light ? '#FFFFFF' : '#242422',
+      textPrimary: light ? '#2C2C2A' : '#F1EFE8',
+      textSecondary: light ? '#5F5E5A' : '#B4B2A9',
+      border: light ? '#E5E3DB' : '#3A3A37',
+      fillSuccess: '#639922',
+      shadow: light ? '0 1px 3px rgba(0,0,0,0.07)' : '0 1px 3px rgba(0,0,0,0.4)',
+    };
+  }
+
+  renderVals() {
+    const t = this.getTokens();
+    const FS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+    const S = {
+      page: { display: 'flex', justifyContent: 'center', padding: '40px 0', background: '#e9e7e1', minHeight: '100%', fontFamily: FS },
+      screen: { height: '100%', background: t.surface0, fontFamily: FS, boxSizing: 'border-box', padding: '52px 20px 20px', display: 'flex', flexDirection: 'column' },
+      controls: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 },
+      moonBtn: { width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textSecondary, background: 'none', border: 'none', padding: 0 },
+      iconColor: t.textSecondary,
+      moonIconDisplay: { display: t.light ? 'block' : 'none' },
+      sunIconDisplay: { display: t.light ? 'none' : 'block' },
+      dotsRow: { display: 'flex', alignItems: 'center', gap: 7 },
+      dotGreen: { width: this.state.accent === '#3B6D11' ? 18 : 16, height: this.state.accent === '#3B6D11' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#3B6D11' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #3B6D11` : 'none' },
+      dotBlue: { width: this.state.accent === '#378ADD' ? 18 : 16, height: this.state.accent === '#378ADD' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#378ADD' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #378ADD` : 'none' },
+      dotOrange: { width: this.state.accent === '#EEFF00' ? 18 : 16, height: this.state.accent === '#EEFF00' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#EEFF00' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #EEFF00` : 'none' },
+      dotGreenInner: { width: 12, height: 12, borderRadius: '50%', background: '#3B6D11' },
+      dotBlueInner: { width: 12, height: 12, borderRadius: '50%', background: '#378ADD' },
+      dotOrangeInner: { width: 12, height: 12, borderRadius: '50%', background: '#EEFF00' },
+      centerCol: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0, marginTop: -40 },
+      checkBubble: { width: 96, height: 96, borderRadius: '50%', background: t.fillSuccess, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'wp-check-bounce 0.6s cubic-bezier(.34,1.56,.64,1)' },
+      checkColor: this.contrastOn(t.fillSuccess),
+      headline: { fontSize: 26, fontWeight: 700, color: t.textPrimary, margin: '22px 0 0', animation: 'wp-fade-up 0.5s ease-out 0.3s both' },
+      subtitle: { fontSize: 15.5, fontWeight: 400, color: t.textSecondary, margin: '6px 0 0', animation: 'wp-fade-up 0.5s ease-out 0.4s both' },
+      readoutCard: { background: t.surface1, borderRadius: 18, padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 10, marginTop: 26, boxShadow: t.shadow, animation: 'wp-fade-up 0.5s ease-out 0.5s both' },
+      readoutLabel: { fontSize: 14, fontWeight: 400, color: t.textSecondary },
+      readoutValue: { fontSize: 14.5, fontWeight: 600, color: t.textPrimary },
+    };
+    return {
+      S, isDark: !t.light, deviceWidth: 402, deviceHeight: 874,
+      toggleTheme: () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+      setAccentGreen: () => this.setState({ accent: '#3B6D11' }),
+      setAccentBlue: () => this.setState({ accent: '#378ADD' }),
+      setAccentOrange: () => this.setState({ accent: '#EEFF00' }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

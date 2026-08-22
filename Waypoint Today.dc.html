@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0}
+  @keyframes wp-bump{0%{transform:scale(1)}35%{transform:scale(1.18)}60%{transform:scale(0.94)}100%{transform:scale(1)}}
+  @keyframes wp-ring-pulse{0%{filter:drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 0 6px currentColor)}100%{filter:drop-shadow(0 0 0 transparent)}}
+</style>
+</helmet>
+<div style="{{ S.page }}">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" width="{{ deviceWidth }}" height="{{ deviceHeight }}" hint-size="402,874">
+    <div style="{{ S.screen }}">
+      <div style="{{ S.scrollArea }}">
+      <div style="{{ S.headerWrap }}">
+        <div style="{{ S.titleRow }}">
+          <h1 style="{{ S.title }}">Waypoint</h1>
+          <div style="{{ S.controls }}">
+            <button style="{{ S.moonBtn }}" onClick="{{ toggleTheme }}" aria-label="Toggle theme">
+              <svg width="20" height="20" viewBox="0 0 20 20" style="{{ S.sunIconDisplay }}">
+                <circle cx="10" cy="10" r="4.2" fill="{{ S.iconColor }}"></circle>
+                <path d="M10 1.5v2.4M10 16.1v2.4M18.5 10h-2.4M3.9 10H1.5M15.9 4.1l-1.7 1.7M5.8 14.2l-1.7 1.7M15.9 15.9l-1.7-1.7M5.8 5.8L4.1 4.1" stroke="{{ S.iconColor }}" stroke-width="1.6" stroke-linecap="round"></path>
+              </svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" style="{{ S.moonIconDisplay }}">
+                <path d="M16.5 12.7A7 7 0 018 4.2a7 7 0 108.5 8.5z" fill="{{ S.iconColor }}"></path>
+              </svg>
+            </button>
+            <div style="{{ S.dotsRow }}">
+              <div style="{{ S.dotGreen }}" onClick="{{ setAccentGreen }}"><div style="{{ S.dotGreenInner }}"></div></div>
+              <div style="{{ S.dotBlue }}" onClick="{{ setAccentBlue }}"><div style="{{ S.dotBlueInner }}"></div></div>
+              <div style="{{ S.dotOrange }}" onClick="{{ setAccentOrange }}"><div style="{{ S.dotOrangeInner }}"></div></div>
+            </div>
+          </div>
+        </div>
+        <p style="{{ S.dateText }}">Thursday, Aug 13</p>
+      </div>
+
+      <div style="{{ S.contentWrap }}">
+        <div style="{{ S.goalCard }}">
+          <div style="{{ S.goalLeft }}">
+            <span style="{{ S.goalTitle }}">Exam prep</span>
+            <span style="{{ S.goalLabel }}">Day 12 of 60</span>
+          </div>
+          <div style="{{ S.ringBox }}">
+            <svg width="84" height="84" viewBox="0 0 84 84" style="{{ S.ringSvg }}">
+              <circle cx="42" cy="42" r="35" stroke="{{ S.trackColor }}" stroke-width="7" fill="none"></circle>
+              <circle cx="42" cy="42" r="35" stroke="{{ S.fillAccent }}" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="{{ ringCircumference }}" stroke-dashoffset="{{ ringOffset }}" style="{{ S.ringStroke }}"></circle>
+            </svg>
+            <div style="{{ S.ringLabel }}">{{ progressLabel }}</div>
+          </div>
+        </div>
+
+        <div style="{{ S.fixedRow }}" onClick="{{ toggleGym }}">
+          <svg width="14" height="14" viewBox="0 0 14 14" style="{{ S.chevronGym }}">
+            <path d="M3 5l4 4 4-4" stroke="{{ S.iconColor }}" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <svg width="15" height="15" viewBox="0 0 16 16" style="{{ S.iconFlex }}">
+            <rect x="1.5" y="2.5" width="13" height="12" rx="2" stroke="{{ S.iconColor }}" stroke-width="1.4" fill="none"></rect>
+            <path d="M1.5 5.8h13M5 1.2v2.2M11 1.2v2.2" stroke="{{ S.iconColor }}" stroke-width="1.4" stroke-linecap="round"></path>
+          </svg>
+          <span style="{{ S.fixedText }}">7:30-8:30 - Gym (fixed)</span>
+        </div>
+
+        <div style="{{ S.doneCard }}">
+          <div style="{{ S.taskTextCol }}">
+            <span style="{{ S.doneTitle }}">Morning run, 30 min</span>
+            <span style="{{ S.doneMeta }}">8:30-9:00 &nbsp;-&nbsp; done</span>
+          </div>
+          <div style="{{ S.doneBubble }}" onClick="{{ toggleRun }}">
+            <svg width="15" height="12" viewBox="0 0 15 12">
+              <path d="M1.5 6.2l4 4L13.5 1.5" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </div>
+        </div>
+
+        <div style="{{ S.progressCard }}">
+          <div style="{{ S.taskTextCol }}">
+            <span style="{{ S.progressTitle }}">Deep work: thesis ch. 3</span>
+            <span style="{{ S.progressMeta }}">9:00-11:00 &nbsp;-&nbsp; in progress</span>
+          </div>
+          <div style="{{ S.progressIcons }}">
+            <svg width="15" height="15" viewBox="0 0 15 15">
+              <path d="M3 1.8v11.4l10-5.7z" fill="{{ S.progressIconColor }}"></path>
+            </svg>
+            <svg width="15" height="15" viewBox="0 0 16 16">
+              <rect x="2" y="1" width="12" height="14" rx="1.6" stroke="{{ S.progressIconColor }}" stroke-width="1.4" fill="none"></rect>
+              <path d="M4.5 5h7M4.5 8h7M4.5 11h4.5" stroke="{{ S.progressIconColor }}" stroke-width="1.3" stroke-linecap="round"></path>
+            </svg>
+            <div style="{{ S.progressRing }}" onClick="{{ toggleDeep }}"></div>
+          </div>
+        </div>
+
+        <div style="{{ S.fixedRow }}" onClick="{{ toggleMeeting }}">
+          <svg width="14" height="14" viewBox="0 0 14 14" style="{{ S.chevronMeeting }}">
+            <path d="M3 5l4 4 4-4" stroke="{{ S.iconColor }}" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <svg width="15" height="15" viewBox="0 0 16 16" style="{{ S.iconFlex }}">
+            <rect x="1.5" y="2.5" width="13" height="12" rx="2" stroke="{{ S.iconColor }}" stroke-width="1.4" fill="none"></rect>
+            <path d="M1.5 5.8h13M5 1.2v2.2M11 1.2v2.2" stroke="{{ S.iconColor }}" stroke-width="1.4" stroke-linecap="round"></path>
+          </svg>
+          <span style="{{ S.fixedText }}">11:30-1:00 - Team meeting (fixed)</span>
+        </div>
+
+        <div style="{{ S.pendingCard }}">
+          <div style="{{ S.taskTextCol }}">
+            <span style="{{ S.pendingTitle }}">Review lecture notes</span>
+            <span style="{{ S.pendingMeta }}">2:00-3:00</span>
+          </div>
+          <div style="{{ S.pendingCircle }}" onClick="{{ toggleReview }}"></div>
+        </div>
+
+        <div style="{{ S.pendingCard }}">
+          <div style="{{ S.taskTextCol }}">
+            <span style="{{ S.pendingTitle }}">Meal prep for tomorrow</span>
+            <span style="{{ S.pendingMeta }}">6:00-6:30</span>
+          </div>
+          <div style="{{ S.pendingCircle }}" onClick="{{ toggleMeal }}"></div>
+        </div>
+      </div>
+      </div>
+      <div style="{{ S.fab }}">
+        <svg width="22" height="22" viewBox="0 0 22 22">
+          <path d="M11 3v16M3 11h16" stroke="{{ S.fabIconColor }}" stroke-width="2.4" stroke-linecap="round"></path>
+        </svg>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:950},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;light&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#3B6D11&quot;,&quot;options&quot;:[&quot;#3B6D11&quot;,&quot;#378ADD&quot;,&quot;#EEFF00&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;goalProgress&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:70,&quot;min&quot;:0,&quot;max&quot;:100,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Goal&quot;}}">
+class Component extends DCLogic {
+  state = {
+    theme: this.props.theme || 'light',
+    accent: this.props.accentColor || '#3B6D11',
+    progress: this.props.goalProgress ?? 70,
+    animatedProgress: 0,
+    gymCollapsed: false,
+    meetingCollapsed: false,
+    run: 'done',
+    deep: 'inprogress',
+    review: 'pending',
+    meal: 'pending',
+    bump: null,
+  };
+
+  componentDidMount() {
+    setTimeout(() => this.setState(s => ({ animatedProgress: s.progress })), 120);
+  }
+
+  hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) };
+  }
+  rgbToHex(r, g, b) {
+    const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+    return `#${c(r)}${c(g)}${c(b)}`;
+  }
+  mix(hex1, hex2, pct1) {
+    const c1 = this.hexToRgb(hex1), c2 = this.hexToRgb(hex2);
+    return this.rgbToHex(
+      c1.r * pct1 + c2.r * (1 - pct1),
+      c1.g * pct1 + c2.g * (1 - pct1),
+      c1.b * pct1 + c2.b * (1 - pct1)
+    );
+  }
+
+  bumpTask(key) {
+    this.setState({ bump: key });
+    clearTimeout(this._bt);
+    this._bt = setTimeout(() => this.setState(s => (s.bump === key ? { bump: null } : null)), 420);
+  }
+
+  getTokens() {
+    const { theme, accent } = this.state;
+    const light = theme === 'light';
+    const surface0 = light ? '#F5F5F3' : '#1C1C1A';
+    const surface1 = light ? '#FFFFFF' : '#242422';
+    const textPrimary = light ? '#2C2C2A' : '#F1EFE8';
+    const textSecondary = light ? '#5F5E5A' : '#B4B2A9';
+    const textMuted = '#888780';
+    const border = light ? '#E5E3DB' : '#3A3A37';
+    const fillSuccess = '#639922';
+    const textSuccess = light ? '#3B6D11' : '#C0DD97';
+    const bgSuccessTint = this.mix(fillSuccess, surface1, 0.24);
+    const isDefaultBlue = accent.toUpperCase() === '#378ADD';
+    let fillAccent, textAccent;
+    if (isDefaultBlue) {
+      fillAccent = light ? '#378ADD' : '#85B7EB';
+      textAccent = light ? '#185FA5' : '#B5D4F4';
+    } else {
+      fillAccent = light ? accent : this.mix(accent, '#FFFFFF', 0.6);
+      textAccent = light ? this.mix(accent, '#000000', 0.44) : this.mix(accent, '#FFFFFF', 0.93);
+    }
+    const bgAccentTint = this.mix(fillAccent, surface1, light ? 0.24 : 0.4);
+    const shadow = light ? '0 1px 3px rgba(0,0,0,0.07)' : '0 1px 3px rgba(0,0,0,0.4)';
+    return { surface0, surface1, textPrimary, textSecondary, textMuted, border, fillSuccess, textSuccess, bgSuccessTint, fillAccent, textAccent, bgAccentTint, light, shadow };
+  }
+
+  renderVals() {
+    const t = this.getTokens();
+    const FS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+    const bump = key => this.state.bump === key ? { animation: 'wp-bump 0.42s cubic-bezier(.34,1.56,.64,1)' } : {};
+    const accentRgbB0 = this.hexToRgb(t.fillAccent);
+    const accentLumaB0 = (0.299 * accentRgbB0.r + 0.587 * accentRgbB0.g + 0.114 * accentRgbB0.b) / 255;
+    const progressBorderColor = accentLumaB0 > 0.75 ? '#000000' : t.fillAccent;
+
+    const S = {
+      page: { display: 'flex', justifyContent: 'center', padding: '40px 0', background: '#e9e7e1', minHeight: '100%', fontFamily: FS },
+      screen: { height: '100%', overflow: 'hidden', background: t.surface0, fontFamily: FS, boxSizing: 'border-box', position: 'relative' },
+      scrollArea: { height: '100%', overflow: 'auto' },
+      headerWrap: { padding: '68px 20px 16px', display: 'flex', flexDirection: 'column', gap: 4 },
+      titleRow: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' },
+      title: { fontSize: 29, fontWeight: 500, letterSpacing: '-0.5px', color: t.textPrimary, margin: 0 },
+      controls: { display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8 },
+      moonBtn: { width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textSecondary, background: 'none', border: 'none', padding: 0 },
+      dotsRow: { display: 'flex', alignItems: 'center', gap: 7 },
+      dotGreen: { width: this.state.accent === '#3B6D11' ? 18 : 16, height: this.state.accent === '#3B6D11' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#3B6D11' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #3B6D11` : 'none' },
+      dotBlue: { width: this.state.accent === '#378ADD' ? 18 : 16, height: this.state.accent === '#378ADD' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#378ADD' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #378ADD` : 'none' },
+      dotOrange: { width: this.state.accent === '#EEFF00' ? 18 : 16, height: this.state.accent === '#EEFF00' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#EEFF00' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #EEFF00` : 'none' },
+      dotGreenInner: { width: 13, height: 13, borderRadius: '50%', background: '#3B6D11' },
+      dotBlueInner: { width: 13, height: 13, borderRadius: '50%', background: '#378ADD' },
+      dotOrangeInner: { width: 13, height: 13, borderRadius: '50%', background: '#EEFF00' },
+      dateText: { fontSize: 15, fontWeight: 400, color: t.textSecondary, margin: '2px 0 0' },
+      contentWrap: { padding: '4px 20px 20px', display: 'flex', flexDirection: 'column', gap: 9 },
+      goalCard: { background: t.surface1, borderRadius: 18, padding: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: t.shadow },
+      goalLeft: { display: 'flex', flexDirection: 'column', gap: 6 },
+      goalLabel: { fontSize: 14, fontWeight: 400, color: t.textSecondary },
+      goalTitle: { fontSize: 24, fontWeight: 700, color: t.textPrimary },
+      fixedRow: { display: 'flex', alignItems: 'center', gap: 7, padding: '2px 4px', cursor: 'pointer' },
+      fixedText: { fontSize: 13, color: t.textSecondary, fontWeight: 400 },
+      taskTextCol: { display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 },
+      doneCard: { background: t.bgSuccessTint, border: `1.5px solid ${t.fillSuccess}`, borderRadius: 18, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+      doneTitle: { fontSize: 14.5, fontWeight: 500, color: t.textSuccess },
+      doneMeta: { fontSize: 12.5, fontWeight: 400, color: t.textSuccess, opacity: 0.85 },
+      doneBubble: { width: 28, height: 28, borderRadius: '50%', background: t.fillSuccess, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', ...bump('run') },
+      progressCard: { background: t.bgAccentTint, border: `${t.light ? 1.5 : 2}px dashed ${progressBorderColor}`, borderRadius: 18, padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, transform: 'scale(1.08)', transformOrigin: 'center', margin: '6px 0' },
+      progressTitle: { fontSize: 14.5, fontWeight: 500, color: t.light ? '#000000' : '#FFFFFF' },
+      progressMeta: { fontSize: 12.5, fontWeight: 400, color: t.light ? '#000000' : '#FFFFFF', opacity: 0.85 },
+      progressIcons: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
+      progressRing: { width: 24, height: 24, borderRadius: '50%', border: `2.5px solid ${t.light ? '#000000' : '#FFFFFF'}`, cursor: 'pointer', boxSizing: 'border-box', ...bump('deep') },
+      pendingCard: { background: t.surface1, border: `1px solid ${t.border}`, borderRadius: 18, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, boxShadow: t.shadow },
+      pendingTitle: { fontSize: 14.5, fontWeight: 500, color: t.textPrimary },
+      pendingMeta: { fontSize: 12.5, fontWeight: 400, color: t.textSecondary },
+      pendingCircle: { width: 24, height: 24, borderRadius: '50%', border: `2px solid ${t.border}`, cursor: 'pointer', boxSizing: 'border-box', flexShrink: 0 },
+      fab: { position: 'absolute', right: 20, bottom: 28, width: 56, height: 56, borderRadius: '50%', background: t.fillAccent, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: t.light ? '0 4px 12px rgba(0,0,0,0.18)' : '0 4px 12px rgba(0,0,0,0.5)' },
+      fabIconColor: t.light ? '#000000' : '#FFFFFF',
+    };
+
+    S.iconColor = t.textSecondary;
+    S.textAccent = t.textAccent;
+    S.progressIconColor = t.light ? '#000000' : '#FFFFFF';
+    S.moonIconDisplay = { display: t.light ? 'block' : 'none' };
+    S.sunIconDisplay = { display: t.light ? 'none' : 'block' };
+    S.ringBorderColor = t.light ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.55)';
+    S.fillAccent = t.fillAccent;
+    S.fillSuccess = t.fillSuccess;
+    S.trackColor = t.border;
+    S.iconFlex = { flexShrink: 0 };
+    S.chevronGym = { flexShrink: 0, transform: this.state.gymCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform .18s' };
+    S.chevronMeeting = { flexShrink: 0, transform: this.state.meetingCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform .18s' };
+    S.ringBox = { position: 'relative', width: 84, height: 84, flexShrink: 0 };
+    S.ringSvg = { transform: 'rotate(-90deg)' };
+    S.ringLabel = {
+      position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 600,
+      color: t.textPrimary, fontFamily: FS,
+    };
+
+    const r = 35, sw = 7, c = 2 * Math.PI * r;
+    const pct = this.state.animatedProgress;
+    S.ringStroke = { transition: 'stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1)', color: t.fillAccent, animation: pct >= 70 ? 'wp-ring-pulse 1.8s ease-out 1.1s' : 'none' };
+
+    return {
+      S, isDark: !t.light,
+      deviceWidth: 402, deviceHeight: 874,
+      ringCircumference: c,
+      ringOffset: c * (1 - pct / 100),
+      progressLabel: `${Math.round(pct)}%`,
+      toggleTheme: () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+      setAccentGreen: () => this.setState({ accent: '#3B6D11' }),
+      setAccentBlue: () => this.setState({ accent: '#378ADD' }),
+      setAccentOrange: () => this.setState({ accent: '#EEFF00' }),
+      toggleGym: () => this.setState(s => ({ gymCollapsed: !s.gymCollapsed })),
+      toggleMeeting: () => this.setState(s => ({ meetingCollapsed: !s.meetingCollapsed })),
+      toggleRun: () => { this.bumpTask('run'); this.setState(s => ({ run: s.run === 'done' ? 'pending' : 'done' })); },
+      toggleDeep: () => { this.bumpTask('deep'); this.setState(s => ({ deep: s.deep === 'done' ? 'inprogress' : 'done' })); },
+      toggleReview: () => { this.bumpTask('review'); this.setState(s => ({ review: s.review === 'done' ? 'pending' : 'done' })); },
+      toggleMeal: () => { this.bumpTask('meal'); this.setState(s => ({ meal: s.meal === 'done' ? 'pending' : 'done' })); },
+    };
+  }
+}
+
+</script>
+</body>
+</html>

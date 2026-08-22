@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>body{margin:0}</style>
+</helmet>
+<div style="{{ S.page }}">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" width="{{ deviceWidth }}" height="{{ deviceHeight }}" hint-size="402,874">
+    <div style="{{ S.screen }}">
+      <div style="{{ S.controls }}">
+        <button style="{{ S.moonBtn }}" onClick="{{ toggleTheme }}" aria-label="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 20 20" style="{{ S.sunIconDisplay }}">
+            <circle cx="10" cy="10" r="4.2" fill="{{ S.iconColor }}"></circle>
+            <path d="M10 1.5v2.4M10 16.1v2.4M18.5 10h-2.4M3.9 10H1.5M15.9 4.1l-1.7 1.7M5.8 14.2l-1.7 1.7M15.9 15.9l-1.7-1.7M5.8 5.8L4.1 4.1" stroke="{{ S.iconColor }}" stroke-width="1.6" stroke-linecap="round"></path>
+          </svg>
+          <svg width="18" height="18" viewBox="0 0 20 20" style="{{ S.moonIconDisplay }}">
+            <path d="M16.5 12.7A7 7 0 018 4.2a7 7 0 108.5 8.5z" fill="{{ S.iconColor }}"></path>
+          </svg>
+        </button>
+        <div style="{{ S.dotsRow }}">
+          <div style="{{ S.dotGreen }}" onClick="{{ setAccentGreen }}"><div style="{{ S.dotGreenInner }}"></div></div>
+          <div style="{{ S.dotBlue }}" onClick="{{ setAccentBlue }}"><div style="{{ S.dotBlueInner }}"></div></div>
+          <div style="{{ S.dotOrange }}" onClick="{{ setAccentOrange }}"><div style="{{ S.dotOrangeInner }}"></div></div>
+        </div>
+      </div>
+
+      <div style="{{ S.modal }}">
+        <div style="{{ S.alertRow }}">
+          <svg width="22" height="22" viewBox="0 0 22 22" style="{{ S.alertIcon }}">
+            <path d="M11 2.5L21 19.5H1z" stroke="#D9A441" stroke-width="1.6" fill="none" stroke-linejoin="round"></path>
+            <path d="M11 9v4.5" stroke="#D9A441" stroke-width="1.6" stroke-linecap="round"></path>
+            <circle cx="11" cy="16" r="1" fill="#D9A441"></circle>
+          </svg>
+          <h2 style="{{ S.alertTitle }}">New task needs a slot</h2>
+        </div>
+        <p style="{{ S.alertBody }}">"Call the dentist" - your day is full.<br/>Pick a task to move to tomorrow.</p>
+
+        <div style="{{ S.optionList }}">
+          <div style="{{ S.option }}" onClick="{{ selectLecture }}">
+            <div style="{{ S.radio }}"><div style="{{ S.lectureDotStyle }}"></div></div>
+            <div style="{{ S.optionText }}">
+              <span style="{{ S.optionTitle }}">Review lecture notes</span>
+              <span style="{{ S.optionMeta }}">Low priority - 2:00-3:00</span>
+            </div>
+          </div>
+          <div style="{{ S.option }}" onClick="{{ selectMeal }}">
+            <div style="{{ S.radio }}"><div style="{{ S.mealDotStyle }}"></div></div>
+            <div style="{{ S.optionText }}">
+              <span style="{{ S.optionTitle }}">Meal prep</span>
+              <span style="{{ S.optionMeta }}">Medium priority - 6:00-6:30</span>
+            </div>
+          </div>
+        </div>
+
+        <button style="{{ S.primaryBtn }}">Bump selected task</button>
+        <span style="{{ S.secondaryLink }}">Or bump the new task instead</span>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:950},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;light&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#3B6D11&quot;,&quot;options&quot;:[&quot;#3B6D11&quot;,&quot;#378ADD&quot;,&quot;#EEFF00&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  state = { theme: this.props.theme || 'light', accent: this.props.accentColor || '#3B6D11', selected: 'lecture' };
+
+  hexToRgb(hex) { const h = hex.replace('#', ''); return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) }; }
+  rgbToHex(r, g, b) { const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'); return `#${c(r)}${c(g)}${c(b)}`; }
+
+  getTokens() {
+    const light = this.state.theme === 'light';
+    return {
+      light,
+      surface0: light ? '#F5F5F3' : '#1C1C1A',
+      surface1: light ? '#FFFFFF' : '#242422',
+      surface2: light ? '#F5F5F3' : '#1C1C1A',
+      textPrimary: light ? '#2C2C2A' : '#F1EFE8',
+      textSecondary: light ? '#5F5E5A' : '#B4B2A9',
+      border: light ? '#E5E3DB' : '#3A3A37',
+      shadow: light ? '0 1px 3px rgba(0,0,0,0.07)' : '0 1px 3px rgba(0,0,0,0.4)',
+    };
+  }
+
+  renderVals() {
+    const t = this.getTokens();
+    const FS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+    const dotColor = t.light ? '#2C2C2A' : '#F1EFE8';
+    const dotStyle = (filled) => ({ width: 12, height: 12, borderRadius: '50%', background: filled ? dotColor : 'transparent' });
+    const S = {
+      page: { display: 'flex', justifyContent: 'center', padding: '40px 0', background: '#e9e7e1', minHeight: '100%', fontFamily: FS },
+      screen: { height: '100%', overflow: 'auto', background: t.surface0, fontFamily: FS, boxSizing: 'border-box', padding: '52px 20px 20px' },
+      controls: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 },
+      moonBtn: { width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textSecondary, background: 'none', border: 'none', padding: 0 },
+      iconColor: t.textSecondary,
+      moonIconDisplay: { display: t.light ? 'block' : 'none' },
+      sunIconDisplay: { display: t.light ? 'none' : 'block' },
+      dotsRow: { display: 'flex', alignItems: 'center', gap: 7 },
+      dotGreen: { width: this.state.accent === '#3B6D11' ? 18 : 16, height: this.state.accent === '#3B6D11' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#3B6D11' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #3B6D11` : 'none' },
+      dotBlue: { width: this.state.accent === '#378ADD' ? 18 : 16, height: this.state.accent === '#378ADD' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#378ADD' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #378ADD` : 'none' },
+      dotOrange: { width: this.state.accent === '#EEFF00' ? 18 : 16, height: this.state.accent === '#EEFF00' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#EEFF00' ? `0 0 0 2px ${t.surface0}, 0 0 0 3.5px #EEFF00` : 'none' },
+      dotGreenInner: { width: 12, height: 12, borderRadius: '50%', background: '#3B6D11' },
+      dotBlueInner: { width: 12, height: 12, borderRadius: '50%', background: '#378ADD' },
+      dotOrangeInner: { width: 12, height: 12, borderRadius: '50%', background: '#EEFF00' },
+      modal: { background: t.surface1, borderRadius: 24, padding: 24, marginTop: 220, boxShadow: t.shadow },
+      alertRow: { display: 'flex', alignItems: 'center', gap: 10 },
+      alertIcon: { flexShrink: 0 },
+      alertTitle: { fontSize: 19, fontWeight: 700, color: t.textPrimary, margin: 0 },
+      alertBody: { fontSize: 14.5, fontWeight: 400, color: t.textSecondary, margin: '10px 0 0', lineHeight: 1.5 },
+      optionList: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 20 },
+      option: { background: t.surface2, borderRadius: 16, padding: '13px 14px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' },
+      radio: { width: 22, height: 22, borderRadius: '50%', border: `1.5px solid ${t.textPrimary}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' },
+      optionText: { display: 'flex', flexDirection: 'column', gap: 3 },
+      optionTitle: { fontSize: 15.5, fontWeight: 500, color: t.textPrimary },
+      optionMeta: { fontSize: 13, fontWeight: 400, color: t.textSecondary },
+      primaryBtn: { width: '100%', height: 52, marginTop: 20, borderRadius: 18, border: 'none', background: t.light ? '#2C2C2A' : '#F1EFE8', color: t.light ? '#FFFFFF' : '#1C1C1A', fontSize: 16, fontWeight: 700, fontFamily: FS, cursor: 'pointer' },
+      secondaryLink: { display: 'block', textAlign: 'center', fontSize: 13.5, fontWeight: 400, color: t.textSecondary, marginTop: 14, cursor: 'pointer' },
+      lectureDotStyle: dotStyle(this.state.selected === 'lecture'),
+      mealDotStyle: dotStyle(this.state.selected === 'meal'),
+    };
+    return {
+      S, isDark: !t.light, deviceWidth: 402, deviceHeight: 874,
+      toggleTheme: () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+      setAccentGreen: () => this.setState({ accent: '#3B6D11' }),
+      setAccentBlue: () => this.setState({ accent: '#378ADD' }),
+      setAccentOrange: () => this.setState({ accent: '#EEFF00' }),
+      selectLecture: () => this.setState({ selected: 'lecture' }),
+      selectMeal: () => this.setState({ selected: 'meal' }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

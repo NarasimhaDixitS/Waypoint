@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>body{margin:0}</style>
+</helmet>
+<div style="{{ S.page }}">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" width="{{ deviceWidth }}" height="{{ deviceHeight }}" hint-size="402,874">
+    <div style="{{ S.screen }}">
+      <h1 style="{{ S.title }}">Settings</h1>
+
+      <div style="{{ S.group }}">
+        <div style="{{ S.row }}">
+          <span style="{{ S.rowLabel }}">Appearance</span>
+          <div style="{{ S.appearanceToggle }}" onClick="{{ toggleTheme }}">
+            <span style="{{ S.lightWord }}">Light</span>
+            <span style="{{ S.slashWord }}">/</span>
+            <span style="{{ S.darkWord }}">Dark</span>
+          </div>
+        </div>
+        <div style="{{ S.divider }}"></div>
+        <div style="{{ S.row }}">
+          <span style="{{ S.rowLabel }}">Accent color</span>
+          <div style="{{ S.dotsRow }}">
+            <div style="{{ S.dotGreen }}" onClick="{{ setAccentGreen }}"><div style="{{ S.dotGreenInner }}"></div></div>
+            <div style="{{ S.dotBlue }}" onClick="{{ setAccentBlue }}"><div style="{{ S.dotBlueInner }}"></div></div>
+            <div style="{{ S.dotOrange }}" onClick="{{ setAccentOrange }}"><div style="{{ S.dotOrangeInner }}"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="{{ S.group }}">
+        <div style="{{ S.rowCol }}">
+          <span style="{{ S.rowLabel }}">Task completion</span>
+          <span style="{{ S.rowSub }}">Mark done manually</span>
+        </div>
+        <div style="{{ S.divider }}"></div>
+        <div style="{{ S.row }}">
+          <span style="{{ S.rowLabel }}">Notifications</span>
+          <div style="{{ S.switchTrack }}" onClick="{{ toggleNotif }}">
+            <div style="{{ S.switchKnob }}"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="{{ S.group }}">
+        <div style="{{ S.row }}">
+          <span style="{{ S.rowLabel }}">Manage subscription</span>
+        </div>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:950},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;light&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#3B6D11&quot;,&quot;options&quot;:[&quot;#3B6D11&quot;,&quot;#378ADD&quot;,&quot;#EEFF00&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  state = { theme: this.props.theme || 'light', accent: this.props.accentColor || '#3B6D11', notif: true };
+
+  hexToRgb(hex) { const h = hex.replace('#', ''); return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) }; }
+  rgbToHex(r, g, b) { const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'); return `#${c(r)}${c(g)}${c(b)}`; }
+  mix(hex1, hex2, pct1) { const c1 = this.hexToRgb(hex1), c2 = this.hexToRgb(hex2); return this.rgbToHex(c1.r * pct1 + c2.r * (1 - pct1), c1.g * pct1 + c2.g * (1 - pct1), c1.b * pct1 + c2.b * (1 - pct1)); }
+
+  getTokens() {
+    const light = this.state.theme === 'light';
+    const accent = this.state.accent;
+    const isDefaultBlue = accent.toUpperCase() === '#378ADD';
+    const fillAccent = isDefaultBlue ? (light ? '#378ADD' : '#85B7EB') : (light ? accent : this.mix(accent, '#FFFFFF', 0.6));
+    return {
+      light,
+      surface0: light ? '#F5F5F3' : '#1C1C1A',
+      surface1: light ? '#FFFFFF' : '#242422',
+      textPrimary: light ? '#2C2C2A' : '#F1EFE8',
+      textSecondary: light ? '#5F5E5A' : '#B4B2A9',
+      border: light ? '#E5E3DB' : '#3A3A37',
+      fillAccent,
+      shadow: light ? '0 1px 3px rgba(0,0,0,0.07)' : '0 1px 3px rgba(0,0,0,0.4)',
+    };
+  }
+
+  renderVals() {
+    const t = this.getTokens();
+    const FS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+    const on = this.state.notif;
+    const S = {
+      page: { display: 'flex', justifyContent: 'center', padding: '40px 0', background: '#e9e7e1', minHeight: '100%', fontFamily: FS },
+      screen: { height: '100%', overflow: 'auto', background: t.surface0, fontFamily: FS, boxSizing: 'border-box', padding: '52px 20px 20px' },
+      title: { fontSize: 28, fontWeight: 700, color: t.textPrimary, letterSpacing: '-0.5px', margin: 0 },
+      group: { background: t.surface1, borderRadius: 18, marginTop: 20, boxShadow: t.shadow, overflow: 'hidden' },
+      row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px' },
+      rowCol: { display: 'flex', flexDirection: 'column', gap: 3, padding: '16px 18px 8px' },
+      rowLabel: { fontSize: 15.5, fontWeight: 500, color: t.textPrimary },
+      rowSub: { fontSize: 13, fontWeight: 400, color: t.textSecondary },
+      divider: { height: 1, background: t.border, margin: '0 18px' },
+      appearanceToggle: { display: 'flex', gap: 4, cursor: 'pointer' },
+      lightWord: { fontSize: 14.5, fontWeight: t.light ? 700 : 400, color: t.light ? t.textPrimary : t.textSecondary },
+      slashWord: { fontSize: 14.5, fontWeight: 400, color: t.textSecondary },
+      darkWord: { fontSize: 14.5, fontWeight: t.light ? 400 : 700, color: t.light ? t.textSecondary : t.textPrimary },
+      dotsRow: { display: 'flex', alignItems: 'center', gap: 7 },
+      dotGreen: { width: this.state.accent === '#3B6D11' ? 18 : 16, height: this.state.accent === '#3B6D11' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#3B6D11' ? `0 0 0 2px ${t.surface1}, 0 0 0 3.5px #3B6D11` : 'none' },
+      dotBlue: { width: this.state.accent === '#378ADD' ? 18 : 16, height: this.state.accent === '#378ADD' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#378ADD' ? `0 0 0 2px ${t.surface1}, 0 0 0 3.5px #378ADD` : 'none' },
+      dotOrange: { width: this.state.accent === '#EEFF00' ? 18 : 16, height: this.state.accent === '#EEFF00' ? 18 : 16, borderRadius: '50%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'width .15s, height .15s', boxShadow: this.state.accent === '#EEFF00' ? `0 0 0 2px ${t.surface1}, 0 0 0 3.5px #EEFF00` : 'none' },
+      dotGreenInner: { width: 12, height: 12, borderRadius: '50%', background: '#3B6D11' },
+      dotBlueInner: { width: 12, height: 12, borderRadius: '50%', background: '#378ADD' },
+      dotOrangeInner: { width: 12, height: 12, borderRadius: '50%', background: '#EEFF00' },
+      switchTrack: { width: 51, height: 31, borderRadius: 16, background: on ? t.fillAccent : t.border, position: 'relative', cursor: 'pointer', transition: 'background .15s', boxSizing: 'border-box' },
+      switchKnob: { width: 27, height: 27, borderRadius: '50%', background: '#FFFFFF', position: 'absolute', top: 2, left: on ? 22 : 2, boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'left .15s' },
+    };
+    return {
+      S, isDark: !t.light, deviceWidth: 402, deviceHeight: 874,
+      toggleTheme: () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+      setAccentGreen: () => this.setState({ accent: '#3B6D11' }),
+      setAccentBlue: () => this.setState({ accent: '#378ADD' }),
+      setAccentOrange: () => this.setState({ accent: '#EEFF00' }),
+      toggleNotif: () => this.setState(s => ({ notif: !s.notif })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

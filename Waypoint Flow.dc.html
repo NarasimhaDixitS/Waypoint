@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body{margin:0;background:#f0ede7}
+  ::-webkit-scrollbar{height:10px;width:10px}
+</style>
+</helmet>
+<div style="min-width:3400px;padding:64px 72px 120px;font-family:-apple-system,'SF Pro',system-ui,sans-serif;background:#f0ede7;box-sizing:border-box">
+  <div style="margin-bottom:56px">
+    <div style="font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#9a9282;font-weight:600;margin-bottom:6px">App flow</div>
+    <h1 style="font-size:34px;font-weight:700;color:#2a2620;margin:0 0 8px">Waypoint — screen flow</h1>
+    <p style="font-size:15px;color:#7a7362;margin:0;max-width:640px">Every branch starts from the Today hub. Chips mark where each sequence is triggered from.</p>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:36px;margin-bottom:72px">
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Welcome" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">01 · Welcome</div></div>
+    <div style="{{ S.arrow }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Today" hint-size="402,874"></dc-import></div></div><div style="{{ S.captionHub }}">02 · Today — hub</div></div>
+  </div>
+
+  <div style="{{ S.branchRow }}">
+    <div style="{{ S.chip }}">From Today · Schedule tab</div>
+    <div style="{{ S.arrowSmall }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Schedule" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">03 · Schedule</div></div>
+    <div style="{{ S.arrow }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Week" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">04 · Week view</div></div>
+  </div>
+
+  <div style="{{ S.branchRow }}">
+    <div style="{{ S.chip }}">From Today · + button</div>
+    <div style="{{ S.arrowSmall }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint New Task" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">05 · New task</div></div>
+  </div>
+
+  <div style="{{ S.branchRow }}">
+    <div style="{{ S.chip }}">From Schedule · reflow</div>
+    <div style="{{ S.arrowSmall }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Adhoc Bump" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">06 · Ad-hoc bump</div></div>
+  </div>
+
+  <div style="{{ S.branchRow }}">
+    <div style="{{ S.chip }}">From Today · new goal</div>
+    <div style="{{ S.arrowSmall }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Goal Create" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">07 · Goal create</div></div>
+    <div style="{{ S.arrow }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Goal Detail" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">08 · Goal detail</div></div>
+  </div>
+
+  <div style="{{ S.branchRow }}">
+    <div style="{{ S.chip }}">From Today · start task</div>
+    <div style="{{ S.arrowSmall }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Pomodoro" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">09 · Pomodoro</div></div>
+    <div style="{{ S.arrow }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Completion" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">10 · Completion</div></div>
+  </div>
+
+  <div style="{{ S.branchRow }}">
+    <div style="{{ S.chip }}">From Today · nav</div>
+    <div style="{{ S.arrowSmall }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Progress" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">11 · Analytics</div></div>
+    <div style="{{ S.arrow }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Settings" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">12 · Settings</div></div>
+    <div style="{{ S.arrow }}">→</div>
+    <div style="{{ S.frameBox }}"><div style="{{ S.clip }}"><div style="{{ S.frameScale }}"><dc-import name="Waypoint Paywall" hint-size="402,874"></dc-import></div></div><div style="{{ S.caption }}">13 · Paywall</div></div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const frameBox = { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' };
+    const clip = { width: 233, height: 507, overflow: 'hidden', borderRadius: 24, boxShadow: '0 12px 28px rgba(40,34,20,0.14)' };
+    const inner = { width: 402, height: 874, transform: 'scale(0.5796)', transformOrigin: 'top left' };
+    const caption = { fontSize: 13, fontWeight: 600, color: '#5c5545' };
+    const captionHub = { ...caption, color: '#1f6f5c' };
+    const chip = { fontSize: 12, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', color: '#fff', background: '#c98a4b', padding: '8px 14px', borderRadius: 999, whiteSpace: 'nowrap' };
+    const arrow = { fontSize: 26, color: '#c7bfae', fontWeight: 300 };
+    const arrowSmall = { fontSize: 20, color: '#c7bfae', fontWeight: 300 };
+    const branchRow = { display: 'flex', alignItems: 'center', gap: 28, marginBottom: 64 };
+    const pairWrap = { display: 'flex', alignItems: 'center', gap: 28 };
+
+    return {
+      S: { frameBox, clip, frameScale: inner, caption, captionHub, chip, arrow, arrowSmall, branchRow, pairWrap },
+    };
+  }
+}
+
+</script>
+</body>
+</html>
