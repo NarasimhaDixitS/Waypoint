@@ -78,7 +78,7 @@ xcodebuild test -project Waypoint.xcodeproj -scheme Waypoint -destination 'platf
 
 Install + launch:
 ```
-APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*Waypoint-*/Build/Products/Debug-iphonesimulator/Waypoint.app" | head -1)
+APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*Waypoint-*/Build/Products/Debug-iphonesimulator/Waypoint.app" -maxdepth 6 -not -path "*Index.noindex*" -exec stat -f "%m %N" {} \; | sort -rn | head -1 | cut -d' ' -f2-)
 xcrun simctl terminate <UDID> com.waypoint.app 2>&1 || true   # "found nothing to terminate" is harmless if it wasn't running
 xcrun simctl install <UDID> "$APP"
 xcrun simctl launch <UDID> com.waypoint.app
@@ -91,6 +91,19 @@ uninstall. Warn the user before reinstalling if they have test data on the simul
 about; there's no backend, so once it's gone it's gone.
 
 ## Gotchas discovered the hard way
+
+- **Stale/duplicate `DerivedData` folders from deleted project copies can get installed by
+  mistake.** Xcode names `DerivedData` folders `<ProjectName>-<hash>`, so an old, unrelated
+  project that happened to share the name "Waypoint" (e.g. a since-deleted
+  `WaypointApp-redesign/` used for an earlier UI exploration) leaves behind a
+  `Waypoint-<otherhash>` folder that looks identical at a glance. A plain
+  `find ... | head -1` glob for the app bundle isn't guaranteed to return the current
+  project's build first — it can silently pick the stale one, installing an old binary with
+  old design tokens/behavior. The install command above now sorts by modification time and
+  takes the newest; if something looks inexplicably wrong (colors, layout, behavior all
+  "different"), check `ls ~/Library/Developer/Xcode/DerivedData | grep Waypoint` for more than
+  one match and inspect each one's `info.plist`'s `WorkspacePath` key to confirm which project
+  it actually belongs to. Delete the stale one (`rm -rf`, it's just a cache) once confirmed.
 
 - **SourceKit shows persistent false-positive errors** like `Cannot find type 'TaskEntity' in
   scope` on files touching Core Data–generated classes, even on correct code. This is a
