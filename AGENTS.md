@@ -76,9 +76,16 @@ file to get silently excluded:
 xcodebuild test -project Waypoint.xcodeproj -scheme Waypoint -destination 'platform=iOS Simulator,id=<UDID>'
 ```
 
-Install + launch:
+Install + launch — **resolve the app bundle path from `xcodebuild -showBuildSettings`, never by
+globbing `DerivedData`.** A glob (even sorted by mtime) is a heuristic that can pick a stale or
+unrelated project's build by accident (see the gotcha below); asking the build system directly
+for `TARGET_BUILD_DIR`/`FULL_PRODUCT_NAME` is exact, since it's the same lookup `xcodebuild`
+itself just used to produce the build:
 ```
-APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*Waypoint-*/Build/Products/Debug-iphonesimulator/Waypoint.app" -maxdepth 6 -not -path "*Index.noindex*" -exec stat -f "%m %N" {} \; | sort -rn | head -1 | cut -d' ' -f2-)
+SETTINGS=$(xcodebuild -project Waypoint.xcodeproj -scheme Waypoint -configuration Debug -sdk iphonesimulator -destination 'platform=iOS Simulator,id=<UDID>' -showBuildSettings 2>/dev/null)
+TARGET_BUILD_DIR=$(echo "$SETTINGS" | awk -F ' = ' '/ TARGET_BUILD_DIR /{print $2; exit}')
+FULL_PRODUCT_NAME=$(echo "$SETTINGS" | awk -F ' = ' '/ FULL_PRODUCT_NAME /{print $2; exit}')
+APP="$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
 xcrun simctl terminate <UDID> com.waypoint.app 2>&1 || true   # "found nothing to terminate" is harmless if it wasn't running
 xcrun simctl install <UDID> "$APP"
 xcrun simctl launch <UDID> com.waypoint.app
@@ -98,12 +105,13 @@ about; there's no backend, so once it's gone it's gone.
   `WaypointApp-redesign/` used for an earlier UI exploration) leaves behind a
   `Waypoint-<otherhash>` folder that looks identical at a glance. A plain
   `find ... | head -1` glob for the app bundle isn't guaranteed to return the current
-  project's build first — it can silently pick the stale one, installing an old binary with
-  old design tokens/behavior. The install command above now sorts by modification time and
-  takes the newest; if something looks inexplicably wrong (colors, layout, behavior all
-  "different"), check `ls ~/Library/Developer/Xcode/DerivedData | grep Waypoint` for more than
-  one match and inspect each one's `info.plist`'s `WorkspacePath` key to confirm which project
-  it actually belongs to. Delete the stale one (`rm -rf`, it's just a cache) once confirmed.
+  project's build first — it silently picked the stale one once, installing an old binary with
+  old design tokens/behavior. Fixed for good: the install command above now asks `xcodebuild
+  -showBuildSettings` directly for this project's `TARGET_BUILD_DIR`/`FULL_PRODUCT_NAME`
+  instead of globbing `DerivedData` at all, so there's no ambiguity to resolve. If a stale
+  folder like this ever reappears, `ls ~/Library/Developer/Xcode/DerivedData | grep Waypoint`
+  and each match's `info.plist`'s `WorkspacePath` key will show which project it belongs to —
+  delete the stale one (`rm -rf`, it's just a cache).
 
 - **SourceKit shows persistent false-positive errors** like `Cannot find type 'TaskEntity' in
   scope` on files touching Core Data–generated classes, even on correct code. This is a
