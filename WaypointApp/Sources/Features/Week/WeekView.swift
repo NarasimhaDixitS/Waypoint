@@ -1,16 +1,5 @@
 import SwiftUI
 
-/// A day's status at a glance, mirroring `TaskState`'s color language so the week view reads
-/// consistently with task rows: green if you finished everything, warning if a past day was
-/// left unfinished, the "upcoming" tone for future days with tasks planned.
-private enum DayCardState {
-    case done
-    case missed
-    case today
-    case upcoming
-    case empty
-}
-
 struct WeekView: View {
     @EnvironmentObject private var theme: ThemeManager
 
@@ -23,9 +12,11 @@ struct WeekView: View {
     private let weekDays: [Date]
 
     @FetchRequest private var weekTasks: FetchedResults<TaskEntity>
-    /// At most one day expanded at a time — tapping its disclosure chevron shows that day's
-    /// actual tasks inline, without leaving Week.
-    @State private var expandedDay: Date?
+    /// Which month's weeks the week-chip row is showing — independent of `weekStart` itself,
+    /// so browsing the month strip doesn't navigate until a specific week chip is tapped.
+    /// `MainTabView` rebuilds this whole view via `.id()` whenever `weekStart` changes, so
+    /// seeding this once from `weekStart` in `init` is enough to stay in sync.
+    @State private var selectedMonth: Date
 
     init(
         weekStart: Date,
@@ -40,6 +31,7 @@ struct WeekView: View {
         let nextMonday = cal.date(byAdding: .day, value: 7, to: monday)!
         weekDays = (0..<7).map { cal.date(byAdding: .day, value: $0, to: monday)! }
         _weekTasks = FetchRequest(fetchRequest: TaskEntity.fetchRequest(from: monday, to: nextMonday))
+        _selectedMonth = State(initialValue: cal.date(from: cal.dateComponents([.year, .month], from: monday)) ?? monday)
     }
 
     /// The Monday of the week containing `date` — used both to know if we're viewing the
@@ -52,6 +44,17 @@ struct WeekView: View {
         return cal.date(byAdding: .day, value: -mondayOffset, to: today)!
     }
 
+    /// Hardcoded rather than `.formatted(.dateTime.weekday(...))` or `Calendar` symbol
+    /// APIs — both read the device's region (this simulator is `en_IN`), whose weekday
+    /// data has produced wrong/blank output here before. Index 0 = Monday, matching
+    /// `weekDays`.
+    private static let weekdayAbbrev = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    private static let weekdayLetter = ["M", "T", "W", "T", "F", "S", "S"]
+
+    private static func weekdayIndex(for date: Date) -> Int {
+        (Calendar.current.component(.weekday, from: date) + 5) % 7
+    }
+
     private var isCurrentWeek: Bool {
         Calendar.current.isDate(weekStart, inSameDayAs: Self.mondayOfWeek(containing: .now))
     }
@@ -61,211 +64,237 @@ struct WeekView: View {
         return "\(first.formatted(.dateTime.month(.abbreviated).day())) – \(last.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
+    /// Adjacent months centered on today — a fixed range keeps the strip simple (no
+    /// virtualization) while still covering far more than anyone browses in practice.
+    private var monthOptions: [Date] {
+        let cal = Calendar.current
+        let base = cal.date(from: cal.dateComponents([.year, .month], from: .now)) ?? .now
+        return (-6...6).compactMap { cal.date(byAdding: .month, value: $0, to: base) }
+    }
+
+    /// Every Monday whose week overlaps `selectedMonth`, in order.
+    private var weekOptions: [Date] {
+        let cal = Calendar.current
+        guard let interval = cal.dateInterval(of: .month, for: selectedMonth) else { return [] }
+        var mondays: [Date] = []
+        var cursor = Self.mondayOfWeek(containing: interval.start)
+        while cursor < interval.end {
+            mondays.append(cursor)
+            cursor = cal.date(byAdding: .day, value: 7, to: cursor) ?? interval.end
+        }
+        return mondays
+    }
+
+    /// This week's tasks grouped by goal, goal groups sorted by name, ungoaled tasks (if
+    /// any) always last as "Other tasks" — ad-hoc tasks stay visible rather than silently
+    /// dropping out of a goal-first layout.
+    private var goalGroups: [(goal: GoalEntity?, tasks: [TaskEntity])] {
+        let grouped = Dictionary(grouping: weekTasks, by: { $0.goal })
+        let namedGoals = grouped.keys.compactMap { $0 }.sorted { ($0.name ?? "") < ($1.name ?? "") }
+        var result: [(GoalEntity?, [TaskEntity])] = namedGoals.map { goal in
+            (goal, (grouped[goal] ?? []).sorted { $0.resolvedStartTime < $1.resolvedStartTime })
+        }
+        if let ungoaled = grouped[Optional<GoalEntity>.none], !ungoaled.isEmpty {
+            result.append((nil, ungoaled.sorted { $0.resolvedStartTime < $1.resolvedStartTime }))
+        }
+        return result
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(isCurrentWeek ? "This week" : weekRangeLabel)
-                        .wpTypography(.screenTitle)
-                        .foregroundStyle(ColorTokens.textPrimary)
-                    Spacer()
-                    if !isCurrentWeek {
-                        Button {
-                            onNavigateWeek(Self.mondayOfWeek(containing: .now))
-                        } label: {
-                            Text("Jump to this week")
-                                .wpTypography(.body)
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 7)
-                                .background(theme.accentSwatch.color)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
+            VStack(alignment: .leading, spacing: 18) {
+                header
+                monthStrip
+                weekChipStrip
+
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(goalGroups.enumerated()), id: \.offset) { _, group in
+                        goalSection(goal: group.goal, tasks: group.tasks)
                     }
-                }
-                .padding(.top, 8)
-
-                dateStrip
-
-                VStack(spacing: 10) {
-                    ForEach(weekDays, id: \.self) { day in
-                        dayCard(day)
+                    if goalGroups.isEmpty {
+                        Text("No tasks this week")
+                            .wpTypography(.body)
+                            .foregroundStyle(ColorTokens.textSecondary)
+                            .padding(.top, 8)
                     }
                 }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }
-        .background(ColorTokens.surface0.ignoresSafeArea())
+        .background(CurvedBackground(topHeight: 210))
         .navigationBarHidden(true)
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 40)
-                .onEnded { value in
-                    let horizontal = value.translation.width
-                    guard abs(horizontal) > abs(value.translation.height), abs(horizontal) > 40 else { return }
-                    let cal = Calendar.current
-                    let newStart = cal.date(byAdding: .day, value: horizontal < 0 ? 7 : -7, to: weekStart) ?? weekStart
-                    onNavigateWeek(newStart)
-                }
-        )
     }
 
-    private var dateStrip: some View {
-        HStack(spacing: 0) {
-            ForEach(weekDays, id: \.self) { day in
-                let isToday = Calendar.current.isDateInToday(day)
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(isCurrentWeek ? "This week" : weekRangeLabel)
+                .wpTypography(.screenTitle)
+                .foregroundStyle(ColorTokens.textPrimary)
+            Spacer()
+            if !isCurrentWeek {
                 Button {
-                    onSelectDay(day)
+                    onNavigateWeek(Self.mondayOfWeek(containing: .now))
                 } label: {
-                    VStack(spacing: 6) {
-                        Text(day.formatted(.dateTime.weekday(.abbreviated)))
-                            .wpTypography(.micro)
-                            .foregroundStyle(ColorTokens.textSecondary)
-                        Text(day.formatted(.dateTime.day()))
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(isToday ? Color.white : ColorTokens.textPrimary)
-                            .frame(width: 28, height: 28)
-                            .background(isToday ? theme.accentSwatch.color : stripDotColor(for: day))
-                            .clipShape(Circle())
-                    }
-                    .frame(maxWidth: .infinity)
+                    Text("Jump to this week")
+                        .wpTypography(.body)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(theme.accentSwatch.color)
+                        .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
         }
+        .padding(.top, 8)
     }
 
-    /// Today always wins in the strip regardless of its own completion status — it's an
-    /// orientation landmark ("you are here"), not a status indicator. Every other day shows
-    /// its actual state, same colors as the cards below.
-    private func stripDotColor(for day: Date) -> Color {
-        switch cardState(for: day) {
-        case .done: ColorTokens.success
-        case .missed: ColorTokens.warning
-        case .upcoming: ColorTokens.scheduled
-        case .today, .empty: .clear
+    private var monthStrip: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(monthOptions, id: \.self) { month in
+                        let isSelected = Calendar.current.isDate(month, equalTo: selectedMonth, toGranularity: .month)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { selectedMonth = month }
+                        } label: {
+                            Text(month.formatted(.dateTime.month(.abbreviated)))
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(isSelected ? .white : ColorTokens.textSecondary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(isSelected ? theme.accentSwatch.color : Color.clear)
+                                .overlay(
+                                    Capsule().stroke(isSelected ? Color.clear : ColorTokens.border, lineWidth: 1)
+                                )
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .id(month)
+                    }
+                }
+            }
+            .onAppear { proxy.scrollTo(selectedMonth, anchor: .center) }
         }
     }
 
-    private func cardState(for day: Date) -> DayCardState {
-        let cal = Calendar.current
-        let total = tasksCount(for: day)
-        guard total > 0 else { return .empty }
-        let allDone = doneCount(for: day) == total
-        if cal.isDateInToday(day) {
-            return allDone ? .done : .today
-        }
-        if day < cal.startOfDay(for: .now) {
-            return allDone ? .done : .missed
-        }
-        return .upcoming
-    }
-
-    private func cardTint(for state: DayCardState) -> Color {
-        switch state {
-        case .done: ColorTokens.successTint
-        case .missed: ColorTokens.warningTint
-        case .today: ColorTokens.surface1
-        case .upcoming: ColorTokens.scheduledTint
-        case .empty: ColorTokens.surface1
-        }
-    }
-
-    private func cardTextColor(for state: DayCardState) -> Color {
-        switch state {
-        case .done: ColorTokens.textSuccess
-        case .missed: ColorTokens.textWarning
-        case .today: ColorTokens.textPrimary
-        case .upcoming: ColorTokens.textScheduled
-        case .empty: ColorTokens.textSecondary
-        }
-    }
-
-    private func progressColor(for state: DayCardState) -> Color {
-        switch state {
-        case .done: ColorTokens.success
-        case .missed: ColorTokens.warning
-        case .today: theme.accentSwatch.color
-        case .upcoming: ColorTokens.scheduled
-        case .empty: ColorTokens.border
+    private var weekChipStrip: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(weekOptions.enumerated()), id: \.offset) { index, monday in
+                        let isSelected = Calendar.current.isDate(monday, inSameDayAs: weekStart)
+                        Button {
+                            onNavigateWeek(monday)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Wk \(index + 1)")
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                Text(chipRangeLabel(monday))
+                                    .font(.system(size: 10.5))
+                                    .opacity(0.75)
+                            }
+                            .foregroundStyle(isSelected ? theme.accentSwatch.color : ColorTokens.textSecondary)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 8)
+                            .background(isSelected ? theme.accentSwatch.color.opacity(0.14) : ColorTokens.surface1)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(isSelected ? theme.accentSwatch.color : Color.clear, lineWidth: 1.4)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .id(monday)
+                    }
+                }
+            }
+            .onAppear { proxy.scrollTo(weekStart, anchor: .center) }
         }
     }
 
-    private func dayCard(_ day: Date) -> some View {
-        let state = cardState(for: day)
-        let total = tasksCount(for: day)
-        let done = doneCount(for: day)
-        let isToday = Calendar.current.isDateInToday(day)
-        let isExpanded = expandedDay == day
+    private func chipRangeLabel(_ monday: Date) -> String {
+        let sunday = Calendar.current.date(byAdding: .day, value: 6, to: monday) ?? monday
+        return "\(monday.formatted(.dateTime.month(.abbreviated).day()))–\(sunday.formatted(.dateTime.day()))"
+    }
+
+    private func goalSection(goal: GoalEntity?, tasks: [TaskEntity]) -> some View {
+        let doneCount = tasks.filter(\.isDone).count
 
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                Button {
-                    onSelectDay(day)
-                } label: {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                            .wpTypography(.body)
-                            .foregroundStyle(cardTextColor(for: state).opacity(0.85))
-                        Text(state == .empty ? "No tasks" : "\(done) of \(total) tasks done")
-                            .wpTypography(.cardTitle)
-                            .foregroundStyle(cardTextColor(for: state))
-                        if total > 0 {
-                            MiniProgressBar(fraction: Double(done) / Double(total), color: progressColor(for: state))
-                                .frame(width: 90)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-
-                if total > 0 {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            expandedDay = isExpanded ? nil : day
-                        }
-                    } label: {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(cardTextColor(for: state).opacity(0.7))
-                            .frame(width: 32, height: 32)
-                    }
-                    .buttonStyle(.plain)
+            HStack(alignment: .firstTextBaseline) {
+                Text(goal?.name ?? "Other tasks")
+                    .wpTypography(.cardTitle)
+                    .foregroundStyle(ColorTokens.textPrimary)
+                Spacer()
+                if goal != nil {
+                    Text("\(doneCount) of \(tasks.count) this week")
+                        .wpTypography(.micro)
+                        .foregroundStyle(ColorTokens.textSecondary)
                 }
             }
-            .padding(14)
 
-            if isExpanded {
-                VStack(spacing: 8) {
-                    ForEach(tasks(for: day), id: \.objectID) { task in
-                        expandedTaskRow(task)
-                    }
+            if goal != nil {
+                weekRing(for: tasks)
+                    .padding(.top, 10)
+                Divider()
+                    .background(ColorTokens.border)
+                    .padding(.vertical, 10)
+            } else {
+                Spacer().frame(height: 10)
+            }
+
+            VStack(spacing: 8) {
+                ForEach(tasks, id: \.objectID) { task in
+                    goalTaskRow(task)
                 }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 14)
             }
         }
-        .background(cardTint(for: state))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isToday ? theme.accentSwatch.color : Color.clear, lineWidth: 1.6)
-        )
+        .padding(14)
+        .background(ColorTokens.surface1)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func expandedTaskRow(_ task: TaskEntity) -> some View {
+    /// This goal's week-strip ring, keyed to the browsed week's actual seven days — not the
+    /// trailing-7-from-today window `GoalEntity.recentCompletion` uses elsewhere, since this
+    /// row sits directly above a task list for these specific dates.
+    private func weekRing(for tasks: [TaskEntity]) -> some View {
+        HStack(spacing: 9) {
+            ForEach(weekDays, id: \.self) { day in
+                let hasDoneTask = tasks.contains { $0.isDone && Calendar.current.isDate($0.resolvedDate, inSameDayAs: day) }
+                let isToday = Calendar.current.isDateInToday(day)
+                VStack(spacing: 4) {
+                    ZStack {
+                        if isToday {
+                            Circle().fill(theme.accentSwatch.color.opacity(0.18)).frame(width: 21, height: 21)
+                        }
+                        Circle()
+                            .strokeBorder(theme.accentSwatch.color.opacity(hasDoneTask || isToday ? 1 : 0.35), lineWidth: isToday ? 2 : 1.6)
+                            .background(Circle().fill(hasDoneTask ? theme.accentSwatch.color : .clear))
+                            .frame(width: 15, height: 15)
+                    }
+                    .frame(width: 21, height: 21)
+                    Text(Self.weekdayLetter[Self.weekdayIndex(for: day)])
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(ColorTokens.textMuted)
+                }
+            }
+        }
+    }
+
+    private func goalTaskRow(_ task: TaskEntity) -> some View {
         Button {
             onSelectDay(task.resolvedDate)
         } label: {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(taskDotColor(task))
-                    .frame(width: 6, height: 6)
+            HStack(spacing: 9) {
+                Text(Self.weekdayAbbrev[Self.weekdayIndex(for: task.resolvedDate)])
+                    .font(.system(size: 10.5, weight: .bold))
+                    .foregroundStyle(Calendar.current.isDateInToday(task.resolvedDate) ? theme.accentSwatch.color : ColorTokens.textMuted)
+                    .frame(width: 30, alignment: .leading)
                 Text(task.title ?? "")
                     .wpTypography(.body)
-                    .foregroundStyle(ColorTokens.textPrimary)
+                    .foregroundStyle(task.isDone ? ColorTokens.textSecondary : ColorTokens.textPrimary)
                     .strikethrough(task.isDone)
                     .lineLimit(1)
                 Spacer()
@@ -273,46 +302,7 @@ struct WeekView: View {
                     .wpTypography(.micro)
                     .foregroundStyle(ColorTokens.textSecondary)
             }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 10)
-            .background(ColorTokens.surface1.opacity(0.6))
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
-    }
-
-    private func taskDotColor(_ task: TaskEntity) -> Color {
-        switch task.state {
-        case .done: ColorTokens.success
-        case .overdue: ColorTokens.warning
-        case .future: ColorTokens.scheduled
-        case .inProgress: ColorTokens.inProgress
-        case .pending: ColorTokens.textMuted
-        }
-    }
-
-    private func tasks(for day: Date) -> [TaskEntity] {
-        let start = Calendar.current.startOfDay(for: day)
-        return weekTasks.filter { Calendar.current.isDate($0.resolvedDate, inSameDayAs: start) }
-    }
-
-    private func tasksCount(for day: Date) -> Int { tasks(for: day).count }
-    private func doneCount(for day: Date) -> Int { tasks(for: day).filter(\.isDone).count }
-}
-
-/// A compact status bar for a day card — deliberately not `ProgressRing`, which is too heavy
-/// visually for a small list row.
-private struct MiniProgressBar: View {
-    let fraction: Double
-    let color: Color
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(color.opacity(0.25))
-                Capsule().fill(color).frame(width: geo.size.width * min(max(fraction, 0), 1))
-            }
-        }
-        .frame(height: 5)
     }
 }

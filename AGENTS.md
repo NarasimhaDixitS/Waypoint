@@ -99,6 +99,24 @@ about; there's no backend, so once it's gone it's gone.
 
 ## Gotchas discovered the hard way
 
+- **Editing a UserDefaults-backed plist file directly on disk (e.g. to force a setting for
+  screenshot testing without tapping through the UI) does not take effect on relaunch, even
+  though the file itself is correctly updated.** The simulator's `cfprefsd` (preferences
+  daemon) caches domain contents in memory and doesn't notice a raw file write — the app's
+  next launch still gets served the stale cached value from `UserDefaults.standard`. Fix:
+  find and kill the *simulator's own* `cfprefsd daemon` process from the host shell (`ps aux
+  | grep cfprefsd` — it's the one running from inside
+  `.../CoreSimulator/.../RuntimeRoot/usr/sbin/cfprefsd daemon`, not the host macOS one at
+  `/usr/sbin/cfprefsd`), then relaunch the app; it respawns automatically and reads fresh
+  from disk. `xcrun simctl spawn <UDID> killall cfprefsd` does NOT work — `killall` isn't
+  present in the simulator's stripped runtime. Also: `xcrun simctl spawn <UDID> defaults
+  write <bundle-id> key value` silently writes to the wrong location entirely (resolves HOME
+  to the simulator's root, not the app's sandboxed container) — to edit an app's real
+  preferences from the command line, find the actual file first with `xcrun simctl
+  get_app_container <UDID> <bundle-id> data` and edit
+  `<that path>/Library/Preferences/<bundle-id>.plist` directly (with `plutil -replace`),
+  then do the `cfprefsd` kill above.
+
 - **Stale/duplicate `DerivedData` folders from deleted project copies can get installed by
   mistake.** Xcode names `DerivedData` folders `<ProjectName>-<hash>`, so an old, unrelated
   project that happened to share the name "Waypoint" (e.g. a since-deleted
