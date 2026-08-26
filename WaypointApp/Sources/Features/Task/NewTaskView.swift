@@ -126,6 +126,49 @@ struct NewTaskView: View {
         durationMinutes = min(60, remainingMinutes)
     }
 
+    /// A goal-linked repeat can't run past the goal's own end date — keeps a task's schedule
+    /// from quietly outliving the goal it belongs to. Ungoaled tasks keep the generic ceiling.
+    private var maxRepeatWeeks: Int {
+        guard let selectedGoal else { return 52 }
+        return TaskReplicator.weeksUntil(selectedGoal.resolvedTargetDate, from: selectedDay)
+    }
+
+    /// Split out of `body` — folding this back inline pushes the surrounding `ScrollView`'s
+    /// single expression past what the type-checker can solve in reasonable time.
+    @ViewBuilder
+    private var repeatSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Repeat")
+                .wpTypography(.micro)
+                .foregroundStyle(ColorTokens.textSecondary)
+            HStack {
+                ForEach(CommitmentEntity.weekdaySymbols, id: \.self) { day in
+                    let selected = repeatDays.contains(day)
+                    Text(String(day.prefix(1)))
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(width: 32, height: 32)
+                        .background(selected ? ColorTokens.textPrimary : ColorTokens.surface1)
+                        .foregroundStyle(selected ? ColorTokens.surface0 : ColorTokens.textSecondary)
+                        .clipShape(Circle())
+                        .onTapGesture {
+                            if selected { repeatDays.remove(day) } else { repeatDays.insert(day) }
+                        }
+                }
+            }
+            if !repeatDays.isEmpty {
+                Stepper("For \(repeatWeeks) week\(repeatWeeks == 1 ? "" : "s")", value: $repeatWeeks, in: 1...maxRepeatWeeks)
+                    .wpTypography(.body)
+                    .foregroundStyle(ColorTokens.textPrimary)
+                if let selectedGoal {
+                    let endLabel = selectedGoal.resolvedTargetDate.formatted(.dateTime.month(.abbreviated).day())
+                    Text("Capped to \(selectedGoal.name ?? "this goal")'s end date, \(endLabel).")
+                        .wpTypography(.micro)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                }
+            }
+        }
+    }
+
     private static func roundUpToNearestFiveMinutes(_ date: Date) -> Date {
         let cal = Calendar.current
         var comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: date)
@@ -256,30 +299,7 @@ struct NewTaskView: View {
                     }
 
                     if existingTask == nil {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Repeat")
-                                .wpTypography(.micro)
-                                .foregroundStyle(ColorTokens.textSecondary)
-                            HStack {
-                                ForEach(CommitmentEntity.weekdaySymbols, id: \.self) { day in
-                                    let selected = repeatDays.contains(day)
-                                    Text(String(day.prefix(1)))
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .frame(width: 32, height: 32)
-                                        .background(selected ? ColorTokens.textPrimary : ColorTokens.surface1)
-                                        .foregroundStyle(selected ? ColorTokens.surface0 : ColorTokens.textSecondary)
-                                        .clipShape(Circle())
-                                        .onTapGesture {
-                                            if selected { repeatDays.remove(day) } else { repeatDays.insert(day) }
-                                        }
-                                }
-                            }
-                            if !repeatDays.isEmpty {
-                                Stepper("For \(repeatWeeks) week\(repeatWeeks == 1 ? "" : "s")", value: $repeatWeeks, in: 1...52)
-                                    .wpTypography(.body)
-                                    .foregroundStyle(ColorTokens.textPrimary)
-                            }
-                        }
+                        repeatSection
                     }
 
                     Button {
@@ -357,6 +377,12 @@ struct NewTaskView: View {
                 guard old.isEmpty, !new.isEmpty, !didApplySmartRepeatWeeks, let selectedGoal else { return }
                 didApplySmartRepeatWeeks = true
                 repeatWeeks = TaskReplicator.weeksUntil(selectedGoal.resolvedTargetDate, from: selectedDay)
+            }
+            .onChange(of: selectedGoal) { _, _ in
+                // Picking a goal that ends sooner than the currently-chosen length must pull
+                // the stepper back down with it — otherwise `repeatWeeks` sits outside its own
+                // new `1...maxRepeatWeeks` range.
+                repeatWeeks = min(repeatWeeks, maxRepeatWeeks)
             }
             .navigationTitle(existingTask == nil ? "New task" : "Task detail")
             .navigationBarTitleDisplayMode(.inline)
@@ -719,6 +745,14 @@ private struct RepeatSheet: View {
         }
     }
 
+    /// Same reasoning as `NewTaskView.maxRepeatWeeks` — a goal-linked task can't repeat past
+    /// its own goal's end date. `task.goal` can't change within this sheet, so this is fixed
+    /// for its lifetime, unlike the creation-time version.
+    private var maxWeeks: Int {
+        guard let goal = task.goal else { return 52 }
+        return TaskReplicator.weeksUntil(goal.resolvedTargetDate, from: task.resolvedDate)
+    }
+
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 20) {
@@ -746,9 +780,15 @@ private struct RepeatSheet: View {
                     }
                 }
 
-                Stepper("For \(weeks) week\(weeks == 1 ? "" : "s")", value: $weeks, in: 1...52)
+                Stepper("For \(weeks) week\(weeks == 1 ? "" : "s")", value: $weeks, in: 1...maxWeeks)
                     .wpTypography(.body)
                     .foregroundStyle(ColorTokens.textPrimary)
+                if let goal = task.goal {
+                    let endLabel = goal.resolvedTargetDate.formatted(.dateTime.month(.abbreviated).day())
+                    Text("Capped to \(goal.name ?? "this goal")'s end date, \(endLabel).")
+                        .wpTypography(.micro)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                }
 
                 Spacer()
 
