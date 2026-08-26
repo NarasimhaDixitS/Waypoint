@@ -28,12 +28,15 @@ private struct EditBumpInfo {
     let blockedBy: String
 }
 
-/// Tracks a single delete that hasn't been finalized yet — the task stays in Core Data,
-/// just hidden from view, until the undo window elapses. Only one at a time: starting a new
-/// deletion immediately finalizes whichever one was already pending, matching the common
-/// "next toast replaces the last" pattern.
+/// Tracks a delete (one task, or a whole series) that hasn't been finalized yet — every task
+/// involved stays in Core Data, just hidden from view, until the undo window elapses. Only one
+/// pending deletion at a time: starting a new one immediately finalizes whichever was already
+/// pending, matching the common "next toast replaces the last" pattern. `title` is the full
+/// display phrase ("\u{201C}Task name\u{201D}" for one, "12 tasks" for a series) so the toast
+/// itself doesn't need to know which case it's in.
 private struct PendingDeletion {
-    let task: TaskEntity
+    let id = UUID()
+    let tasks: [TaskEntity]
     let title: String
 }
 
@@ -438,7 +441,7 @@ struct TodayView: View {
 
     private func undoToast(_ pending: PendingDeletion) -> some View {
         HStack(spacing: 14) {
-            Text("\u{201C}\(pending.title)\u{201D} deleted")
+            Text("\(pending.title) deleted")
                 .wpTypography(.body)
                 .foregroundStyle(.white)
                 .lineLimit(1)
@@ -701,13 +704,12 @@ struct TodayView: View {
         }
     }
 
-    /// Deletes this occurrence and every future one in the same repeat series, leaving past
-    /// occurrences (and their completion history) untouched.
+    /// Soft-deletes this occurrence and every future one in the same repeat series — same
+    /// undo window as a single delete, leaving past occurrences (and their completion
+    /// history) untouched.
     private func deleteSeries(from task: TaskEntity) {
         guard let seriesID = task.seriesID else {
-            if let id = task.id { NotificationManager.cancelReminder(taskID: id) }
-            context.delete(task)
-            try? context.save()
+            requestDelete(task)
             return
         }
         let request = TaskEntity.fetchRequest()
@@ -717,44 +719,55 @@ struct TodayView: View {
             Calendar.current.startOfDay(for: task.resolvedDate) as NSDate
         )
         let matches = (try? context.fetch(request)) ?? []
-        for match in matches {
-            if let id = match.id { NotificationManager.cancelReminder(taskID: id) }
-            context.delete(match)
-        }
-        try? context.save()
+        guard !matches.isEmpty else { return }
+        requestDelete(tasks: matches, title: "\(matches.count) task\(matches.count == 1 ? "" : "s")")
     }
 
     /// Hides the task and starts its undo window instead of deleting immediately. Only one
     /// pending deletion is tracked at a time — starting a new one finalizes whichever was
     /// already pending, the same "next toast replaces the last" behavior most apps use.
     private func requestDelete(_ task: TaskEntity) {
+        requestDelete(tasks: [task], title: "\u{201C}\(task.title ?? "Task")\u{201D}")
+    }
+
+    /// Shared by both the single-task delete and the whole-series delete — the mechanics
+    /// (hide, start the undo window, cancel notifications up front so they don't fire during
+    /// it) don't depend on how many tasks are involved.
+    private func requestDelete(tasks: [TaskEntity], title: String) {
         if let previous = pendingDeletion {
-            finalizeDeletion(previous.task)
+            finalizeDeletion(previous)
         }
-        if let id = task.id { NotificationManager.cancelReminder(taskID: id) }
-        hiddenTaskIDs.insert(task.objectID)
-        pendingDeletion = PendingDeletion(task: task, title: task.title ?? "Task")
-        let token = task.objectID
+        for task in tasks {
+            if let id = task.id { NotificationManager.cancelReminder(taskID: id) }
+        }
+        hiddenTaskIDs.formUnion(tasks.map(\.objectID))
+        let pending = PendingDeletion(tasks: tasks, title: title)
+        pendingDeletion = pending
+        let token = pending.id
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.undoWindow) {
-            guard pendingDeletion?.task.objectID == token else { return }
-            finalizeDeletion(task)
+            guard pendingDeletion?.id == token else { return }
+            finalizeDeletion(pending)
         }
     }
 
-    private func finalizeDeletion(_ task: TaskEntity) {
-        hiddenTaskIDs.remove(task.objectID)
-        if pendingDeletion?.task.objectID == task.objectID {
+    private func finalizeDeletion(_ pending: PendingDeletion) {
+        hiddenTaskIDs.subtract(pending.tasks.map(\.objectID))
+        if pendingDeletion?.id == pending.id {
             pendingDeletion = nil
         }
-        context.delete(task)
+        for task in pending.tasks {
+            context.delete(task)
+        }
         try? context.save()
     }
 
     private func undoDelete() {
         guard let pending = pendingDeletion else { return }
-        hiddenTaskIDs.remove(pending.task.objectID)
+        hiddenTaskIDs.subtract(pending.tasks.map(\.objectID))
         pendingDeletion = nil
-        rescheduleReminder(for: pending.task)
+        for task in pending.tasks {
+            rescheduleReminder(for: task)
+        }
     }
 
     /// A single-task quick-action for genuinely out-of-your-control misses — deliberately not
