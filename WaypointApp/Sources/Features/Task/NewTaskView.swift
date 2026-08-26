@@ -45,7 +45,7 @@ struct NewTaskView: View {
     @State private var pendingDeleteAction: (() -> Void)?
     @State private var showingRepeatSheet = false
     @State private var repeatSummary: String?
-    @State private var pendingRepeatResult: (created: Int, skipped: Int)?
+    @State private var pendingRepeatResult: (created: Int, skipped: Int, lastDate: Date?)?
     /// Only used at creation time — see the "Repeat" section below. Editing an existing task
     /// still uses the separate "Repeat on other days" sheet.
     @State private var repeatDays: Set<String> = []
@@ -54,6 +54,10 @@ struct NewTaskView: View {
     /// even if `onAppear` were to somehow fire again — it must never clobber edits the user
     /// has since made.
     @State private var didApplySmartDefaults = false
+    /// Guards the goal-linked repeat-length default the same way — only sets `repeatWeeks`
+    /// once, the first time repeat days are picked while a goal is already selected, so it
+    /// never overwrites a value the user has since chosen deliberately.
+    @State private var didApplySmartRepeatWeeks = false
 
     init(
         existingTask: TaskEntity? = nil,
@@ -271,7 +275,7 @@ struct NewTaskView: View {
                                 }
                             }
                             if !repeatDays.isEmpty {
-                                Stepper("For \(repeatWeeks) week\(repeatWeeks == 1 ? "" : "s")", value: $repeatWeeks, in: 1...12)
+                                Stepper("For \(repeatWeeks) week\(repeatWeeks == 1 ? "" : "s")", value: $repeatWeeks, in: 1...52)
                                     .wpTypography(.body)
                                     .foregroundStyle(ColorTokens.textPrimary)
                             }
@@ -343,6 +347,17 @@ struct NewTaskView: View {
             }
             .background(ColorTokens.surface0.ignoresSafeArea())
             .onAppear { applySmartDefaultsIfNeeded() }
+            .onChange(of: repeatDays) { old, new in
+                // The moment repeat is first turned on, default its length to reach the
+                // task's goal (if any) instead of leaving whatever the stepper happened to
+                // be at — this is what would have caught "8 weeks" vs. the 10 actually
+                // needed to reach a goal 68 days out. Only fires once, and only if a goal is
+                // already selected at that moment; picking a goal afterward doesn't
+                // retroactively change a length the user may have already adjusted.
+                guard old.isEmpty, !new.isEmpty, !didApplySmartRepeatWeeks, let selectedGoal else { return }
+                didApplySmartRepeatWeeks = true
+                repeatWeeks = TaskReplicator.weeksUntil(selectedGoal.resolvedTargetDate, from: selectedDay)
+            }
             .navigationTitle(existingTask == nil ? "New task" : "Task detail")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -418,13 +433,15 @@ struct NewTaskView: View {
                 // way chaining two sheets directly does.
                 guard let pendingRepeatResult else { return }
                 self.pendingRepeatResult = nil
-                repeatSummary = pendingRepeatResult.skipped == 0
-                    ? "Added \(pendingRepeatResult.created) more."
-                    : "Added \(pendingRepeatResult.created) more — \(pendingRepeatResult.skipped) skipped due to conflicts."
+                repeatSummary = TaskReplicator.summaryText(
+                    created: pendingRepeatResult.created,
+                    skipped: pendingRepeatResult.skipped,
+                    lastDate: pendingRepeatResult.lastDate
+                )
             }) {
                 if let existingTask {
-                    RepeatSheet(task: existingTask) { created, skipped in
-                        pendingRepeatResult = (created, skipped)
+                    RepeatSheet(task: existingTask) { created, skipped, lastDate in
+                        pendingRepeatResult = (created, skipped, lastDate)
                     }
                 }
             }
@@ -683,16 +700,23 @@ private struct RepeatSheet: View {
     @EnvironmentObject private var theme: ThemeManager
 
     let task: TaskEntity
-    var onDone: (_ created: Int, _ skipped: Int) -> Void
+    var onDone: (_ created: Int, _ skipped: Int, _ lastDate: Date?) -> Void
 
     @State private var selectedDays: Set<String>
-    @State private var weeks = 4
+    @State private var weeks: Int
 
-    init(task: TaskEntity, onDone: @escaping (Int, Int) -> Void) {
+    init(task: TaskEntity, onDone: @escaping (Int, Int, Date?) -> Void) {
         self.task = task
         self.onDone = onDone
         let weekdayIndex = (Calendar.current.component(.weekday, from: task.resolvedDate) + 5) % 7
         _selectedDays = State(initialValue: [CommitmentEntity.weekdaySymbols[weekdayIndex]])
+        // Same goal-linked default as creation time — if this task belongs to a goal, default
+        // to running the repeat through the goal's target date instead of a generic 4 weeks.
+        if let goal = task.goal {
+            _weeks = State(initialValue: TaskReplicator.weeksUntil(goal.resolvedTargetDate, from: task.resolvedDate))
+        } else {
+            _weeks = State(initialValue: 4)
+        }
     }
 
     var body: some View {
@@ -722,7 +746,7 @@ private struct RepeatSheet: View {
                     }
                 }
 
-                Stepper("For \(weeks) week\(weeks == 1 ? "" : "s")", value: $weeks, in: 1...12)
+                Stepper("For \(weeks) week\(weeks == 1 ? "" : "s")", value: $weeks, in: 1...52)
                     .wpTypography(.body)
                     .foregroundStyle(ColorTokens.textPrimary)
 
@@ -731,7 +755,7 @@ private struct RepeatSheet: View {
                 Button("Repeat") {
                     let result = TaskReplicator.repeatWeekly(task, onWeekdays: selectedDays, forWeeks: weeks, context: context)
                     dismiss()
-                    onDone(result.created, result.skipped)
+                    onDone(result.created, result.skipped, result.lastDate)
                 }
                 .buttonStyle(PrimaryButtonStyle(tint: theme.accentSwatch.color, foreground: .white))
                 .disabled(selectedDays.isEmpty)

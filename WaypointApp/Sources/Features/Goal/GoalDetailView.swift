@@ -56,6 +56,9 @@ struct GoalDetailView: View {
     /// sheets isn't safe and this queue exists.
     @State private var queuedSheet: ActiveSheet?
     @State private var showingDeleteConfirm = false
+    /// Shown right after creating a task with a repeat attached — see `TodayView`'s identical
+    /// `repeatCreationSummary` for why this needs to exist at all.
+    @State private var repeatCreationSummary: String?
 
 
     var body: some View {
@@ -155,6 +158,11 @@ struct GoalDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes the goal and every task linked to it. This can't be undone.")
+        }
+        .alert("Repeat", isPresented: Binding(get: { repeatCreationSummary != nil }, set: { if !$0 { repeatCreationSummary = nil } })) {
+            Button("OK") { repeatCreationSummary = nil }
+        } message: {
+            Text(repeatCreationSummary ?? "")
         }
         .sheet(item: $activeSheet, onDismiss: handleSheetDismissed) { sheet in
             switch sheet {
@@ -323,7 +331,8 @@ struct GoalDetailView: View {
         try? context.save()
         rescheduleReminder(for: task)
         if !draft.repeatWeekdays.isEmpty {
-            TaskReplicator.repeatWeekly(task, onWeekdays: draft.repeatWeekdays, forWeeks: draft.repeatWeeks, context: context)
+            let result = TaskReplicator.repeatWeekly(task, onWeekdays: draft.repeatWeekdays, forWeeks: draft.repeatWeeks, context: context)
+            repeatCreationSummary = TaskReplicator.summaryText(created: result.created, skipped: result.skipped, lastDate: result.lastDate)
         }
     }
 

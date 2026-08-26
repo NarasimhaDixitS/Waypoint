@@ -231,6 +231,11 @@ struct TodayView: View {
     /// presents the next one once that dismissal has actually finished. See `presentSheet`.
     @State private var queuedSheet: ActiveSheet?
 
+    /// Shown right after creating a task with a repeat attached — the moment a mismatch
+    /// between the intended and actual end date would be visible, instead of only discoverable
+    /// later by browsing Week.
+    @State private var repeatCreationSummary: String?
+
     @State private var goalRefreshTrigger = 0
     /// Which edge new day content should slide in from — set right before changing
     /// `selectedDate` so the transition direction matches the swipe/jump direction.
@@ -406,6 +411,11 @@ struct TodayView: View {
             case .paywall:
                 PaywallView()
             }
+        }
+        .alert("Repeat", isPresented: Binding(get: { repeatCreationSummary != nil }, set: { if !$0 { repeatCreationSummary = nil } })) {
+            Button("OK") { repeatCreationSummary = nil }
+        } message: {
+            Text(repeatCreationSummary ?? "")
         }
         .onReceive(autoCompleteTimer) { _ in runAutoComplete() }
 
@@ -789,7 +799,8 @@ struct TodayView: View {
         try? context.save()
         rescheduleReminder(for: task)
         if !draft.repeatWeekdays.isEmpty {
-            TaskReplicator.repeatWeekly(task, onWeekdays: draft.repeatWeekdays, forWeeks: draft.repeatWeeks, context: context)
+            let result = TaskReplicator.repeatWeekly(task, onWeekdays: draft.repeatWeekdays, forWeeks: draft.repeatWeeks, context: context)
+            repeatCreationSummary = TaskReplicator.summaryText(created: result.created, skipped: result.skipped, lastDate: result.lastDate)
         }
     }
 
