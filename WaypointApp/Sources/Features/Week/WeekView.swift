@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import UIKit
 
 /// Week, rebuilt around two navigable units instead of one flat week-at-a-time list:
 /// **By week** browses months (prev/next), showing that month's weeks as collapsed cards —
@@ -10,6 +11,7 @@ import CoreData
 /// costs zero taps, and browsing away just shows quiet collapsed rows until you tap one open.
 struct WeekView: View {
     @EnvironmentObject private var theme: ThemeManager
+    @Environment(\.colorScheme) private var colorScheme
 
     /// First-of-month anchor for "By week" mode — the parent owns and animates this so the
     /// browsed month persists across tab switches, same pattern as Today's `selectedDate`.
@@ -93,6 +95,23 @@ struct WeekView: View {
 
     // MARK: - Derived data
 
+    /// Whichever week is currently the "big, highlighted" one in the mode presently on screen —
+    /// drives both the accent-card styling and where the auto-scroll lands.
+    private var activeExpandedWeek: Date? {
+        mode == .byWeek ? expandedWeekInMonth : expandedWeekInGoal
+    }
+
+    /// A soft accent-tinted fill for the current week's card — the same "this is the one
+    /// happening right now" language as the in-progress task row, rather than a fixed color. Mix
+    /// amount is higher in dark mode, same reasoning as everywhere else this pattern is used:
+    /// `surface1` is already dark, so a tint needs more strength there to read clearly.
+    private func cardBackground(isExpanded: Bool) -> Color {
+        guard isExpanded else { return ColorTokens.surface1 }
+        let accent = UIColor(theme.accentSwatch.color)
+        let base = UIColor(ColorTokens.surface1)
+        return Color(ColorTokens.mix(accent, over: base, amount: colorScheme == .dark ? 0.30 : 0.20))
+    }
+
     private var weeksInMonth: [Date] { Self.weeksOverlapping(month: browsedMonth) }
 
     private var sortedGoals: [GoalEntity] { Array(allGoals) }
@@ -137,29 +156,48 @@ struct WeekView: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Text("Week")
-                    .wpTypography(.screenTitle)
-                    .foregroundStyle(ColorTokens.textPrimary)
-                    .padding(.top, 8)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("Week")
+                        .wpTypography(.screenTitle)
+                        .foregroundStyle(ColorTokens.textPrimary)
+                        .padding(.top, 8)
 
-                banner
-                cardsList
+                    banner
+                    cardsList
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 24)
+            .background(ColorTokens.surface0.ignoresSafeArea())
+            .navigationBarHidden(true)
+            .onAppear {
+                if !didInitGoalDefaults, !sortedGoals.isEmpty {
+                    didInitGoalDefaults = true
+                    let goal = sortedGoals.first { candidate in
+                        weeks(for: candidate).contains(Self.mondayOfWeek(containing: .now))
+                    } ?? sortedGoals[0]
+                    browsedGoalID = goal.objectID
+                    expandedWeekInGoal = Self.defaultExpandedWeek(among: weeks(for: goal))
+                }
+                // Deferred a beat so the cards have actually laid out first — scrolling to an
+                // id on the same run loop turn the ScrollView first appears can silently no-op.
+                DispatchQueue.main.async { centerActiveWeek(proxy) }
+            }
+            // Covers every other way the "current" week can change without the view itself
+            // being torn down and recreated: switching By-week/By-goal, or stepping goals
+            // (`stepGoal`, which mutates state on this same instance rather than reinitializing
+            // it the way a month change does via the parent's `.id()`).
+            .onChange(of: activeExpandedWeek) { _, _ in centerActiveWeek(proxy) }
+            .onChange(of: mode) { _, _ in centerActiveWeek(proxy) }
         }
-        .background(ColorTokens.surface0.ignoresSafeArea())
-        .navigationBarHidden(true)
-        .onAppear {
-            guard !didInitGoalDefaults, !sortedGoals.isEmpty else { return }
-            didInitGoalDefaults = true
-            let goal = sortedGoals.first { candidate in
-                weeks(for: candidate).contains(Self.mondayOfWeek(containing: .now))
-            } ?? sortedGoals[0]
-            browsedGoalID = goal.objectID
-            expandedWeekInGoal = Self.defaultExpandedWeek(among: weeks(for: goal))
+    }
+
+    private func centerActiveWeek(_ proxy: ScrollViewProxy) {
+        guard let target = activeExpandedWeek else { return }
+        withAnimation(.easeInOut(duration: 0.3)) {
+            proxy.scrollTo(target, anchor: .center)
         }
     }
 
@@ -294,10 +332,11 @@ struct WeekView: View {
                         index: index,
                         monday: monday,
                         tasks: tasks(forWeekStarting: monday, in: Array(gridTasks)),
-                        isExpanded: expandedWeekInMonth == monday,
-                        accentLabel: false
+                        isExpanded: expandedWeekInMonth == monday
                     ) {
-                        expandedWeekInMonth = (expandedWeekInMonth == monday) ? nil : monday
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            expandedWeekInMonth = (expandedWeekInMonth == monday) ? nil : monday
+                        }
                     }
                 }
             }
@@ -315,10 +354,11 @@ struct WeekView: View {
                             index: index,
                             monday: monday,
                             tasks: tasks(forWeekStarting: monday, in: goal.sortedTasks),
-                            isExpanded: expandedWeekInGoal == monday,
-                            accentLabel: true
+                            isExpanded: expandedWeekInGoal == monday
                         ) {
-                            expandedWeekInGoal = (expandedWeekInGoal == monday) ? nil : monday
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                expandedWeekInGoal = (expandedWeekInGoal == monday) ? nil : monday
+                            }
                         }
                     }
                 } else {
@@ -330,40 +370,51 @@ struct WeekView: View {
         }
     }
 
+    /// The current week's card always reads as the focal point — bigger title/meta/progress
+    /// ring and a soft accent-tinted background, the same "this is the one happening right now"
+    /// treatment as the in-progress task row on Today. Every other card stays compact and
+    /// neutral, and tapping one swaps which card gets the treatment (falls out of `isExpanded`
+    /// naturally, since only one week can be expanded per mode at a time).
     private func weekCard(
         index: Int,
         monday: Date,
         tasks: [TaskEntity],
         isExpanded: Bool,
-        accentLabel: Bool,
         onToggle: @escaping () -> Void
     ) -> some View {
         let sunday = Calendar.current.date(byAdding: .day, value: 6, to: monday) ?? monday
         let done = tasks.filter(\.isDone).count
         let total = tasks.count
         let rangeLabel = "\(monday.formatted(.dateTime.month(.abbreviated).day()))–\(sunday.formatted(.dateTime.day()))"
+        let accentColor = isExpanded ? theme.accentSwatch.color : ColorTokens.textPrimary
+        let accentMetaColor = isExpanded ? theme.accentSwatch.color.opacity(0.8) : ColorTokens.textSecondary
 
         return VStack(alignment: .leading, spacing: 0) {
             Button(action: onToggle) {
-                HStack(spacing: 14) {
-                    VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: isExpanded ? 16 : 14) {
+                    VStack(alignment: .leading, spacing: isExpanded ? 5 : 3) {
                         Text("Week \(index + 1)")
-                            .wpTypography(.cardTitle)
-                            .foregroundStyle(accentLabel ? theme.accentSwatch.color : ColorTokens.textPrimary)
+                            .wpTypography(isExpanded ? .bigStat : .cardTitle)
+                            .foregroundStyle(accentColor)
                         Text(total == 0 ? rangeLabel : "\(rangeLabel) · \(done) of \(total) done")
-                            .wpTypography(.body)
-                            .foregroundStyle(ColorTokens.textSecondary)
+                            .wpTypography(isExpanded ? .cardTitle : .body)
+                            .foregroundStyle(accentMetaColor)
                     }
                     Spacer(minLength: 8)
                     if total > 0 {
-                        ProgressRing(progress: Double(done) / Double(total), lineWidth: 4, color: theme.accentSwatch.color, showsLabel: false)
-                            .frame(width: 32, height: 32)
+                        ProgressRing(
+                            progress: Double(done) / Double(total),
+                            lineWidth: isExpanded ? 5 : 4,
+                            color: theme.accentSwatch.color,
+                            showsLabel: false
+                        )
+                        .frame(width: isExpanded ? 44 : 32, height: isExpanded ? 44 : 32)
                     }
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(ColorTokens.textMuted)
+                        .font(.system(size: isExpanded ? 14 : 12, weight: .semibold))
+                        .foregroundStyle(isExpanded ? theme.accentSwatch.color : ColorTokens.textMuted)
                 }
-                .padding(16)
+                .padding(isExpanded ? 20 : 16)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -380,12 +431,13 @@ struct WeekView: View {
                         dayGroup(group)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
             }
         }
-        .background(ColorTokens.surface1)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(cardBackground(isExpanded: isExpanded))
+        .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 22 : 18, style: .continuous))
+        .id(monday)
     }
 
     private func dayGroup(_ group: (day: Date, tasks: [TaskEntity])) -> some View {

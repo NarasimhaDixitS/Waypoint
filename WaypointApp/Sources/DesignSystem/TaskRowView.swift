@@ -17,11 +17,16 @@ struct TaskRowView: View {
 
     private var state: TaskState { task.state }
 
+    /// The in-progress task is the one thing happening right now — it gets a real size jump
+    /// (title, meta, icons, padding all scale up together), not just a tint change, so it reads
+    /// as the focal point of the list at a glance rather than just a differently-colored row.
+    private var isInProgress: Bool { state == .inProgress }
+
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: isInProgress ? 16 : 12) {
+            VStack(alignment: .leading, spacing: isInProgress ? 5 : 3) {
                 Text(task.title ?? "")
-                    .wpTypography(.cardTitle)
+                    .wpTypography(isInProgress ? .bigStat : .cardTitle)
                     .foregroundStyle(titleColor)
                     .strikethrough(state == .done)
 
@@ -35,7 +40,7 @@ struct TaskRowView: View {
                     case .pending: EmptyView()
                     }
                 }
-                .wpTypography(.body)
+                .wpTypography(isInProgress ? .cardTitle : .body)
                 .foregroundStyle(metaColor)
             }
 
@@ -44,9 +49,9 @@ struct TaskRowView: View {
             if state == .inProgress {
                 Button(action: onStartFocus) {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(ColorTokens.inProgress)
-                        .frame(width: 26, height: 26)
+                        .frame(width: 36, height: 36)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Start focus session")
@@ -95,7 +100,7 @@ struct TaskRowView: View {
             .disabled(isCompletionLocked)
             .accessibilityLabel(isCompletionLocked ? "Only completable on its scheduled day" : (state == .done ? "Mark as not done" : "Mark as done"))
         }
-        .padding(14)
+        .padding(isInProgress ? 20 : 14)
         .background {
             if state == .inProgress {
                 TaskProgressWave(
@@ -108,7 +113,7 @@ struct TaskRowView: View {
                 backgroundColor
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: isInProgress ? 22 : 18, style: .continuous))
         .animation(.easeInOut(duration: 0.25), value: state == .done)
         .sensoryFeedback(.success, trigger: task.isDone) { old, new in new }
         .sensoryFeedback(.impact(weight: .light), trigger: task.isDone) { old, new in !new }
@@ -127,8 +132,8 @@ struct TaskRowView: View {
             .frame(width: 26, height: 26)
         case .inProgress:
             Circle()
-                .stroke(ColorTokens.inProgress, lineWidth: 2)
-                .frame(width: 24, height: 24)
+                .stroke(ColorTokens.inProgress, lineWidth: 2.5)
+                .frame(width: 32, height: 32)
         case .overdue:
             Circle()
                 .stroke(ColorTokens.warning, lineWidth: 1.6)
