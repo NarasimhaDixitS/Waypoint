@@ -547,11 +547,10 @@ struct TodayView: View {
         .padding(.top, 8)
     }
 
-    /// A compact icon-only control (matches the size/style of the dark-mode toggle in `header`)
-    /// folded into the existing weekday-label row instead of a row of its own, so switching sort
-    /// modes doesn't push the goal carousel and task list down the screen. Fixed schedule blocks
-    /// never move regardless of `sortMode` — see the pinned-position comment on `timeline` — so
-    /// this only ever reorders the task cards themselves.
+    /// Folded into the existing weekday-label row (trailing end) rather than a row of its own,
+    /// so switching sort modes doesn't push the goal carousel and task list down the screen.
+    /// Fixed schedule blocks never move regardless of `sortMode` — see the pinned-position
+    /// comment on `timeline` — so this only ever reorders the task cards themselves.
     private var sortMenuButton: some View {
         Menu {
             ForEach(TaskSortMode.allCases, id: \.self) { mode in
@@ -565,12 +564,14 @@ struct TodayView: View {
                 }
             }
         } label: {
-            Image(systemName: sortMode == .priority ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
-                .font(.system(size: 20))
+            Label("Sort: \(sortMode.label)", systemImage: sortMode.icon)
+                .wpTypography(.micro)
                 .foregroundStyle(ColorTokens.textSecondary)
-                .frame(width: 30, height: 30)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(ColorTokens.surface1)
+                .clipShape(Capsule())
         }
-        .accessibilityLabel("Sort tasks: \(sortMode.label)")
     }
 
     private var addTaskButton: some View {

@@ -106,6 +106,10 @@ struct MainTabView: View {
                 selectedTab: Binding(get: { selectedTab }, set: selectTab),
                 searchActive: $searchActive
             )
+            // The system's home-indicator safe area alone left a much bigger gap below the bar
+            // than intended — ignore it and add back just a small fixed clearance instead.
+            .ignoresSafeArea(edges: .bottom)
+            .padding(.bottom, 10)
         }
         .animation(.easeInOut(duration: 0.22), value: searchActive)
         .environmentObject(dateStore)
