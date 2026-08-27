@@ -109,7 +109,7 @@ struct MainTabView: View {
             // The system's home-indicator safe area alone left a much bigger gap below the bar
             // than intended — ignore it and add back just a small fixed clearance instead.
             .ignoresSafeArea(edges: .bottom)
-            .padding(.bottom, 10)
+            .padding(.bottom, 2)
         }
         .animation(.easeInOut(duration: 0.22), value: searchActive)
         .environmentObject(dateStore)
