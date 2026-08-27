@@ -26,13 +26,22 @@ enum ColorTokens {
         dark: mix(hex(0x85B7EB), over: hex(0x242422), amount: 0.24)
     )
 
-    /// "Needs attention" role token — schedule conflicts, warnings.
-    static let warning = Color(hex(0xD85A30))
-    static let textWarning = dynamic(light: hex(0xB0431E), dark: hex(0xF0A583))
+    /// "Needs attention" role token — schedule conflicts, warnings. Deliberately shifted
+    /// red-ward (was #D85A30) so it's no longer the exact same hex as the Orange accent swatch
+    /// — once the accent shows up on the tab bar and search icon too, an Orange-accented user
+    /// would otherwise see their own UI chrome and an overdue task badge in literally identical
+    /// color, purely by coincidence.
+    static let warning = Color(hex(0xD83E30))
+    static let textWarning = dynamic(light: hex(0xB02A1E), dark: hex(0xF09383))
     static let warningTint = dynamic(
-        light: mix(hex(0xD85A30), over: hex(0xFFFFFF), amount: 0.24),
-        dark: mix(hex(0xD85A30), over: hex(0x242422), amount: 0.24)
+        light: mix(hex(0xD83E30), over: hex(0xFFFFFF), amount: 0.24),
+        dark: mix(hex(0xD83E30), over: hex(0x242422), amount: 0.24)
     )
+
+    /// "Medium priority" role token — same reasoning as `warning` above: was a duplicate of the
+    /// Pink accent swatch's exact hex (#D4537E), shifted toward magenta so it's a distinct rose
+    /// rather than an accidental match to an accent option.
+    static let priorityMedium = Color(hex(0xD4539E))
 
     /// "Scheduled for later" role token — tasks on a day that hasn't arrived yet.
     static let scheduled = dynamic(light: hex(0x7B5EA7), dark: hex(0xB79BDB))
@@ -42,7 +51,18 @@ enum ColorTokens {
         dark: mix(hex(0xB79BDB), over: hex(0x242422), amount: 0.24)
     )
 
-    static let cardShadow = Color.black.opacity(0.07)
+    /// Elevation scale — was a single flat shadow value app-wide; now three tiers so ordinary
+    /// content, "floating" interactive chrome (FAB, banners, the tab bar), and true overlays
+    /// (sheets/modals) read as visibly different depths, not just decoration. Dark mode gets
+    /// higher opacity at each tier since a low-opacity black shadow barely registers against an
+    /// already-dark background. Pair each with `CardBackground.ShadowTier`'s radius/y, not just
+    /// the color alone.
+    static let shadowResting = dynamic(light: hex(0x000000, alpha: 0.09), dark: hex(0x000000, alpha: 0.3))
+    static let shadowRaised = dynamic(light: hex(0x000000, alpha: 0.16), dark: hex(0x000000, alpha: 0.4))
+    static let shadowFloating = dynamic(light: hex(0x000000, alpha: 0.24), dark: hex(0x000000, alpha: 0.5))
+
+    /// Kept for any call site still referencing the old single-tier name directly.
+    static let cardShadow = shadowResting
 
     // MARK: - Helpers
 

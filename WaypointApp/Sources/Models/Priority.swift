@@ -21,11 +21,14 @@ enum Priority: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    /// References `ColorTokens` rather than hardcoding hex values, so a future palette change
+    /// (like the warning/priorityMedium shift made to avoid colliding with accent swatches)
+    /// only has to happen in one place.
     var tintColor: Color {
         switch self {
-        case .high: Color(red: 0.847, green: 0.353, blue: 0.188)   // #D85A30
-        case .medium: Color(red: 0.831, green: 0.325, blue: 0.494) // #D4537E
-        case .low: Color.secondary
+        case .high: ColorTokens.warning
+        case .medium: ColorTokens.priorityMedium
+        case .low: ColorTokens.textSecondary
         }
     }
 }

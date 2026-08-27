@@ -63,7 +63,6 @@ private enum ActiveSheet: Identifiable {
     case editBump(EditBumpInfo)
     case completion(CompletionInfo)
     case pomodoro(TaskEntity)
-    case search
     case paywall
 
     var id: String {
@@ -76,7 +75,6 @@ private enum ActiveSheet: Identifiable {
         case .editBump: "editBump"
         case .completion(let info): "completion-\(info.id)"
         case .pomodoro(let t): "pomodoro-\(t.objectID)"
-        case .search: "search"
         case .paywall: "paywall"
         }
     }
@@ -406,11 +404,6 @@ struct TodayView: View {
                 NavigationStack {
                     PomodoroView(focusTitle: task.title)
                 }
-            case .search:
-                SearchView(onSelectTask: { task in
-                    activeSheet = nil
-                    navigate(to: task.resolvedDate)
-                })
             case .paywall:
                 PaywallView()
             }
@@ -424,7 +417,13 @@ struct TodayView: View {
 
         addTaskButton
             .padding(.trailing, 20)
-            .padding(.bottom, 20)
+            // Fixed clearance for the custom tab bar (MainTabView.CustomTabBar) — a
+            // `.safeAreaInset` on the ancestor ZStack does NOT propagate through this view's
+            // `NavigationStack` boundary the way it would for a plain sibling view, so this
+            // can't just be a small offset relying on inherited safe area like it could when
+            // the native TabView provided it automatically. Verified empirically: an inherited
+            // safe area here silently failed to clear the bar at all.
+            .padding(.bottom, 96)
 
         if let pendingDeletion {
             VStack {
@@ -432,7 +431,7 @@ struct TodayView: View {
                 undoToast(pendingDeletion)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, 90)
+            .padding(.bottom, 166) // clears the FAB above the tab bar — see addTaskButton's comment
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
         }
@@ -487,15 +486,6 @@ struct TodayView: View {
                 .foregroundStyle(ColorTokens.textPrimary)
             Spacer()
             Button {
-                presentSheet(.search)
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(ColorTokens.textSecondary)
-                    .frame(width: 30, height: 30)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Search tasks")
-            Button {
                 theme.appearanceMode = theme.appearanceMode == .dark ? .light : .dark
             } label: {
                 Image(systemName: theme.appearanceMode == .dark ? "moon.fill" : "sun.max.fill")
@@ -516,7 +506,7 @@ struct TodayView: View {
                 .frame(width: 60, height: 60)
                 .background(theme.accentSwatch.color)
                 .clipShape(Circle())
-                .shadow(color: ColorTokens.cardShadow, radius: 8, x: 0, y: 4)
+                .shadow(color: ColorTokens.shadowRaised, radius: 14, x: 0, y: 6)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("New task")
@@ -587,7 +577,7 @@ struct TodayView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .wpCard(padding: 20, fill: theme.accentSwatch.color)
+        .wpCard(padding: 20, fill: theme.accentSwatch.color, shadow: .raised)
     }
 
     /// Mirrors `goalCard`'s shape (a leading label + a 68×68 circular element, plus the same
@@ -617,7 +607,7 @@ struct TodayView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .wpCard(padding: 20, fill: theme.accentSwatch.color)
+        .wpCard(padding: 20, fill: theme.accentSwatch.color, shadow: .raised)
     }
 
     private static var emptyWeekPreview: [(date: Date, done: Bool)] {

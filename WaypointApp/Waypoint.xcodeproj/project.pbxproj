@@ -48,7 +48,6 @@
 		B9B8319683994671D16A0B23 /* GoalEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414FAA12C134A64B5FAC53AB /* GoalEntity+Extensions.swift */; };
 		BFB17E314B1FED350DC83406 /* ProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C766B58B62C0A77895616F9F /* ProgressRing.swift */; };
 		D13C502840BF8A8063FFC353 /* CompletionBurst.swift in Sources */ = {isa = PBXBuildFile; fileRef = F91116B3A2600B6D867ECAD1 /* CompletionBurst.swift */; };
-		D310A5A0713209F5CC3CF0DC /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFFD2CF30972FADBF4B54D6E /* SearchView.swift */; };
 		D578F0738C862DB4AD3C34E7 /* ProgressAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49825B536B5B5A7898A561B9 /* ProgressAnalyticsView.swift */; };
 		DBD85E619AD25D3CAE81E191 /* TaskReplicatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB56D3F2D27B6CB75FD85E12 /* TaskReplicatorTests.swift */; };
 		DE3BA15E3EAFC3B63C7B8890 /* TaskReplicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A77AA9974756C96BD976B908 /* TaskReplicator.swift */; };
@@ -122,7 +121,6 @@
 		D85917D87C1E0FD562F03FE3 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		DCCC2E97AF4EC6541D3BBD30 /* TaskRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRowView.swift; sourceTree = "<group>"; };
 		EF5B6B74E18146252DE5EECF /* ScheduleSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleSetupView.swift; sourceTree = "<group>"; };
-		EFFD2CF30972FADBF4B54D6E /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		F0F0E27307582BCBF61CAE14 /* SleepSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSetupView.swift; sourceTree = "<group>"; };
 		F31BEC7026BBE9ED825FF591 /* WeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekView.swift; sourceTree = "<group>"; };
 		F72A67DF8D514BDD23A89798 /* ProBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProBadge.swift; sourceTree = "<group>"; };
@@ -285,7 +283,6 @@
 				B3011F16F72CF1F3449C54D7 /* Pomodoro */,
 				77D4BA0E1825765A4473687E /* Progress */,
 				AC9E994AC913F053E6282AC1 /* Schedule */,
-				BEAFF79CAADC32C00352F60A /* Search */,
 				A9AA760CC19577C18905E5F9 /* Settings */,
 				B9B9CF2A70685DFDF8EE164B /* Task */,
 				74A53DE98263B210457A199E /* Today */,
@@ -324,14 +321,6 @@
 				648F57DB7F99D00D1D4366D8 /* NewTaskView.swift */,
 			);
 			path = Task;
-			sourceTree = "<group>";
-		};
-		BEAFF79CAADC32C00352F60A /* Search */ = {
-			isa = PBXGroup;
-			children = (
-				EFFD2CF30972FADBF4B54D6E /* SearchView.swift */,
-			);
-			path = Search;
 			sourceTree = "<group>";
 		};
 		CA7F97B758C7040DE75726A6 /* DesignSystem */ = {
@@ -541,7 +530,6 @@
 				B8AE3F3458A1577CB492669D /* SampleData.swift in Sources */,
 				B12E14D9F220506BE25B5E81 /* ScheduleEngine.swift in Sources */,
 				282DF72FF66F505186DF4381 /* ScheduleSetupView.swift in Sources */,
-				D310A5A0713209F5CC3CF0DC /* SearchView.swift in Sources */,
 				336714247F3CE0431661E8EC /* SettingsView.swift in Sources */,
 				ECFBF55BDFEF53CE52B6C2E9 /* SleepSettings.swift in Sources */,
 				62E80A2D7D2E3662061F6458 /* SleepSetupView.swift in Sources */,
