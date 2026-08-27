@@ -168,7 +168,11 @@ struct WeekView: View {
                     cardsList
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 24)
+                // Big enough that even the LAST week card, fully expanded, can still scroll
+                // clear of the floating tab bar — a plain 24pt was only ever enough when
+                // nothing below the fold needed room, which breaks the moment the bottom card
+                // is the one that's open.
+                .padding(.bottom, 140)
             }
             .background(ColorTokens.surface0.ignoresSafeArea())
             .navigationBarHidden(true)
