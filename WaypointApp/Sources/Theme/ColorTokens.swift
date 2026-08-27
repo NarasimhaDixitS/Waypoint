@@ -2,6 +2,12 @@ import SwiftUI
 import UIKit
 
 enum ColorTokens {
+    /// Shared with `CardBackground.ShadowTier` — kept here (not nested in that view modifier)
+    /// so `elevatedFill` below can be a pure color-token function, not tied to a specific view.
+    enum ShadowTier {
+        case resting, raised, floating
+    }
+
     // MARK: - Palette
 
     static let surface0 = dynamic(light: hex(0xF5F5F3), dark: hex(0x1C1C1A))
@@ -54,15 +60,34 @@ enum ColorTokens {
     /// Elevation scale — was a single flat shadow value app-wide; now three tiers so ordinary
     /// content, "floating" interactive chrome (FAB, banners, the tab bar), and true overlays
     /// (sheets/modals) read as visibly different depths, not just decoration. Dark mode gets
-    /// higher opacity at each tier since a low-opacity black shadow barely registers against an
-    /// already-dark background. Pair each with `CardBackground.ShadowTier`'s radius/y, not just
-    /// the color alone.
-    static let shadowResting = dynamic(light: hex(0x000000, alpha: 0.09), dark: hex(0x000000, alpha: 0.3))
-    static let shadowRaised = dynamic(light: hex(0x000000, alpha: 0.16), dark: hex(0x000000, alpha: 0.4))
-    static let shadowFloating = dynamic(light: hex(0x000000, alpha: 0.24), dark: hex(0x000000, alpha: 0.5))
+    /// substantially higher opacity at each tier — a low-opacity black shadow is nearly
+    /// invisible against an already-dark background no matter how it's tuned; shadow alone
+    /// can't carry "elevated" on a dark surface. Pair each with `CardBackground.ShadowTier`'s
+    /// radius/y, not just the color alone, and see `elevatedFill` below for the other half of
+    /// the fix (surfaces get lighter, not just shadowed, as they rise in dark mode).
+    static let shadowResting = dynamic(light: hex(0x000000, alpha: 0.1), dark: hex(0x000000, alpha: 0.55))
+    static let shadowRaised = dynamic(light: hex(0x000000, alpha: 0.18), dark: hex(0x000000, alpha: 0.65))
+    static let shadowFloating = dynamic(light: hex(0x000000, alpha: 0.28), dark: hex(0x000000, alpha: 0.75))
 
     /// Kept for any call site still referencing the old single-tier name directly.
     static let cardShadow = shadowResting
+
+    /// The other half of making elevation actually read in dark mode: blend a touch of white
+    /// into a fill color as it rises, the same "surfaces get lighter at higher elevation"
+    /// convention dark-themed UIs generally use, since a shadow's color contrast against an
+    /// already-near-black background is inherently too low to carry depth by itself. No-op
+    /// (returns `base` unchanged) in light mode, where shadow-only elevation already reads
+    /// fine against a light background.
+    static func elevatedFill(_ base: Color, tier: ShadowTier, isDark: Bool) -> Color {
+        guard isDark else { return base }
+        let amount: CGFloat = switch tier {
+        case .resting: 0
+        case .raised: 0.05
+        case .floating: 0.1
+        }
+        guard amount > 0 else { return base }
+        return Color(mix(hex(0xFFFFFF), over: UIColor(base), amount: amount))
+    }
 
     // MARK: - Helpers
 

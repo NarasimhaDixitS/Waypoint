@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import UIKit
 
 struct MainTabView: View {
     @StateObject private var dateStore = DateNavigationStore()
@@ -111,16 +112,20 @@ struct MainTabView: View {
     }
 }
 
-/// Replaces the native `TabView` chrome entirely — a fully custom bar so the selected item can
-/// read in the user's accent color instead of a fixed neutral tint, matching every other
-/// accent-dependent element in the app. Search lives here as a fifth item rather than in
-/// Today's own header, so it works the same regardless of which tab is showing; tapping it
-/// toggles `searchActive` instead of changing `selectedTab`, since it isn't a screen you land
-/// on and stay on.
+/// Replaces the native `TabView` chrome entirely — a floating, inset pill (not a flush
+/// edge-to-edge bar) whose *fill* is tinted from the accent color, while every icon glyph
+/// stays plain black (light mode) / white (dark mode) — the accent marks the bar itself, not
+/// individual item colors. The active item is shown by size and a solid-accent highlight
+/// capsule that morphs between positions via `matchedGeometryEffect`, not by hue. Search lives
+/// here as a fifth item rather than in Today's own header, so it works the same regardless of
+/// which tab is showing; tapping it toggles `searchActive` instead of changing `selectedTab`,
+/// since it isn't a screen you land on and stay on.
 private struct CustomTabBar: View {
     @EnvironmentObject private var theme: ThemeManager
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var selectedTab: Int
     @Binding var searchActive: Bool
+    @Namespace private var highlightNamespace
 
     private struct Item {
         let icon: String
@@ -135,18 +140,30 @@ private struct CustomTabBar: View {
         Item(icon: "gearshape", filledIcon: "gearshape.fill", label: "Settings")
     ]
 
+    /// The bar's own fill: accent mixed over the card surface (not a flat accent fill), so it
+    /// stays light enough in light mode / dark enough in dark mode for plain black/white icons
+    /// to read clearly regardless of which of the four accents is chosen.
+    private var barFill: Color {
+        let base = colorScheme == .dark ? ColorTokens.hex(0x242422) : ColorTokens.hex(0xFFFFFF)
+        return Color(ColorTokens.mix(UIColor(theme.accentSwatch.color), over: base, amount: 0.24))
+    }
+
+    private var iconColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             ForEach(items.indices, id: \.self) { index in
                 let isSelected = !searchActive && selectedTab == index
                 Button {
                     if searchActive { searchActive = false }
                     selectedTab = index
                 } label: {
-                    tabLabel(
+                    tabIcon(
                         icon: isSelected ? (items[index].filledIcon ?? items[index].icon) : items[index].icon,
-                        label: items[index].label,
-                        isSelected: isSelected
+                        isSelected: isSelected,
+                        geometryID: "tab-\(index)"
                     )
                 }
                 .buttonStyle(.plain)
@@ -155,28 +172,34 @@ private struct CustomTabBar: View {
             Button {
                 searchActive.toggle()
             } label: {
-                tabLabel(icon: "magnifyingglass", label: "Search", isSelected: searchActive)
+                tabIcon(icon: "magnifyingglass", isSelected: searchActive, geometryID: "tab-search")
             }
             .buttonStyle(.plain)
         }
-        .padding(.top, 10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(barFill)
+        .clipShape(Capsule())
+        .shadow(color: ColorTokens.shadowRaised, radius: 18, x: 0, y: 8)
+        .padding(.horizontal, 20)
         .padding(.bottom, 8)
-        .background(ColorTokens.surface1)
-        .overlay(alignment: .top) {
-            Rectangle().fill(ColorTokens.border).frame(height: 1)
-        }
-        .shadow(color: ColorTokens.shadowRaised, radius: 14, x: 0, y: -2)
     }
 
-    private func tabLabel(icon: String, label: String, isSelected: Bool) -> some View {
-        VStack(spacing: 4) {
+    private func tabIcon(icon: String, isSelected: Bool, geometryID: String) -> some View {
+        ZStack {
+            if isSelected {
+                Capsule()
+                    .fill(theme.accentSwatch.color)
+                    .matchedGeometryEffect(id: "highlight", in: highlightNamespace)
+                    .frame(width: 52, height: 40)
+            }
             Image(systemName: icon)
-                .font(.system(size: 20, weight: isSelected ? .semibold : .regular))
-            Text(label)
-                .font(.system(size: 10.5, weight: isSelected ? .semibold : .medium))
+                .font(.system(size: isSelected ? 21 : 19, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(iconColor.opacity(isSelected ? 1 : 0.5))
+                .frame(width: 52, height: 40)
         }
-        .foregroundStyle(isSelected ? theme.accentSwatch.color : ColorTokens.textMuted)
         .frame(maxWidth: .infinity)
+        .animation(.spring(response: 0.4, dampingFraction: 0.72), value: isSelected)
     }
 }
 
@@ -208,7 +231,11 @@ private struct GlobalSearchOverlay: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color.black.opacity(0.32)
+            // A real frosted blur of whatever's behind (the current tab's content), not a flat
+            // dark scrim — reads as "the page is still there, just blurred," not a popup
+            // dropped on top of it.
+            Rectangle()
+                .fill(.ultraThinMaterial)
                 .ignoresSafeArea()
                 .onTapGesture { onCancel() }
 
@@ -240,7 +267,7 @@ private struct GlobalSearchOverlay: View {
             .frame(maxHeight: 320)
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .shadow(color: ColorTokens.shadowFloating, radius: 24, x: 0, y: 12)
+            .shadow(color: ColorTokens.shadowFloating, radius: 30, x: 0, y: 14)
         }
     }
 
@@ -253,7 +280,7 @@ private struct GlobalSearchOverlay: View {
             .frame(maxWidth: .infinity)
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .shadow(color: ColorTokens.shadowFloating, radius: 24, x: 0, y: 12)
+            .shadow(color: ColorTokens.shadowFloating, radius: 30, x: 0, y: 14)
     }
 
     private var searchFieldRow: some View {
@@ -276,7 +303,7 @@ private struct GlobalSearchOverlay: View {
             .padding(12)
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: ColorTokens.shadowRaised, radius: 14, x: 0, y: 6)
+            .shadow(color: ColorTokens.shadowRaised, radius: 18, x: 0, y: 8)
 
             Button("Cancel", action: onCancel)
                 .foregroundStyle(theme.accentSwatch.color)

@@ -506,7 +506,7 @@ struct TodayView: View {
                 .frame(width: 60, height: 60)
                 .background(theme.accentSwatch.color)
                 .clipShape(Circle())
-                .shadow(color: ColorTokens.shadowRaised, radius: 14, x: 0, y: 6)
+                .shadow(color: ColorTokens.shadowRaised, radius: 18, x: 0, y: 8)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("New task")
