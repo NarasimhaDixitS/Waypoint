@@ -269,7 +269,9 @@ struct WeekView: View {
 
     private func modeButton(_ label: String, _ target: Mode) -> some View {
         Button {
-            mode = target
+            withAnimation(.easeInOut(duration: 0.3)) {
+                mode = target
+            }
         } label: {
             Text(label)
                 .font(.system(size: 13, weight: .semibold))
@@ -293,8 +295,12 @@ struct WeekView: View {
         guard !sortedGoals.isEmpty else { return }
         let newIndex = min(max(currentGoalIndex + delta, 0), sortedGoals.count - 1)
         let goal = sortedGoals[newIndex]
-        browsedGoalID = goal.objectID
-        expandedWeekInGoal = Self.defaultExpandedWeek(among: weeks(for: goal))
+        // Month-stepping was already animated (wrapped one level up, in MainTabView); this was
+        // the one navigation control here that wasn't, snapping instead of transitioning.
+        withAnimation(.easeInOut(duration: 0.3)) {
+            browsedGoalID = goal.objectID
+            expandedWeekInGoal = Self.defaultExpandedWeek(among: weeks(for: goal))
+        }
     }
 
     // MARK: - Cards

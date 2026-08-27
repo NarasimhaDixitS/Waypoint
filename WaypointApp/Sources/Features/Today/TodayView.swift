@@ -554,7 +554,12 @@ struct TodayView: View {
         Menu {
             ForEach(TaskSortMode.allCases, id: \.self) { mode in
                 Button {
-                    sortMode = mode
+                    // Task rows keep a stable identity (TimelineItem.id) across a sort-mode
+                    // change, so wrapping this in withAnimation lets SwiftUI slide each row to
+                    // its new position instead of the list snapping into the new order.
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        sortMode = mode
+                    }
                 } label: {
                     Label(mode.label, systemImage: mode.icon)
                     if sortMode == mode {
@@ -563,13 +568,20 @@ struct TodayView: View {
                 }
             }
         } label: {
-            Label("Sort: \(sortMode.label)", systemImage: sortMode.icon)
-                .wpTypography(.micro)
-                .foregroundStyle(ColorTokens.textSecondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(ColorTokens.surface1)
-                .clipShape(Capsule())
+            HStack(spacing: 5) {
+                // Direct Image, not Label — `.contentTransition` needs to target the symbol
+                // itself to morph it; applied to a compound Label it has no visible effect.
+                Image(systemName: sortMode.icon)
+                    .contentTransition(.symbolEffect(.replace))
+                Text("Sort: \(sortMode.label)")
+                    .contentTransition(.opacity)
+            }
+            .wpTypography(.micro)
+            .foregroundStyle(ColorTokens.textSecondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(ColorTokens.surface1)
+            .clipShape(Capsule())
         }
     }
 
