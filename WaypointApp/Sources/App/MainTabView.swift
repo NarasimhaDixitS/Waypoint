@@ -151,6 +151,11 @@ struct MainTabView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("New task")
+        // CustomTabBar's own frame is barHeight + badgeLift tall (extra room reserved above the
+        // pill for the selected badge to pop up into), which shifts the *pill's* visual center
+        // down by badgeLift/2 within that frame. This button has no such reservation, so
+        // without this offset it centers 7pt too high relative to the pill beside it.
+        .offset(y: 7)
     }
 }
 
