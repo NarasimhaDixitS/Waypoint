@@ -80,6 +80,26 @@ private enum ActiveSheet: Identifiable {
     }
 }
 
+/// How `DayTimelineView` orders its rows top to bottom.
+enum TaskSortMode: String, CaseIterable {
+    case time
+    case priority
+
+    var label: String {
+        switch self {
+        case .time: "Time"
+        case .priority: "Priority"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .time: "clock"
+        case .priority: "flag"
+        }
+    }
+}
+
 private enum TimelineItem: Identifiable {
     case task(TaskEntity)
     case block(CommitmentEntity, Date, Date)
@@ -88,6 +108,17 @@ private enum TimelineItem: Identifiable {
         switch self {
         case .task(let t): "task-\(t.id?.uuidString ?? UUID().uuidString)"
         case .block(let c, let s, _): "block-\(c.id?.uuidString ?? UUID().uuidString)-\(s.timeIntervalSince1970)"
+        }
+    }
+
+    /// Fixed schedule blocks aren't prioritizable, so they always sort after every task when
+    /// sorting by priority — the prioritized to-do list stays on top, with the day's fixed
+    /// commitments as a reference list below it, rather than interleaving in some arbitrary
+    /// way that mixes two incompatible sort keys.
+    var priorityRank: Int {
+        switch self {
+        case .task(let t): t.priorityValue.sortWeight
+        case .block: Int.max
         }
     }
 
@@ -125,6 +156,7 @@ private struct DayTimelineView: View {
     /// Tasks mid-undo-window from a pending delete — kept out of Core Data deletion but
     /// hidden here so the row disappears immediately, before the delete actually finalizes.
     let hiddenTaskIDs: Set<NSManagedObjectID>
+    let sortMode: TaskSortMode
     var onToggle: (TaskEntity) -> Void
     var onEditTask: (TaskEntity) -> Void
     var onStartFocus: (TaskEntity) -> Void
@@ -137,6 +169,7 @@ private struct DayTimelineView: View {
         isViewingToday: Bool,
         commitments: FetchedResults<CommitmentEntity>,
         hiddenTaskIDs: Set<NSManagedObjectID>,
+        sortMode: TaskSortMode,
         onToggle: @escaping (TaskEntity) -> Void,
         onEditTask: @escaping (TaskEntity) -> Void,
         onStartFocus: @escaping (TaskEntity) -> Void,
@@ -146,6 +179,7 @@ private struct DayTimelineView: View {
         self.isViewingToday = isViewingToday
         self.commitments = commitments
         self.hiddenTaskIDs = hiddenTaskIDs
+        self.sortMode = sortMode
         self.onToggle = onToggle
         self.onEditTask = onEditTask
         self.onStartFocus = onStartFocus
@@ -161,7 +195,15 @@ private struct DayTimelineView: View {
             let (start, end) = commitment.instance(on: day)
             items.append(.block(commitment, start, end))
         }
-        return items.sorted { $0.sortDate < $1.sortDate }
+        switch sortMode {
+        case .time:
+            return items.sorted { $0.sortDate < $1.sortDate }
+        case .priority:
+            return items.sorted { lhs, rhs in
+                if lhs.priorityRank != rhs.priorityRank { return lhs.priorityRank < rhs.priorityRank }
+                return lhs.sortDate < rhs.sortDate
+            }
+        }
     }
 
     var body: some View {
@@ -224,6 +266,10 @@ struct TodayView: View {
         get { dateStore.selectedDate }
         nonmutating set { dateStore.selectedDate = newValue }
     }
+
+    /// How today's task cards are ordered top to bottom — persists across day navigation, not
+    /// per-day, since it's a viewing preference rather than something tied to one day's data.
+    @State private var sortMode: TaskSortMode = .time
 
     @State private var activeSheet: ActiveSheet?
     /// SwiftUI's `.sheet(item:)` doesn't reliably support swapping the item directly from
@@ -302,11 +348,14 @@ struct TodayView: View {
 
                 goalSection
 
+                sortMenu
+
                 DayTimelineView(
                     day: selectedDate,
                     isViewingToday: isViewingToday,
                     commitments: commitments,
                     hiddenTaskIDs: hiddenTaskIDs,
+                    sortMode: sortMode,
                     onToggle: { task in toggleTask(task) },
                     onEditTask: { task in presentSheet(.editTask(task)) },
                     onStartFocus: { task in presentSheet(.pomodoro(task)) },
@@ -496,6 +545,35 @@ struct TodayView: View {
             .accessibilityLabel("Toggle dark mode")
         }
         .padding(.top, 8)
+    }
+
+    /// Right-aligned so it sits above the task list without competing with the goal carousel
+    /// above it. Fixed schedule blocks always sort after tasks when "Priority" is picked — see
+    /// `TimelineItem.priorityRank` — so this only ever reorders the task cards themselves.
+    private var sortMenu: some View {
+        HStack {
+            Spacer()
+            Menu {
+                ForEach(TaskSortMode.allCases, id: \.self) { mode in
+                    Button {
+                        sortMode = mode
+                    } label: {
+                        Label(mode.label, systemImage: mode.icon)
+                        if sortMode == mode {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            } label: {
+                Label("Sort: \(sortMode.label)", systemImage: sortMode.icon)
+                    .wpTypography(.micro)
+                    .foregroundStyle(ColorTokens.textSecondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(ColorTokens.surface1)
+                    .clipShape(Capsule())
+            }
+        }
     }
 
     private var addTaskButton: some View {
