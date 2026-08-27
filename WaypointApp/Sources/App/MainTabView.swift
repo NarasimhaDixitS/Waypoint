@@ -400,7 +400,7 @@ private struct GlobalSearchOverlay: View {
         case .done: ColorTokens.success
         case .overdue: ColorTokens.warning
         case .future: ColorTokens.scheduled
-        case .inProgress: ColorTokens.inProgress
+        case .inProgress: theme.accentSwatch.inProgressColor
         case .pending: ColorTokens.textMuted
         }
     }

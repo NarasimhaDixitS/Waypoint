@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct TaskRowView: View {
+    @EnvironmentObject private var theme: ThemeManager
     @ObservedObject var task: TaskEntity
     var onToggle: () -> Void
     var onStartFocus: () -> Void
@@ -50,7 +51,7 @@ struct TaskRowView: View {
                 Button(action: onStartFocus) {
                     Image(systemName: "play.fill")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(ColorTokens.inProgress)
+                        .foregroundStyle(theme.accentSwatch.inProgressColor)
                         .frame(width: 36, height: 36)
                 }
                 .buttonStyle(.plain)
@@ -106,8 +107,8 @@ struct TaskRowView: View {
                 TaskProgressWave(
                     start: task.resolvedStartTime,
                     end: task.endTime,
-                    tint: ColorTokens.inProgressTint,
-                    line: ColorTokens.inProgress
+                    tint: theme.accentSwatch.inProgressTintColor,
+                    line: theme.accentSwatch.inProgressColor
                 )
             } else {
                 backgroundColor
@@ -132,7 +133,7 @@ struct TaskRowView: View {
             .frame(width: 26, height: 26)
         case .inProgress:
             Circle()
-                .stroke(ColorTokens.inProgress, lineWidth: 2.5)
+                .stroke(theme.accentSwatch.inProgressColor, lineWidth: 2.5)
                 .frame(width: 32, height: 32)
         case .overdue:
             Circle()
@@ -154,7 +155,7 @@ struct TaskRowView: View {
         case .done: ColorTokens.textSuccess
         case .overdue: ColorTokens.textWarning
         case .future: ColorTokens.textScheduled
-        case .inProgress: ColorTokens.textInProgress
+        case .inProgress: theme.accentSwatch.inProgressTextColor
         case .pending: ColorTokens.textPrimary
         }
     }
@@ -164,7 +165,7 @@ struct TaskRowView: View {
         case .done: ColorTokens.textSuccess.opacity(0.85)
         case .overdue: ColorTokens.textWarning.opacity(0.85)
         case .future: ColorTokens.textScheduled.opacity(0.85)
-        case .inProgress: ColorTokens.textInProgress.opacity(0.85)
+        case .inProgress: theme.accentSwatch.inProgressTextColor.opacity(0.85)
         case .pending: ColorTokens.textSecondary
         }
     }
@@ -174,7 +175,7 @@ struct TaskRowView: View {
         case .done: ColorTokens.successTint
         case .overdue: ColorTokens.warningTint
         case .future: ColorTokens.scheduledTint
-        case .inProgress: ColorTokens.inProgressTint
+        case .inProgress: theme.accentSwatch.inProgressTintColor
         case .pending: ColorTokens.surface1
         }
     }

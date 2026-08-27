@@ -319,7 +319,7 @@ struct TodayView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        GeometryReader { pageProxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
@@ -368,8 +368,19 @@ struct TodayView: View {
                 ))
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 100)
+            .padding(.bottom, 24)
         }
+        // A hard clip boundary on the ScrollView's OWN frame, not just a bottom inset on its
+        // content: the last row landing under the fixed FAB isn't a "reached the end of scroll"
+        // problem at all — it's simply that this row (now bigger, per the in-progress sizing
+        // change) is tall enough that, given whatever's above it, its own bottom edge reaches
+        // the FAB's fixed screen zone during completely normal top-down layout. Content padding,
+        // `.safeAreaInset`, and `.contentMargins` were all tried first and changed nothing,
+        // because none of them stop the ScrollView from painting content anywhere within its own
+        // frame — they only affect scroll *range*. Physically capping that frame so it ends
+        // above the FAB's zone is what actually clips content out of it, at any scroll position.
+        .frame(height: max(pageProxy.size.height - 160, 0), alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .contentShape(Rectangle())
@@ -463,28 +474,26 @@ struct TodayView: View {
             Text(repeatCreationSummary ?? "")
         }
         .onReceive(autoCompleteTimer) { _ in runAutoComplete() }
-
-        addTaskButton
-            .padding(.trailing, 20)
-            // Fixed clearance for the custom tab bar (MainTabView.CustomTabBar) — a
-            // `.safeAreaInset` on the ancestor ZStack does NOT propagate through this view's
-            // `NavigationStack` boundary the way it would for a plain sibling view, so this
-            // can't just be a small offset relying on inherited safe area like it could when
-            // the native TabView provided it automatically. Verified empirically: an inherited
-            // safe area here silently failed to clear the bar at all.
-            .padding(.bottom, 100)
-
-        if let pendingDeletion {
-            VStack {
-                Spacer()
-                undoToast(pendingDeletion)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, 170) // clears the FAB above the tab bar — see addTaskButton's comment
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+        .overlay(alignment: .bottomTrailing) {
+            addTaskButton
+                .padding(.trailing, 20)
+                // Fixed clearance for the custom tab bar (MainTabView.CustomTabBar) — a
+                // `.safeAreaInset` on the ancestor ZStack does NOT propagate through this view's
+                // `NavigationStack` boundary the way it would for a plain sibling view, so this
+                // can't just be a small offset relying on inherited safe area like it could when
+                // the native TabView provided it automatically. Verified empirically: an
+                // inherited safe area here silently failed to clear the bar at all.
+                .padding(.bottom, 100)
         }
+        .overlay(alignment: .bottom) {
+            if let pendingDeletion {
+                undoToast(pendingDeletion)
+                    .padding(.bottom, 170) // clears the FAB above the tab bar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .animation(.easeInOut(duration: 0.22), value: pendingDeletion != nil)
+        }
     }
 
     private func undoToast(_ pending: PendingDeletion) -> some View {

@@ -11,7 +11,6 @@ import UIKit
 /// costs zero taps, and browsing away just shows quiet collapsed rows until you tap one open.
 struct WeekView: View {
     @EnvironmentObject private var theme: ThemeManager
-    @Environment(\.colorScheme) private var colorScheme
 
     /// First-of-month anchor for "By week" mode — the parent owns and animates this so the
     /// browsed month persists across tab switches, same pattern as Today's `selectedDate`.
@@ -99,17 +98,6 @@ struct WeekView: View {
     /// drives both the accent-card styling and where the auto-scroll lands.
     private var activeExpandedWeek: Date? {
         mode == .byWeek ? expandedWeekInMonth : expandedWeekInGoal
-    }
-
-    /// A soft accent-tinted fill for the current week's card — the same "this is the one
-    /// happening right now" language as the in-progress task row, rather than a fixed color. Mix
-    /// amount is higher in dark mode, same reasoning as everywhere else this pattern is used:
-    /// `surface1` is already dark, so a tint needs more strength there to read clearly.
-    private func cardBackground(isExpanded: Bool) -> Color {
-        guard isExpanded else { return ColorTokens.surface1 }
-        let accent = UIColor(theme.accentSwatch.color)
-        let base = UIColor(ColorTokens.surface1)
-        return Color(ColorTokens.mix(accent, over: base, amount: colorScheme == .dark ? 0.30 : 0.20))
     }
 
     private var weeksInMonth: [Date] { Self.weeksOverlapping(month: browsedMonth) }
@@ -439,8 +427,19 @@ struct WeekView: View {
                 .padding(.bottom, 20)
             }
         }
-        .background(cardBackground(isExpanded: isExpanded))
+        .background(ColorTokens.surface1)
         .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 22 : 18, style: .continuous))
+        .overlay(alignment: .leading) {
+            // A left-edge accent stripe instead of a full tinted fill — the bigger size and
+            // accent-colored title already say "this is the current one"; a full color wash on
+            // top of that competed too much with the banner and tab bar's own solid accent.
+            if isExpanded {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(theme.accentSwatch.color)
+                    .frame(width: 4)
+                    .padding(.vertical, 10)
+            }
+        }
         .id(monday)
     }
 
@@ -488,7 +487,7 @@ struct WeekView: View {
         case .done: ColorTokens.success
         case .overdue: ColorTokens.warning
         case .future: ColorTokens.scheduled
-        case .inProgress: ColorTokens.inProgress
+        case .inProgress: theme.accentSwatch.inProgressColor
         case .pending: ColorTokens.textMuted
         }
     }
