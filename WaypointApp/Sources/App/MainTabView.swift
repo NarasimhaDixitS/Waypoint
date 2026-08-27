@@ -3,10 +3,10 @@ import SwiftUI
 struct MainTabView: View {
     @StateObject private var dateStore = DateNavigationStore()
     @State private var selectedTab = 0
-    /// The Monday of whichever week is currently browsed in the Week tab — persists across
-    /// tab switches (browsing to next week, checking Today, coming back to Week keeps you on
-    /// next week), separate from `weekRefreshTrigger` below.
-    @State private var selectedWeekStart = WeekView.mondayOfWeek(containing: .now)
+    /// The first-of-month anchor for whichever month is currently browsed in the Week tab —
+    /// persists across tab switches (browsing to next month, checking Today, coming back to
+    /// Week keeps you on next month), separate from `weekRefreshTrigger` below.
+    @State private var selectedMonth = WeekView.firstOfMonth(containing: .now)
     /// Bumped every time Week becomes the active tab, forcing it to fully rebuild (a fresh
     /// `init()`, a fresh task fetch) rather than just re-render. `WeekView`'s task fetch is a
     /// plain one-shot `@FetchRequest` set up once in `init` — it doesn't reliably pick up
@@ -14,10 +14,10 @@ struct MainTabView: View {
     /// merely re-rendering an already-alive instance isn't enough to catch it up.
     @State private var weekRefreshTrigger = 0
 
-    /// Combines both reasons `WeekView` might need a fresh fetch — a different week, or just
+    /// Combines both reasons `WeekView` might need a fresh fetch — a different month, or just
     /// revisiting the tab — into one identity so `.id()` rebuilds on either.
     private struct WeekIdentity: Hashable {
-        let weekStart: Date
+        let month: Date
         let refreshTrigger: Int
     }
 
@@ -37,12 +37,12 @@ struct MainTabView: View {
                         dateStore.selectedDate = .now
                     }
                 } else if newValue == 1 {
-                    let currentWeek = WeekView.mondayOfWeek(containing: .now)
-                    if !Calendar.current.isDate(selectedWeekStart, inSameDayAs: currentWeek) {
+                    let currentMonth = WeekView.firstOfMonth(containing: .now)
+                    if !Calendar.current.isDate(selectedMonth, equalTo: currentMonth, toGranularity: .month) {
                         // Same reasoning as the Today guard above — only animate the reset
                         // when it's an actual change, not on every re-tap.
                         withAnimation(.easeInOut(duration: 0.3)) {
-                            selectedWeekStart = currentWeek
+                            selectedMonth = currentMonth
                         }
                     }
                     weekRefreshTrigger += 1
@@ -60,20 +60,20 @@ struct MainTabView: View {
 
             NavigationStack {
                 WeekView(
-                    weekStart: selectedWeekStart,
+                    browsedMonth: selectedMonth,
                     onSelectDay: { day in
                         withAnimation(.easeInOut(duration: 0.3)) {
                             dateStore.selectedDate = day
                             selectedTab = 0
                         }
                     },
-                    onNavigateWeek: { newStart in
+                    onNavigateMonth: { newMonth in
                         withAnimation(.easeInOut(duration: 0.3)) {
-                            selectedWeekStart = newStart
+                            selectedMonth = newMonth
                         }
                     }
                 )
-                .id(WeekIdentity(weekStart: selectedWeekStart, refreshTrigger: weekRefreshTrigger))
+                .id(WeekIdentity(month: selectedMonth, refreshTrigger: weekRefreshTrigger))
             }
             .tabItem { Label("Week", systemImage: "calendar") }
             .tag(1)
