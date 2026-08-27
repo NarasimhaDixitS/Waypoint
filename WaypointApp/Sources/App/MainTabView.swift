@@ -161,7 +161,7 @@ private struct CustomTabBar: View {
                 NotchedBarShape(notchCenterX: notchCenterX, notchWidth: notchWidth, notchDepth: notchDepth)
                     .fill(theme.accentSwatch.color)
                     .frame(height: barHeight)
-                    .shadow(color: ColorTokens.shadowRaised, radius: 16, x: 0, y: 6)
+                    .shadow(color: ColorTokens.shadowRaised, radius: 22, x: 0, y: 18)
                     .offset(y: badgeLift)
 
                 HStack(spacing: 0) {
@@ -187,7 +187,7 @@ private struct CustomTabBar: View {
                     ZStack {
                         Circle()
                             .fill(badgeFill)
-                            .shadow(color: ColorTokens.shadowRaised, radius: 10, x: 0, y: 4)
+                            .shadow(color: ColorTokens.shadowRaised, radius: 14, x: 0, y: 8)
                         Image(systemName: filledIcons[activeIndex] ?? icons[activeIndex])
                             .font(.system(size: 24, weight: .semibold))
                             .foregroundStyle(badgeIconColor)
@@ -322,7 +322,7 @@ private struct GlobalSearchOverlay: View {
             .frame(maxHeight: 320)
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .shadow(color: ColorTokens.shadowFloating, radius: 30, x: 0, y: 14)
+            .shadow(color: ColorTokens.shadowFloating, radius: 30, x: 0, y: 28)
         }
     }
 
@@ -335,7 +335,7 @@ private struct GlobalSearchOverlay: View {
             .frame(maxWidth: .infinity)
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .shadow(color: ColorTokens.shadowFloating, radius: 30, x: 0, y: 14)
+            .shadow(color: ColorTokens.shadowFloating, radius: 30, x: 0, y: 28)
     }
 
     private var searchFieldRow: some View {
@@ -358,7 +358,7 @@ private struct GlobalSearchOverlay: View {
             .padding(12)
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: ColorTokens.shadowRaised, radius: 18, x: 0, y: 8)
+            .shadow(color: ColorTokens.shadowRaised, radius: 22, x: 0, y: 18)
 
             Button("Cancel", action: onCancel)
                 .foregroundStyle(theme.accentSwatch.color)

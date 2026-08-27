@@ -28,17 +28,17 @@ struct CardBackground: ViewModifier {
 
     private var shadowRadius: CGFloat {
         switch shadow {
-        case .resting: 10
-        case .raised: 18
+        case .resting: 14
+        case .raised: 22
         case .floating: 30
         }
     }
 
     private var shadowY: CGFloat {
         switch shadow {
-        case .resting: 4
-        case .raised: 8
-        case .floating: 14
+        case .resting: 10
+        case .raised: 18
+        case .floating: 28
         }
     }
 }

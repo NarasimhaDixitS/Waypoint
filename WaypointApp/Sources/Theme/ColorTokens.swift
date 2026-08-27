@@ -59,15 +59,19 @@ enum ColorTokens {
 
     /// Elevation scale — was a single flat shadow value app-wide; now three tiers so ordinary
     /// content, "floating" interactive chrome (FAB, banners, the tab bar), and true overlays
-    /// (sheets/modals) read as visibly different depths, not just decoration. Dark mode gets
-    /// substantially higher opacity at each tier — a low-opacity black shadow is nearly
-    /// invisible against an already-dark background no matter how it's tuned; shadow alone
-    /// can't carry "elevated" on a dark surface. Pair each with `CardBackground.ShadowTier`'s
-    /// radius/y, not just the color alone, and see `elevatedFill` below for the other half of
-    /// the fix (surfaces get lighter, not just shadowed, as they rise in dark mode).
-    static let shadowResting = dynamic(light: hex(0x000000, alpha: 0.1), dark: hex(0x000000, alpha: 0.55))
-    static let shadowRaised = dynamic(light: hex(0x000000, alpha: 0.18), dark: hex(0x000000, alpha: 0.65))
-    static let shadowFloating = dynamic(light: hex(0x000000, alpha: 0.28), dark: hex(0x000000, alpha: 0.75))
+    /// (sheets/modals) read as visibly different depths, not just decoration. Light mode uses a
+    /// soft, low-alpha, cool-gray tint (not flat black) with a large blur and generous Y
+    /// offset — a soft ambient shadow rather than a hard-edged one, so elevation reads gently
+    /// rather than as an outline. Dark mode keeps a much higher-opacity near-black instead — a
+    /// low-alpha tinted shadow is nearly invisible against an already-dark background no matter
+    /// how it's tuned; shadow alone can't carry "elevated" on a dark surface. Pair each with
+    /// `CardBackground.ShadowTier`'s radius/y, not just the color alone, and see `elevatedFill`
+    /// below for the other half of the fix (surfaces get lighter, not just shadowed, as they
+    /// rise in dark mode).
+    private static let shadowTint = hex(0x5C6369)
+    static let shadowResting = dynamic(light: shadowTint.withAlphaComponent(0.10), dark: hex(0x000000, alpha: 0.55))
+    static let shadowRaised = dynamic(light: shadowTint.withAlphaComponent(0.13), dark: hex(0x000000, alpha: 0.65))
+    static let shadowFloating = dynamic(light: shadowTint.withAlphaComponent(0.16), dark: hex(0x000000, alpha: 0.75))
 
     /// Kept for any call site still referencing the old single-tier name directly.
     static let cardShadow = shadowResting
