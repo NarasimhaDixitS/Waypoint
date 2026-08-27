@@ -111,17 +111,6 @@ private enum TimelineItem: Identifiable {
         }
     }
 
-    /// Fixed schedule blocks aren't prioritizable, so they always sort after every task when
-    /// sorting by priority — the prioritized to-do list stays on top, with the day's fixed
-    /// commitments as a reference list below it, rather than interleaving in some arbitrary
-    /// way that mixes two incompatible sort keys.
-    var priorityRank: Int {
-        switch self {
-        case .task(let t): t.priorityValue.sortWeight
-        case .block: Int.max
-        }
-    }
-
     var sortDate: Date {
         switch self {
         case .task(let t): t.resolvedStartTime
@@ -195,14 +184,24 @@ private struct DayTimelineView: View {
             let (start, end) = commitment.instance(on: day)
             items.append(.block(commitment, start, end))
         }
-        switch sortMode {
-        case .time:
-            return items.sorted { $0.sortDate < $1.sortDate }
-        case .priority:
-            return items.sorted { lhs, rhs in
-                if lhs.priorityRank != rhs.priorityRank { return lhs.priorityRank < rhs.priorityRank }
+        let timeSorted = items.sorted { $0.sortDate < $1.sortDate }
+        guard sortMode == .priority else { return timeSorted }
+
+        // Fixed schedule blocks stay exactly where the time-sorted order puts them — sorting by
+        // priority only reshuffles which TASK fills each non-block slot, so a block never moves
+        // just because the sort mode changed.
+        let tasksByPriority = timeSorted
+            .filter { if case .task = $0 { return true } else { return false } }
+            .sorted { lhs, rhs in
+                let lRank = lhs.taskEntity?.priorityValue.sortWeight ?? 0
+                let rRank = rhs.taskEntity?.priorityValue.sortWeight ?? 0
+                if lRank != rRank { return lRank < rRank }
                 return lhs.sortDate < rhs.sortDate
             }
+        var nextTask = tasksByPriority.makeIterator()
+        return timeSorted.map { item in
+            if case .block = item { return item }
+            return nextTask.next() ?? item
         }
     }
 
@@ -325,30 +324,31 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
 
-                if isViewingToday {
-                    Text(selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                        .wpTypography(.body)
-                        .foregroundStyle(ColorTokens.textSecondary)
-                        .padding(.top, -8)
-                } else if abs(daysFromToday) > 2 {
-                    Button {
-                        navigate(to: .now)
-                    } label: {
-                        Text("Jump to Today")
+                HStack {
+                    if isViewingToday {
+                        Text(selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
                             .wpTypography(.body)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(theme.accentSwatch.color)
-                            .clipShape(Capsule())
+                            .foregroundStyle(ColorTokens.textSecondary)
+                    } else if abs(daysFromToday) > 2 {
+                        Button {
+                            navigate(to: .now)
+                        } label: {
+                            Text("Jump to Today")
+                                .wpTypography(.body)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(theme.accentSwatch.color)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.top, -8)
+                    Spacer()
+                    sortMenuButton
                 }
+                .padding(.top, -8)
 
                 goalSection
-
-                sortMenu
 
                 DayTimelineView(
                     day: selectedDate,
@@ -547,33 +547,30 @@ struct TodayView: View {
         .padding(.top, 8)
     }
 
-    /// Right-aligned so it sits above the task list without competing with the goal carousel
-    /// above it. Fixed schedule blocks always sort after tasks when "Priority" is picked — see
-    /// `TimelineItem.priorityRank` — so this only ever reorders the task cards themselves.
-    private var sortMenu: some View {
-        HStack {
-            Spacer()
-            Menu {
-                ForEach(TaskSortMode.allCases, id: \.self) { mode in
-                    Button {
-                        sortMode = mode
-                    } label: {
-                        Label(mode.label, systemImage: mode.icon)
-                        if sortMode == mode {
-                            Image(systemName: "checkmark")
-                        }
+    /// A compact icon-only control (matches the size/style of the dark-mode toggle in `header`)
+    /// folded into the existing weekday-label row instead of a row of its own, so switching sort
+    /// modes doesn't push the goal carousel and task list down the screen. Fixed schedule blocks
+    /// never move regardless of `sortMode` — see the pinned-position comment on `timeline` — so
+    /// this only ever reorders the task cards themselves.
+    private var sortMenuButton: some View {
+        Menu {
+            ForEach(TaskSortMode.allCases, id: \.self) { mode in
+                Button {
+                    sortMode = mode
+                } label: {
+                    Label(mode.label, systemImage: mode.icon)
+                    if sortMode == mode {
+                        Image(systemName: "checkmark")
                     }
                 }
-            } label: {
-                Label("Sort: \(sortMode.label)", systemImage: sortMode.icon)
-                    .wpTypography(.micro)
-                    .foregroundStyle(ColorTokens.textSecondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(ColorTokens.surface1)
-                    .clipShape(Capsule())
             }
+        } label: {
+            Image(systemName: sortMode == .priority ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
+                .font(.system(size: 20))
+                .foregroundStyle(ColorTokens.textSecondary)
+                .frame(width: 30, height: 30)
         }
+        .accessibilityLabel("Sort tasks: \(sortMode.label)")
     }
 
     private var addTaskButton: some View {
