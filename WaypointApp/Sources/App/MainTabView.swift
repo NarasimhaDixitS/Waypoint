@@ -112,94 +112,87 @@ struct MainTabView: View {
     }
 }
 
-/// Replaces the native `TabView` chrome entirely — a floating, inset pill (not a flush
-/// edge-to-edge bar) whose *fill* is tinted from the accent color, while every icon glyph
-/// stays plain black (light mode) / white (dark mode) — the accent marks the bar itself, not
-/// individual item colors. The active item is shown by size and a solid-accent highlight
-/// capsule that morphs between positions via `matchedGeometryEffect`, not by hue. Search lives
-/// here as a fifth item rather than in Today's own header, so it works the same regardless of
-/// which tab is showing; tapping it toggles `searchActive` instead of changing `selectedTab`,
-/// since it isn't a screen you land on and stay on.
+/// Replaces the native `TabView` chrome entirely — a floating, inset pill in solid accent
+/// color, with the current tab shown as a raised circular badge that pops up out of the bar's
+/// top edge (not just a same-plane highlight) — high-contrast neutral fill (black in light
+/// mode, white in dark), the icon on it inverted to match, independent of which accent is
+/// active. Search lives here as a fifth item rather than in Today's own header, so it works
+/// the same regardless of which tab is showing; tapping it toggles `searchActive` instead of
+/// changing `selectedTab`, since it isn't a screen you land on and stay on.
 private struct CustomTabBar: View {
     @EnvironmentObject private var theme: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
     @Binding var selectedTab: Int
     @Binding var searchActive: Bool
-    @Namespace private var highlightNamespace
 
-    private struct Item {
-        let icon: String
-        let filledIcon: String?
-        let label: String
-    }
+    private let icons = ["sun.max", "calendar", "chart.bar", "gearshape", "magnifyingglass"]
+    private let filledIcons: [String?] = ["sun.max.fill", nil, "chart.bar.fill", "gearshape.fill", nil]
 
-    private let items: [Item] = [
-        Item(icon: "sun.max", filledIcon: "sun.max.fill", label: "Today"),
-        Item(icon: "calendar", filledIcon: nil, label: "Week"),
-        Item(icon: "chart.bar", filledIcon: "chart.bar.fill", label: "Progress"),
-        Item(icon: "gearshape", filledIcon: "gearshape.fill", label: "Settings")
-    ]
+    private let barHeight: CGFloat = 56
+    private let badgeDiameter: CGFloat = 56
+    /// How far the badge's top sticks up above the bar's own top edge.
+    private let badgeLift: CGFloat = 18
 
-    /// The bar's own fill: accent mixed over the card surface (not a flat accent fill), so it
-    /// stays light enough in light mode / dark enough in dark mode for plain black/white icons
-    /// to read clearly regardless of which of the four accents is chosen.
-    private var barFill: Color {
-        let base = colorScheme == .dark ? ColorTokens.hex(0x242422) : ColorTokens.hex(0xFFFFFF)
-        return Color(ColorTokens.mix(UIColor(theme.accentSwatch.color), over: base, amount: 0.24))
-    }
+    private var activeIndex: Int { searchActive ? 4 : selectedTab }
+    private var iconColor: Color { colorScheme == .dark ? .white : .black }
+    private var badgeFill: Color { colorScheme == .dark ? .white : .black }
+    private var badgeIconColor: Color { colorScheme == .dark ? .black : .white }
 
-    private var iconColor: Color {
-        colorScheme == .dark ? .white : .black
+    private func select(_ index: Int) {
+        if index == 4 {
+            searchActive.toggle()
+        } else {
+            if searchActive { searchActive = false }
+            selectedTab = index
+        }
     }
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(items.indices, id: \.self) { index in
-                let isSelected = !searchActive && selectedTab == index
-                Button {
-                    if searchActive { searchActive = false }
-                    selectedTab = index
-                } label: {
-                    tabIcon(
-                        icon: isSelected ? (items[index].filledIcon ?? items[index].icon) : items[index].icon,
-                        isSelected: isSelected,
-                        geometryID: "tab-\(index)"
-                    )
+        GeometryReader { geo in
+            let slotWidth = geo.size.width / CGFloat(icons.count)
+
+            ZStack(alignment: .topLeading) {
+                HStack(spacing: 0) {
+                    ForEach(icons.indices, id: \.self) { index in
+                        Button { select(index) } label: {
+                            Group {
+                                if index == activeIndex {
+                                    Color.clear
+                                } else {
+                                    Image(systemName: icons[index])
+                                        .font(.system(size: 19))
+                                        .foregroundStyle(iconColor.opacity(0.7))
+                                }
+                            }
+                            .frame(width: slotWidth, height: barHeight)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .background(theme.accentSwatch.color)
+                .clipShape(Capsule())
+                .shadow(color: ColorTokens.shadowRaised, radius: 16, x: 0, y: 6)
+                .offset(y: badgeLift)
+
+                Button { select(activeIndex) } label: {
+                    ZStack {
+                        Circle()
+                            .fill(badgeFill)
+                            .shadow(color: ColorTokens.shadowRaised, radius: 10, x: 0, y: 4)
+                        Image(systemName: filledIcons[activeIndex] ?? icons[activeIndex])
+                            .font(.system(size: 21, weight: .semibold))
+                            .foregroundStyle(badgeIconColor)
+                    }
+                    .frame(width: badgeDiameter, height: badgeDiameter)
                 }
                 .buttonStyle(.plain)
+                .frame(width: slotWidth, alignment: .center)
+                .offset(x: slotWidth * CGFloat(activeIndex))
+                .animation(.spring(response: 0.42, dampingFraction: 0.7), value: activeIndex)
             }
-
-            Button {
-                searchActive.toggle()
-            } label: {
-                tabIcon(icon: "magnifyingglass", isSelected: searchActive, geometryID: "tab-search")
-            }
-            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(barFill)
-        .clipShape(Capsule())
-        .shadow(color: ColorTokens.shadowRaised, radius: 18, x: 0, y: 8)
+        .frame(height: barHeight + badgeLift)
         .padding(.horizontal, 20)
-        .padding(.bottom, 8)
-    }
-
-    private func tabIcon(icon: String, isSelected: Bool, geometryID: String) -> some View {
-        ZStack {
-            if isSelected {
-                Capsule()
-                    .fill(theme.accentSwatch.color)
-                    .matchedGeometryEffect(id: "highlight", in: highlightNamespace)
-                    .frame(width: 52, height: 40)
-            }
-            Image(systemName: icon)
-                .font(.system(size: isSelected ? 21 : 19, weight: isSelected ? .semibold : .regular))
-                .foregroundStyle(iconColor.opacity(isSelected ? 1 : 0.5))
-                .frame(width: 52, height: 40)
-        }
-        .frame(maxWidth: .infinity)
-        .animation(.spring(response: 0.4, dampingFraction: 0.72), value: isSelected)
     }
 }
 

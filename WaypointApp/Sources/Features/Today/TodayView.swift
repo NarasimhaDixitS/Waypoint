@@ -423,7 +423,7 @@ struct TodayView: View {
             // can't just be a small offset relying on inherited safe area like it could when
             // the native TabView provided it automatically. Verified empirically: an inherited
             // safe area here silently failed to clear the bar at all.
-            .padding(.bottom, 96)
+            .padding(.bottom, 100)
 
         if let pendingDeletion {
             VStack {
@@ -431,7 +431,7 @@ struct TodayView: View {
                 undoToast(pendingDeletion)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, 166) // clears the FAB above the tab bar — see addTaskButton's comment
+            .padding(.bottom, 170) // clears the FAB above the tab bar — see addTaskButton's comment
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
         }
