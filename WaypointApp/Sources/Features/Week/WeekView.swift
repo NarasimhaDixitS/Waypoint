@@ -94,13 +94,22 @@ struct WeekView: View {
 
     // MARK: - Derived data
 
-    /// Whichever week is currently the "big, highlighted" one in the mode presently on screen —
-    /// drives both the accent-card styling and where the auto-scroll lands.
-    private var activeExpandedWeek: Date? {
-        mode == .byWeek ? expandedWeekInMonth : expandedWeekInGoal
-    }
-
     private var weeksInMonth: [Date] { Self.weeksOverlapping(month: browsedMonth) }
+
+    /// Pins the current week to the front of whatever list is being displayed — so it's always
+    /// the first thing you see, already open, with zero scrolling — rather than sitting wherever
+    /// it naturally falls in chronological order (which, deep into a month, could be several
+    /// cards down). Every other week follows below in its normal order. Falls back to plain
+    /// chronological order untouched when the current week isn't in this scope at all (browsing
+    /// a different month, or a goal with no activity this week).
+    private func orderedForDisplay(_ weeks: [Date]) -> [Date] {
+        let todayMonday = Self.mondayOfWeek(containing: .now)
+        guard let idx = weeks.firstIndex(of: todayMonday), idx != 0 else { return weeks }
+        var result = weeks
+        let current = result.remove(at: idx)
+        result.insert(current, at: 0)
+        return result
+    }
 
     private var sortedGoals: [GoalEntity] { Array(allGoals) }
 
@@ -144,52 +153,33 @@ struct WeekView: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("Week")
-                        .wpTypography(.screenTitle)
-                        .foregroundStyle(ColorTokens.textPrimary)
-                        .padding(.top, 8)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("Week")
+                    .wpTypography(.screenTitle)
+                    .foregroundStyle(ColorTokens.textPrimary)
+                    .padding(.top, 8)
 
-                    banner
-                    cardsList
-                }
-                .padding(.horizontal, 20)
-                // Big enough that even the LAST week card, fully expanded, can still scroll
-                // clear of the floating tab bar — a plain 24pt was only ever enough when
-                // nothing below the fold needed room, which breaks the moment the bottom card
-                // is the one that's open.
-                .padding(.bottom, 140)
+                banner
+                cardsList
             }
-            .background(ColorTokens.surface0.ignoresSafeArea())
-            .navigationBarHidden(true)
-            .onAppear {
-                if !didInitGoalDefaults, !sortedGoals.isEmpty {
-                    didInitGoalDefaults = true
-                    let goal = sortedGoals.first { candidate in
-                        weeks(for: candidate).contains(Self.mondayOfWeek(containing: .now))
-                    } ?? sortedGoals[0]
-                    browsedGoalID = goal.objectID
-                    expandedWeekInGoal = Self.defaultExpandedWeek(among: weeks(for: goal))
-                }
-                // Deferred a beat so the cards have actually laid out first — scrolling to an
-                // id on the same run loop turn the ScrollView first appears can silently no-op.
-                DispatchQueue.main.async { centerActiveWeek(proxy) }
-            }
-            // Covers every other way the "current" week can change without the view itself
-            // being torn down and recreated: switching By-week/By-goal, or stepping goals
-            // (`stepGoal`, which mutates state on this same instance rather than reinitializing
-            // it the way a month change does via the parent's `.id()`).
-            .onChange(of: activeExpandedWeek) { _, _ in centerActiveWeek(proxy) }
-            .onChange(of: mode) { _, _ in centerActiveWeek(proxy) }
+            .padding(.horizontal, 20)
+            // Big enough that even the LAST week card, fully expanded, can still scroll clear
+            // of the floating tab bar — a plain 24pt was only ever enough when nothing below
+            // the fold needed room, which breaks the moment the bottom card is the one that's
+            // open.
+            .padding(.bottom, 140)
         }
-    }
-
-    private func centerActiveWeek(_ proxy: ScrollViewProxy) {
-        guard let target = activeExpandedWeek else { return }
-        withAnimation(.easeInOut(duration: 0.3)) {
-            proxy.scrollTo(target, anchor: .center)
+        .background(ColorTokens.surface0.ignoresSafeArea())
+        .navigationBarHidden(true)
+        .onAppear {
+            guard !didInitGoalDefaults, !sortedGoals.isEmpty else { return }
+            didInitGoalDefaults = true
+            let goal = sortedGoals.first { candidate in
+                weeks(for: candidate).contains(Self.mondayOfWeek(containing: .now))
+            } ?? sortedGoals[0]
+            browsedGoalID = goal.objectID
+            expandedWeekInGoal = Self.defaultExpandedWeek(among: weeks(for: goal))
         }
     }
 
@@ -319,9 +309,9 @@ struct WeekView: View {
                         .wpTypography(.body)
                         .foregroundStyle(ColorTokens.textSecondary)
                 }
-                ForEach(Array(weeksInMonth.enumerated()), id: \.element) { index, monday in
+                ForEach(orderedForDisplay(weeksInMonth), id: \.self) { monday in
                     weekCard(
-                        index: index,
+                        index: weeksInMonth.firstIndex(of: monday) ?? 0,
                         monday: monday,
                         tasks: tasks(forWeekStarting: monday, in: Array(gridTasks)),
                         isExpanded: expandedWeekInMonth == monday
@@ -341,9 +331,9 @@ struct WeekView: View {
                             .wpTypography(.body)
                             .foregroundStyle(ColorTokens.textSecondary)
                     }
-                    ForEach(Array(weeks.enumerated()), id: \.element) { index, monday in
+                    ForEach(orderedForDisplay(weeks), id: \.self) { monday in
                         weekCard(
-                            index: index,
+                            index: weeks.firstIndex(of: monday) ?? 0,
                             monday: monday,
                             tasks: tasks(forWeekStarting: monday, in: goal.sortedTasks),
                             isExpanded: expandedWeekInGoal == monday
@@ -380,12 +370,14 @@ struct WeekView: View {
         let rangeLabel = "\(monday.formatted(.dateTime.month(.abbreviated).day()))–\(sunday.formatted(.dateTime.day()))"
         let accentColor = isExpanded ? theme.accentSwatch.color : ColorTokens.textPrimary
         let accentMetaColor = isExpanded ? theme.accentSwatch.color.opacity(0.8) : ColorTokens.textSecondary
+        let isCurrentWeek = monday == Self.mondayOfWeek(containing: .now)
+        let titleLabel = isCurrentWeek ? "Current Week · Week \(index + 1)" : "Week \(index + 1)"
 
         return VStack(alignment: .leading, spacing: 0) {
             Button(action: onToggle) {
                 HStack(spacing: isExpanded ? 16 : 14) {
                     VStack(alignment: .leading, spacing: isExpanded ? 5 : 3) {
-                        Text("Week \(index + 1)")
+                        Text(titleLabel)
                             .wpTypography(isExpanded ? .bigStat : .cardTitle)
                             .foregroundStyle(accentColor)
                         Text(total == 0 ? rangeLabel : "\(rangeLabel) · \(done) of \(total) done")

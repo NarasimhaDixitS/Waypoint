@@ -246,6 +246,12 @@ struct TodayView: View {
     @EnvironmentObject private var theme: ThemeManager
     @EnvironmentObject private var dateStore: DateNavigationStore
 
+    /// Bumped by MainTabView's own "+" button (docked beside the custom tab bar, not floating
+    /// over this screen's content) to request the new-task sheet — see the `.onChange` in
+    /// `body`. A plain trigger count rather than a bound Bool so tapping it again while the
+    /// sheet is already open (e.g. after switching tabs and back) still re-fires reliably.
+    var addTaskTrigger: Int = 0
+
     /// Always the *real* current day's tasks, regardless of `selectedDate` — auto-complete
     /// and the streak/completion celebration must never act on whatever day is being
     /// browsed, only on today.
@@ -319,7 +325,7 @@ struct TodayView: View {
     }
 
     var body: some View {
-        GeometryReader { pageProxy in
+        ZStack(alignment: .bottom) {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
@@ -368,19 +374,8 @@ struct TodayView: View {
                 ))
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 24)
+            .padding(.bottom, 100)
         }
-        // A hard clip boundary on the ScrollView's OWN frame, not just a bottom inset on its
-        // content: the last row landing under the fixed FAB isn't a "reached the end of scroll"
-        // problem at all — it's simply that this row (now bigger, per the in-progress sizing
-        // change) is tall enough that, given whatever's above it, its own bottom edge reaches
-        // the FAB's fixed screen zone during completely normal top-down layout. Content padding,
-        // `.safeAreaInset`, and `.contentMargins` were all tried first and changed nothing,
-        // because none of them stop the ScrollView from painting content anywhere within its own
-        // frame — they only affect scroll *range*. Physically capping that frame so it ends
-        // above the FAB's zone is what actually clips content out of it, at any scroll position.
-        .frame(height: max(pageProxy.size.height - 160, 0), alignment: .top)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .contentShape(Rectangle())
@@ -474,9 +469,10 @@ struct TodayView: View {
             Text(repeatCreationSummary ?? "")
         }
         .onReceive(autoCompleteTimer) { _ in runAutoComplete() }
-        .overlay(alignment: .bottomTrailing) {
-            addTaskButton
-                .padding(.trailing, 20)
+        .onChange(of: addTaskTrigger) { _, _ in presentSheet(.addTask) }
+
+        if let pendingDeletion {
+            undoToast(pendingDeletion)
                 // Fixed clearance for the custom tab bar (MainTabView.CustomTabBar) — a
                 // `.safeAreaInset` on the ancestor ZStack does NOT propagate through this view's
                 // `NavigationStack` boundary the way it would for a plain sibling view, so this
@@ -484,16 +480,10 @@ struct TodayView: View {
                 // the native TabView provided it automatically. Verified empirically: an
                 // inherited safe area here silently failed to clear the bar at all.
                 .padding(.bottom, 100)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
         }
-        .overlay(alignment: .bottom) {
-            if let pendingDeletion {
-                undoToast(pendingDeletion)
-                    .padding(.bottom, 170) // clears the FAB above the tab bar
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
         }
         .animation(.easeInOut(duration: 0.22), value: pendingDeletion != nil)
-        }
     }
 
     private func undoToast(_ pending: PendingDeletion) -> some View {
@@ -581,20 +571,6 @@ struct TodayView: View {
                 .background(ColorTokens.surface1)
                 .clipShape(Capsule())
         }
-    }
-
-    private var addTaskButton: some View {
-        Button { presentSheet(.addTask) } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 26, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 60, height: 60)
-                .background(theme.accentSwatch.color)
-                .clipShape(Circle())
-                .shadow(color: ColorTokens.shadowRaised, radius: 22, x: 0, y: 18)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("New task")
     }
 
     private static let goalBannerHeight: CGFloat = 264

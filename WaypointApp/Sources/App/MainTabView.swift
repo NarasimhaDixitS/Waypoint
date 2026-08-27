@@ -3,6 +3,7 @@ import CoreData
 import UIKit
 
 struct MainTabView: View {
+    @EnvironmentObject private var theme: ThemeManager
     @StateObject private var dateStore = DateNavigationStore()
     @State private var selectedTab = 0
     /// The first-of-month anchor for whichever month is currently browsed in the Week tab —
@@ -18,6 +19,12 @@ struct MainTabView: View {
     /// Global search, reachable from every tab via the nav bar — not itself a tab (selecting
     /// it doesn't change `selectedTab`), just an overlay above whichever tab is showing.
     @State private var searchActive = false
+    /// Bumped by the "+" button docked beside the tab bar to tell TodayView to present the
+    /// new-task sheet — see `TodayView.addTaskTrigger`. Docking the button in the tab bar's own
+    /// fixed chrome (rather than floating it over each tab's scrollable content, as before)
+    /// means it can never end up rendered on top of a list row's own controls, whatever that
+    /// row's size or position happens to be.
+    @State private var addTaskTrigger = 0
 
     /// Combines both reasons `WeekView` might need a fresh fetch — a different month, or just
     /// revisiting the tab — into one identity so `.id()` rebuilds on either.
@@ -46,10 +53,20 @@ struct MainTabView: View {
         selectedTab = newValue
     }
 
+    /// Unlike `selectTab`, this never forces the "jump to today" side effect when already on
+    /// Today — someone browsing a future day who taps "+" almost certainly wants a task on
+    /// *that* day, not to be bounced back to today first.
+    private func requestAddTask() {
+        if selectedTab != 0 {
+            selectedTab = 0
+        }
+        addTaskTrigger += 1
+    }
+
     var body: some View {
         ZStack {
             ZStack {
-                NavigationStack { TodayView() }
+                NavigationStack { TodayView(addTaskTrigger: addTaskTrigger) }
                     .opacity(selectedTab == 0 ? 1 : 0)
                     .allowsHitTesting(selectedTab == 0)
 
@@ -98,17 +115,40 @@ struct MainTabView: View {
         }
         // Reserving the tab bar's space via safeAreaInset (rather than layering it as a plain
         // ZStack sibling) is what lets every screen's own safe-area-relative positioning — the
-        // FAB, the undo toast — clear it automatically, the same as the native TabView's bar
-        // used to do before this replaced it. A fixed-offset guess would silently break the
-        // moment the bar's own height changed.
+        // undo toast — clear it automatically, the same as the native TabView's bar used to do
+        // before this replaced it. A fixed-offset guess would silently break the moment the
+        // bar's own height changed. The "+" button lives in this same reserved chrome, right
+        // beside the pill, rather than floating over each tab's own scrollable content — see
+        // `addTaskTrigger`'s doc comment for why that used to be a real problem.
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            CustomTabBar(
-                selectedTab: Binding(get: { selectedTab }, set: selectTab),
-                searchActive: $searchActive
-            )
+            HStack(spacing: 14) {
+                CustomTabBar(
+                    selectedTab: Binding(get: { selectedTab }, set: selectTab),
+                    searchActive: $searchActive
+                )
+                .frame(maxWidth: .infinity)
+                addTaskButton
+            }
+            .padding(.horizontal, 20)
         }
         .animation(.easeInOut(duration: 0.22), value: searchActive)
         .environmentObject(dateStore)
+    }
+
+    /// Docked in the tab bar's own reserved chrome instead of floating over Today's content —
+    /// see `addTaskTrigger`'s doc comment.
+    private var addTaskButton: some View {
+        Button(action: requestAddTask) {
+            Image(systemName: "plus")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(theme.accentSwatch.color)
+                .clipShape(Circle())
+                .shadow(color: ColorTokens.shadowRaised, radius: 18, x: 0, y: 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("New task")
     }
 }
 
@@ -201,7 +241,6 @@ private struct CustomTabBar: View {
             .animation(.spring(response: 0.42, dampingFraction: 0.7), value: activeIndex)
         }
         .frame(height: barHeight + badgeLift)
-        .padding(.horizontal, 20)
     }
 }
 
