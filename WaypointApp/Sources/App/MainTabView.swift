@@ -106,10 +106,12 @@ struct MainTabView: View {
                 selectedTab: Binding(get: { selectedTab }, set: selectTab),
                 searchActive: $searchActive
             )
-            // The system's home-indicator safe area alone left a much bigger gap below the bar
-            // than intended — ignore it and add back just a small fixed clearance instead.
-            .ignoresSafeArea(edges: .bottom)
-            .padding(.bottom, 2)
+            // `.ignoresSafeArea` on this content didn't actually shrink the reserved gap —
+            // `safeAreaInset` still measured/reserved space as if the system's full ~36pt
+            // home-indicator clearance applied underneath regardless. A plain visual `.offset`
+            // instead pushes the bar down into that reserved space without touching how much
+            // space is reserved, which is what actually closes the gap.
+            .offset(y: 32)
         }
         .animation(.easeInOut(duration: 0.22), value: searchActive)
         .environmentObject(dateStore)
