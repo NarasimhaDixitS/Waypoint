@@ -138,11 +138,13 @@ struct MainTabView: View {
     /// Docked in the tab bar's own reserved chrome instead of floating over Today's content —
     /// see `addTaskTrigger`'s doc comment.
     private var addTaskButton: some View {
+        // 68pt to match CustomTabBar.barHeight below — same visual height as the pill it's
+        // docked beside, not an arbitrary FAB size left over from when it floated separately.
         Button(action: requestAddTask) {
             Image(systemName: "plus")
-                .font(.system(size: 22, weight: .semibold))
+                .font(.system(size: 26, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
+                .frame(width: 68, height: 68)
                 .background(theme.accentSwatch.color)
                 .clipShape(Circle())
                 .shadow(color: ColorTokens.shadowRaised, radius: 18, x: 0, y: 8)
