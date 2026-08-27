@@ -132,10 +132,10 @@ private struct CustomTabBar: View {
     private let badgeDiameter: CGFloat = 66
     /// How far the badge's top sticks up above the bar's own top edge.
     private let badgeLift: CGFloat = 22
-    /// Width/depth of the dip the bar's top edge cuts around the badge, so the badge reads as
-    /// nested into the bar rather than merely floating above a straight edge.
     private let notchWidth: CGFloat = 86
-    private let notchDepth: CGFloat = 16
+    /// Deep enough that the pocket's low point sits right at the badge's own bottom edge, so the
+    /// badge reads as sunk in all the way rather than merely nicking the bar's top line.
+    private let notchDepth: CGFloat = 44
 
     private var activeIndex: Int { searchActive ? 4 : selectedTab }
     private var iconColor: Color { colorScheme == .dark ? .white : .black }
@@ -204,10 +204,15 @@ private struct CustomTabBar: View {
     }
 }
 
-/// A pill whose top edge dips into a shallow, smooth valley around `notchCenterX` — instead of
-/// a flat edge with the selected badge simply floating above it — so the raised badge reads as
-/// nested into a cutout in the bar, matching the reference the user pointed to. `notchCenterX`
-/// is animatable so the dip slides in sync with the badge as the selected tab changes.
+/// A pill whose top edge cuts into a deep, smooth pocket around `notchCenterX` — instead of a
+/// flat edge with the badge simply floating above it — so the badge reads as sunk in right down
+/// to its own bottom edge, matching the reference the user pointed to. Both sides of the pocket
+/// are a single cubic curve down to a shared, full-depth low point (not a flat floor bridged by
+/// a straight line) — a flat floor at differing depths per side needs a connecting line, and
+/// that line is what read as a sharp diagonal wedge when the badge sat near the pill's rounded
+/// end and one side had far less room than the other. A shared apex stays one smooth curve
+/// however lopsided the two sides get. `notchCenterX` is animatable so the pocket slides in sync
+/// with the badge as the selected tab changes.
 private struct NotchedBarShape: Shape {
     var notchCenterX: CGFloat
     let notchWidth: CGFloat
