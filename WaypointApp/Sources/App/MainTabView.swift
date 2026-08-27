@@ -111,7 +111,7 @@ struct MainTabView: View {
             // home-indicator clearance applied underneath regardless. A plain visual `.offset`
             // instead pushes the bar down into that reserved space without touching how much
             // space is reserved, which is what actually closes the gap.
-            .offset(y: 32)
+            .offset(y: 29)
         }
         .animation(.easeInOut(duration: 0.22), value: searchActive)
         .environmentObject(dateStore)
