@@ -131,11 +131,12 @@ private struct CustomTabBar: View {
     private let barHeight: CGFloat = 68
     private let badgeDiameter: CGFloat = 66
     /// How far the badge's top sticks up above the bar's own top edge.
-    private let badgeLift: CGFloat = 22
+    private let badgeLift: CGFloat = 14
     private let notchWidth: CGFloat = 86
-    /// Deep enough that the pocket's low point sits right at the badge's own bottom edge, so the
-    /// badge reads as sunk in all the way rather than merely nicking the bar's top line.
-    private let notchDepth: CGFloat = 44
+    /// Deep enough that the pocket's low point still sits right at the badge's own bottom edge
+    /// (badgeDiameter - badgeLift) even after lowering the badge, so the badge keeps reading as
+    /// sunk in all the way rather than merely nicking the bar's top line.
+    private let notchDepth: CGFloat = 52
 
     private var activeIndex: Int { searchActive ? 4 : selectedTab }
     private var iconColor: Color { colorScheme == .dark ? .white : .black }
