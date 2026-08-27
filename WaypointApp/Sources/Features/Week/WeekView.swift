@@ -150,7 +150,7 @@ struct WeekView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }
-        .background(CurvedBackground(topHeight: 300))
+        .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
             guard !didInitGoalDefaults, !sortedGoals.isEmpty else { return }

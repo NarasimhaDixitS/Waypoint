@@ -85,7 +85,7 @@ struct ProgressAnalyticsView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }
-        .background(CurvedBackground(topHeight: 160))
+        .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
     }
 

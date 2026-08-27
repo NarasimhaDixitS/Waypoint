@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		0173E1DAB7E2CE778FD87D09 /* NewTaskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 648F57DB7F99D00D1D4366D8 /* NewTaskView.swift */; };
 		0391273998145E517435F8EC /* AdhocBumpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95FBD25B6E15C0E91381F6E8 /* AdhocBumpView.swift */; };
-		056CDDD7F85BA867B8006749 /* CurvedBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A5EB3FAA34743F0EBB7DCA /* CurvedBackground.swift */; };
 		0A486CE868C5538D3BC75F2C /* Priority.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37C69C067FEC19CC0D353A2 /* Priority.swift */; };
 		0A824A02868B79111A8A83CD /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6700B3531ED099A170D79DBA /* WelcomeView.swift */; };
 		0FB1B42E983A00343B16C2DC /* CommitmentEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B296A9CCFF099A42AA51B3 /* CommitmentEntity+Extensions.swift */; };
@@ -80,7 +79,6 @@
 		1CE1AE26B58AE7465DA15689 /* CascadeConfirmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CascadeConfirmView.swift; sourceTree = "<group>"; };
 		1FA0A1BEACD65026BD0B1E3B /* ColorTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTokens.swift; sourceTree = "<group>"; };
 		20053870B085F4E0A2992460 /* GoalCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCreateView.swift; sourceTree = "<group>"; };
-		24A5EB3FAA34743F0EBB7DCA /* CurvedBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurvedBackground.swift; sourceTree = "<group>"; };
 		24ECA3D57DA1BDC6AAA0C1C7 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		37E074FA3AF1BBB691783155 /* WaypointTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WaypointTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B7584D86923F2172B5800B8 /* CardBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardBackground.swift; sourceTree = "<group>"; };
@@ -329,7 +327,6 @@
 				C97861208E25D18FD4EDA1C3 /* Buttons.swift */,
 				3B7584D86923F2172B5800B8 /* CardBackground.swift */,
 				F91116B3A2600B6D867ECAD1 /* CompletionBurst.swift */,
-				24A5EB3FAA34743F0EBB7DCA /* CurvedBackground.swift */,
 				3EB06A4AFB082B72DA0F3165 /* GoalWeekStrip.swift */,
 				F72A67DF8D514BDD23A89798 /* ProBadge.swift */,
 				C766B58B62C0A77895616F9F /* ProgressRing.swift */,
@@ -510,7 +507,6 @@
 				0FB1B42E983A00343B16C2DC /* CommitmentEntity+Extensions.swift in Sources */,
 				D13C502840BF8A8063FFC353 /* CompletionBurst.swift in Sources */,
 				26F8CD307627BD1AF8548EE3 /* CompletionView.swift in Sources */,
-				056CDDD7F85BA867B8006749 /* CurvedBackground.swift in Sources */,
 				400FB0185E2D807FE75A4834 /* DateNavigationStore.swift in Sources */,
 				8DC2D818FECF68F4351808F1 /* GoalCreateView.swift in Sources */,
 				96952B100095640D68BB1441 /* GoalDetailView.swift in Sources */,

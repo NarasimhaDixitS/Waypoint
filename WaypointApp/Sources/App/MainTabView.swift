@@ -128,10 +128,14 @@ private struct CustomTabBar: View {
     private let icons = ["sun.max", "calendar", "chart.bar", "gearshape", "magnifyingglass"]
     private let filledIcons: [String?] = ["sun.max.fill", nil, "chart.bar.fill", "gearshape.fill", nil]
 
-    private let barHeight: CGFloat = 56
-    private let badgeDiameter: CGFloat = 56
+    private let barHeight: CGFloat = 68
+    private let badgeDiameter: CGFloat = 66
     /// How far the badge's top sticks up above the bar's own top edge.
-    private let badgeLift: CGFloat = 18
+    private let badgeLift: CGFloat = 22
+    /// Width/depth of the dip the bar's top edge cuts around the badge, so the badge reads as
+    /// nested into the bar rather than merely floating above a straight edge.
+    private let notchWidth: CGFloat = 86
+    private let notchDepth: CGFloat = 16
 
     private var activeIndex: Int { searchActive ? 4 : selectedTab }
     private var iconColor: Color { colorScheme == .dark ? .white : .black }
@@ -150,8 +154,15 @@ private struct CustomTabBar: View {
     var body: some View {
         GeometryReader { geo in
             let slotWidth = geo.size.width / CGFloat(icons.count)
+            let notchCenterX = slotWidth * CGFloat(activeIndex) + slotWidth / 2
 
             ZStack(alignment: .topLeading) {
+                NotchedBarShape(notchCenterX: notchCenterX, notchWidth: notchWidth, notchDepth: notchDepth)
+                    .fill(theme.accentSwatch.color)
+                    .frame(height: barHeight)
+                    .shadow(color: ColorTokens.shadowRaised, radius: 16, x: 0, y: 6)
+                    .offset(y: badgeLift)
+
                 HStack(spacing: 0) {
                     ForEach(icons.indices, id: \.self) { index in
                         Button { select(index) } label: {
@@ -160,7 +171,7 @@ private struct CustomTabBar: View {
                                     Color.clear
                                 } else {
                                     Image(systemName: icons[index])
-                                        .font(.system(size: 19))
+                                        .font(.system(size: 22))
                                         .foregroundStyle(iconColor.opacity(0.7))
                                 }
                             }
@@ -169,9 +180,6 @@ private struct CustomTabBar: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .background(theme.accentSwatch.color)
-                .clipShape(Capsule())
-                .shadow(color: ColorTokens.shadowRaised, radius: 16, x: 0, y: 6)
                 .offset(y: badgeLift)
 
                 Button { select(activeIndex) } label: {
@@ -180,7 +188,7 @@ private struct CustomTabBar: View {
                             .fill(badgeFill)
                             .shadow(color: ColorTokens.shadowRaised, radius: 10, x: 0, y: 4)
                         Image(systemName: filledIcons[activeIndex] ?? icons[activeIndex])
-                            .font(.system(size: 21, weight: .semibold))
+                            .font(.system(size: 24, weight: .semibold))
                             .foregroundStyle(badgeIconColor)
                     }
                     .frame(width: badgeDiameter, height: badgeDiameter)
@@ -188,11 +196,59 @@ private struct CustomTabBar: View {
                 .buttonStyle(.plain)
                 .frame(width: slotWidth, alignment: .center)
                 .offset(x: slotWidth * CGFloat(activeIndex))
-                .animation(.spring(response: 0.42, dampingFraction: 0.7), value: activeIndex)
             }
+            .animation(.spring(response: 0.42, dampingFraction: 0.7), value: activeIndex)
         }
         .frame(height: barHeight + badgeLift)
         .padding(.horizontal, 20)
+    }
+}
+
+/// A pill whose top edge dips into a shallow, smooth valley around `notchCenterX` — instead of
+/// a flat edge with the selected badge simply floating above it — so the raised badge reads as
+/// nested into a cutout in the bar, matching the reference the user pointed to. `notchCenterX`
+/// is animatable so the dip slides in sync with the badge as the selected tab changes.
+private struct NotchedBarShape: Shape {
+    var notchCenterX: CGFloat
+    let notchWidth: CGFloat
+    let notchDepth: CGFloat
+
+    var animatableData: CGFloat {
+        get { notchCenterX }
+        set { notchCenterX = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let r = rect.height / 2
+        let halfNotch = notchWidth / 2
+        let leftShoulder = max(notchCenterX - halfNotch, r)
+        let rightShoulder = min(notchCenterX + halfNotch, rect.width - r)
+        // Control-point offsets scale with the ACTUAL clamped span on each side, not the
+        // nominal half-notch width — a near-edge badge clamps one shoulder in close, and using
+        // the unclamped width there overshoots the tiny remaining segment into a self-crossing
+        // loop instead of a smooth dip.
+        let leftSpan = max(notchCenterX - leftShoulder, 0)
+        let rightSpan = max(rightShoulder - notchCenterX, 0)
+
+        var path = Path()
+        path.move(to: CGPoint(x: r, y: 0))
+        path.addLine(to: CGPoint(x: leftShoulder, y: 0))
+        path.addCurve(
+            to: CGPoint(x: notchCenterX, y: notchDepth),
+            control1: CGPoint(x: leftShoulder + leftSpan * 0.55, y: 0),
+            control2: CGPoint(x: notchCenterX - leftSpan * 0.55, y: notchDepth)
+        )
+        path.addCurve(
+            to: CGPoint(x: rightShoulder, y: 0),
+            control1: CGPoint(x: notchCenterX + rightSpan * 0.55, y: notchDepth),
+            control2: CGPoint(x: rightShoulder - rightSpan * 0.55, y: 0)
+        )
+        path.addLine(to: CGPoint(x: rect.width - r, y: 0))
+        path.addArc(center: CGPoint(x: rect.width - r, y: r), radius: r, startAngle: .degrees(-90), endAngle: .degrees(90), clockwise: false)
+        path.addLine(to: CGPoint(x: r, y: rect.height))
+        path.addArc(center: CGPoint(x: r, y: r), radius: r, startAngle: .degrees(90), endAngle: .degrees(270), clockwise: false)
+        path.closeSubpath()
+        return path
     }
 }
 

@@ -321,7 +321,7 @@ struct TodayView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 100)
         }
-        .background(CurvedBackground(topHeight: 370))
+        .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .contentShape(Rectangle())
         .gesture(
