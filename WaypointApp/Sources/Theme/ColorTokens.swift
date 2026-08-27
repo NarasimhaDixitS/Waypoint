@@ -17,11 +17,15 @@ enum ColorTokens {
     static let textMuted = Color(hex(0x888780))
     static let border = dynamic(light: hex(0xE5E3DB), dark: hex(0x3A3A37))
 
-    static let success = Color(hex(0x639922))
-    static let textSuccess = dynamic(light: hex(0x3B6D11), dark: hex(0xC0DD97))
+    /// Muted sage rather than a vivid "grass" green — the earlier, more saturated shade
+    /// (`#639922`) read as loud enough to visually fight whichever accent was active (especially
+    /// Orange, its near-complement) instead of sitting quietly in the background the way a
+    /// "done" indicator should. Still unmistakably green/success, just calmer.
+    static let success = Color(hex(0x5B8A63))
+    static let textSuccess = dynamic(light: hex(0x3E6444), dark: hex(0xA8C9A0))
     static let successTint = dynamic(
-        light: mix(hex(0x639922), over: hex(0xFFFFFF), amount: 0.24),
-        dark: mix(hex(0x639922), over: hex(0x242422), amount: 0.24)
+        light: mix(hex(0x5B8A63), over: hex(0xFFFFFF), amount: 0.24),
+        dark: mix(hex(0x5B8A63), over: hex(0x242422), amount: 0.24)
     )
 
     /// "In progress" role token — fixed semantic color, independent of the user's accent swatch.
