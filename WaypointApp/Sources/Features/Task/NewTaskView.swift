@@ -1,5 +1,34 @@
 import SwiftUI
 
+/// The four repeat presets shown as pills in the notepad-style creation layout, replacing
+/// the old always-visible per-weekday circle picker with one tap for the common cases and
+/// `.custom` as the escape hatch back to picking individual days.
+private enum RepeatPreset: CaseIterable, Identifiable {
+    case entireWeek, weekdays, weekends, custom
+
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .entireWeek: "Entire week"
+        case .weekdays: "Weekdays"
+        case .weekends: "Weekends"
+        case .custom: "Custom"
+        }
+    }
+
+    /// `nil` for `.custom` — its days come from direct user taps on the weekday circles,
+    /// not a fixed set.
+    var fixedDays: Set<String>? {
+        switch self {
+        case .entireWeek: Set(CommitmentEntity.weekdaySymbols)
+        case .weekdays: Set(CommitmentEntity.weekdaySymbols.prefix(5))
+        case .weekends: Set(CommitmentEntity.weekdaySymbols.suffix(2))
+        case .custom: nil
+        }
+    }
+}
+
 struct NewTaskView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var context
@@ -27,9 +56,11 @@ struct NewTaskView: View {
     @State private var priority: Priority
     @State private var selectedGoal: GoalEntity?
     @State private var notes: String
-    @State private var showingNotesEditor = false
     @State private var showingGoalCreate = false
     @State private var showingGoalPicker = false
+    /// Edit mode only — the notepad layout shows the date as a plain tappable text piece
+    /// alongside time/duration rather than a boxed `DatePicker`.
+    @State private var showingDateSheet = false
     /// Set by the goal picker's "Create new goal" row right before it dismisses itself —
     /// only acted on once that dismissal has actually finished, same reasoning as
     /// `pendingRepeatResult` below (chaining straight into a second sheet mid-dismissal is
@@ -50,6 +81,11 @@ struct NewTaskView: View {
     /// still uses the separate "Repeat on other days" sheet.
     @State private var repeatDays: Set<String> = []
     @State private var repeatWeeks = 4
+    /// Which repeat preset pill is selected, if any — `nil` means "just this once". Kept
+    /// separate from `repeatDays` (the actual source of truth passed to the saved draft)
+    /// because `.custom` needs `repeatDays` to stay freely editable via the weekday circles
+    /// while still tracking which pill is highlighted.
+    @State private var repeatPreset: RepeatPreset?
     /// Guards `applySmartDefaultsIfNeeded` so it only ever adjusts the initial guess once,
     /// even if `onAppear` were to somehow fire again — it must never clobber edits the user
     /// has since made.
@@ -85,6 +121,11 @@ struct NewTaskView: View {
         _selectedGoal = State(initialValue: existingTask?.goal ?? goal)
         _notes = State(initialValue: existingTask?.notes ?? "")
     }
+
+    /// Display order for the priority segmented control — deliberately low → medium → high,
+    /// distinct from `Priority`'s own declaration order (high, medium, low), which is sorted
+    /// by urgency rather than by reading order left-to-right.
+    private static let priorityOrder: [Priority] = [.low, .medium, .high]
 
     private static func nextRoundHour(from date: Date) -> Date {
         let cal = Calendar.current
@@ -126,11 +167,187 @@ struct NewTaskView: View {
         durationMinutes = min(60, remainingMinutes)
     }
 
+    /// The day this task will actually be filed on: the selected day normally, or the first
+    /// day matching the chosen repeat pattern when that pattern doesn't include the selected
+    /// day's own weekday. See `saveTask`.
+    /// Today's start, except for a task that already sits in the past — a picker whose range
+    /// excludes its own bound value leaves SwiftUI's `DatePicker` unable to render the
+    /// selection, so an existing task can always at least keep the date it has. Editing it
+    /// forward is allowed; editing any task further back than today is not.
+    private var earliestSelectableDay: Date {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: .now)
+        guard let existing = existingTask.map({ cal.startOfDay(for: $0.resolvedDate) }) else { return today }
+        return min(today, existing)
+    }
+
+    private var seedDay: Date {
+        TaskReplicator.firstDay(onOrAfter: selectedDay, matching: repeatDays)
+    }
+
     /// A goal-linked repeat can't run past the goal's own end date — keeps a task's schedule
     /// from quietly outliving the goal it belongs to. Ungoaled tasks keep the generic ceiling.
     private var maxRepeatWeeks: Int {
         guard let selectedGoal else { return 52 }
         return TaskReplicator.weeksUntil(selectedGoal.resolvedTargetDate, from: selectedDay)
+    }
+
+    /// Every field on the page shares this same flat, borderless "inset well" treatment —
+    /// `surface0` (the page-background gray) fills the field itself, sitting inside the
+    /// card's own `surface1` (white) background, exactly inverted from how those two tokens
+    /// are normally used elsewhere. That inversion is what makes a field read as a recessed
+    /// input rather than a raised card.
+    @ViewBuilder
+    private func filledField<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(14)
+            .background(ColorTokens.surface0)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var titleField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Name")
+                .wpTypography(.micro)
+                .foregroundStyle(ColorTokens.textSecondary)
+            filledField {
+                TextField("Task name", text: $title)
+                    .wpTypography(.cardTitle)
+            }
+        }
+    }
+
+    private var descriptionField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Description")
+                .wpTypography(.micro)
+                .foregroundStyle(ColorTokens.textSecondary)
+            filledField {
+                TextField("Add a description", text: $notes, axis: .vertical)
+                    .wpTypography(.body)
+                    .lineLimit(1...4)
+            }
+        }
+    }
+
+    private var goalField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Goal")
+                .wpTypography(.micro)
+                .foregroundStyle(ColorTokens.textSecondary)
+            Button { showingGoalPicker = true } label: {
+                filledField {
+                    HStack {
+                        Text(selectedGoal?.name ?? "No goal")
+                            .wpTypography(.body)
+                            .foregroundStyle(ColorTokens.textPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(ColorTokens.textSecondary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Edit mode only — creation always defaults to today/the day passed in, so there's
+    /// nothing to change here until the task actually exists.
+    private var dateField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Date")
+                .wpTypography(.micro)
+                .foregroundStyle(ColorTokens.textSecondary)
+            Button { showingDateSheet = true } label: {
+                filledField {
+                    HStack {
+                        Text(selectedDay.formatted(.dateTime.month(.abbreviated).day().year()))
+                            .wpTypography(.body)
+                            .foregroundStyle(ColorTokens.textPrimary)
+                        Spacer()
+                        Image(systemName: "calendar")
+                            .foregroundStyle(ColorTokens.textSecondary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var timeDurationRow: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Time")
+                    .wpTypography(.micro)
+                    .foregroundStyle(ColorTokens.textSecondary)
+                Button { showingTimeSheet = true } label: {
+                    filledField {
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundStyle(ColorTokens.textSecondary)
+                            Text(startTime.formatted(.dateTime.hour().minute()))
+                                .wpTypography(.body)
+                                .foregroundStyle(ColorTokens.textPrimary)
+                            Spacer()
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Duration")
+                    .wpTypography(.micro)
+                    .foregroundStyle(ColorTokens.textSecondary)
+                Button { showingDurationSheet = true } label: {
+                    filledField {
+                        HStack {
+                            Image(systemName: "hourglass")
+                                .foregroundStyle(ColorTokens.textSecondary)
+                            Text("\(durationMinutes) min")
+                                .wpTypography(.body)
+                                .foregroundStyle(ColorTokens.textPrimary)
+                            Spacer()
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    /// Segmented capsule, all three options always visible — tapping one selects it
+    /// directly, replacing the earlier tap-to-cycle interaction now that the layout has
+    /// room to just show every option at once.
+    private var priorityRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Priority")
+                .wpTypography(.micro)
+                .foregroundStyle(ColorTokens.textSecondary)
+            HStack(spacing: 4) {
+                ForEach(Self.priorityOrder) { p in
+                    let selected = priority == p
+                    Text(p.label)
+                        .wpTypography(.body)
+                        .foregroundStyle(selected ? p.tintColor : ColorTokens.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(selected ? ColorTokens.surface1 : Color.clear)
+                                .shadow(color: selected ? ColorTokens.shadowResting : .clear, radius: 4, x: 0, y: 2)
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.15)) { priority = p }
+                        }
+                }
+            }
+            .padding(4)
+            .background(ColorTokens.surface0)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .sensoryFeedback(.selection, trigger: priority)
     }
 
     /// Split out of `body` — folding this back inline pushes the surrounding `ScrollView`'s
@@ -141,24 +358,67 @@ struct NewTaskView: View {
             Text("Repeat")
                 .wpTypography(.micro)
                 .foregroundStyle(ColorTokens.textSecondary)
-            HStack {
-                ForEach(CommitmentEntity.weekdaySymbols, id: \.self) { day in
-                    let selected = repeatDays.contains(day)
-                    Text(String(day.prefix(1)))
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(width: 32, height: 32)
-                        .background(selected ? ColorTokens.textPrimary : ColorTokens.surface1)
-                        .foregroundStyle(selected ? ColorTokens.surface0 : ColorTokens.textSecondary)
-                        .clipShape(Circle())
-                        .onTapGesture {
-                            if selected { repeatDays.remove(day) } else { repeatDays.insert(day) }
-                        }
+            HStack(spacing: 8) {
+                ForEach(RepeatPreset.allCases) { preset in
+                    let selected = repeatPreset == preset
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { select(preset) }
+                    } label: {
+                        Text(preset.label)
+                            .wpTypography(.micro)
+                            .foregroundStyle(ColorTokens.textPrimary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(selected ? ColorTokens.surface1 : ColorTokens.surface0)
+                            .overlay(
+                                Capsule().stroke(selected ? ColorTokens.textPrimary : Color.clear, lineWidth: 1.4)
+                            )
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
+
+            if repeatPreset == .custom {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 74), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ForEach(CommitmentEntity.weekdaySymbols, id: \.self) { day in
+                        let selected = repeatDays.contains(day)
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(selected ? theme.accentSwatch.color : ColorTokens.textMuted)
+                                .frame(width: 6, height: 6)
+                            Text(day)
+                                .wpTypography(.micro)
+                                .foregroundStyle(ColorTokens.textPrimary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(selected ? ColorTokens.surface1 : ColorTokens.surface0)
+                        .overlay(
+                            Capsule().stroke(selected ? ColorTokens.textPrimary : Color.clear, lineWidth: 1.2)
+                        )
+                        .clipShape(Capsule())
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                if selected { repeatDays.remove(day) } else { repeatDays.insert(day) }
+                            }
+                        }
+                    }
+                }
+            }
+
             if !repeatDays.isEmpty {
                 Stepper("For \(repeatWeeks) week\(repeatWeeks == 1 ? "" : "s")", value: $repeatWeeks, in: 1...maxRepeatWeeks)
                     .wpTypography(.body)
                     .foregroundStyle(ColorTokens.textPrimary)
+                // Only worth saying when the pattern actually moves the task off the day the
+                // user is looking at — otherwise it's stating the obvious.
+                if existingTask == nil, !Calendar.current.isDate(seedDay, inSameDayAs: selectedDay) {
+                    let startLabel = seedDay.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+                    Text("Starts \(startLabel), the first matching day.")
+                        .wpTypography(.micro)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                }
                 if let selectedGoal {
                     let endLabel = selectedGoal.resolvedTargetDate.formatted(.dateTime.month(.abbreviated).day())
                     Text("Capped to \(selectedGoal.name ?? "this goal")'s end date, \(endLabel).")
@@ -166,6 +426,26 @@ struct NewTaskView: View {
                         .foregroundStyle(ColorTokens.textSecondary)
                 }
             }
+        }
+    }
+
+    /// Tapping an already-selected preset turns repeat back off entirely, rather than
+    /// requiring a separate "None" pill — the same toggle-to-clear behavior as the old
+    /// per-day circle picker had.
+    private func select(_ preset: RepeatPreset) {
+        if repeatPreset == preset {
+            repeatPreset = nil
+            repeatDays = []
+            return
+        }
+        repeatPreset = preset
+        if let days = preset.fixedDays {
+            repeatDays = days
+        } else if repeatDays.isEmpty {
+            // Entering Custom with nothing chosen yet — start from today's weekday so the
+            // stepper below has something non-empty to attach to immediately.
+            let weekdayIndex = (Calendar.current.component(.weekday, from: selectedDay) + 5) % 7
+            repeatDays = [CommitmentEntity.weekdaySymbols[weekdayIndex]]
         }
     }
 
@@ -179,241 +459,182 @@ struct NewTaskView: View {
         return cal.date(from: comps) ?? date
     }
 
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    TextField("Task name", text: $title)
-                        .wpTypography(.cardTitle)
-                        .padding(14)
-                        .background(ColorTokens.surface1)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-                    if existingTask != nil {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Date")
-                                .wpTypography(.micro)
-                                .foregroundStyle(ColorTokens.textSecondary)
-                            DatePicker("", selection: $selectedDay, displayedComponents: .date)
-                                .labelsHidden()
-                                .padding(.horizontal, 4)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 10)
-                                .background(ColorTokens.surface1)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        }
-                    }
-
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Time")
-                                .wpTypography(.micro)
-                                .foregroundStyle(ColorTokens.textSecondary)
+    /// Centered title with a plain "•••" overflow glyph (edit mode only, mirrors `header`'s
+    /// close glyph on the other side) and a plain "X" to dismiss — replaces the system nav
+    /// bar entirely, since this view is no longer a `NavigationStack`.
+    private var header: some View {
+        ZStack {
+            Text(existingTask == nil ? "New Task" : "Edit Task")
+                .wpTypography(.cardTitle)
+                .foregroundStyle(ColorTokens.textPrimary)
+            HStack {
+                if existingTask != nil {
+                    Menu {
+                        if let onDuplicate, let existingTask {
                             Button {
-                                showingTimeSheet = true
+                                // Not dismissing here on purpose: duplicating might need to
+                                // hand off to a bump sheet if tomorrow collides, and the
+                                // parent owns that decision — see `saveTask`.
+                                onDuplicate(TaskReplicator.draftForTomorrow(existingTask))
                             } label: {
-                                HStack {
-                                    Image(systemName: "clock")
-                                    Text(startTime.formatted(.dateTime.hour().minute()))
-                                    Spacer()
-                                }
-                                .wpTypography(.body)
-                                .foregroundStyle(ColorTokens.textPrimary)
-                                .padding(14)
-                                .background(ColorTokens.surface1)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Duration")
-                                .wpTypography(.micro)
-                                .foregroundStyle(ColorTokens.textSecondary)
-                            Button {
-                                showingDurationSheet = true
-                            } label: {
-                                HStack {
-                                    Text("\(durationMinutes) min")
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 11))
-                                }
-                                .wpTypography(.body)
-                                .foregroundStyle(ColorTokens.textPrimary)
-                                .padding(14)
-                                .background(ColorTokens.surface1)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Priority")
-                            .wpTypography(.micro)
-                            .foregroundStyle(ColorTokens.textSecondary)
-                        HStack(spacing: 8) {
-                            ForEach(Priority.allCases) { p in
-                                Button {
-                                    priority = p
-                                } label: {
-                                    Text(p.label)
-                                        .wpTypography(.body)
-                                        .foregroundStyle(priority == p ? p.tintColor : ColorTokens.textSecondary)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                .stroke(priority == p ? p.tintColor : ColorTokens.border, lineWidth: priority == p ? 1.6 : 1)
-                                        )
-                                }
-                                .buttonStyle(.plain)
+                                Label("Duplicate to tomorrow", systemImage: "plus.square.on.square")
                             }
                         }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .sensoryFeedback(.selection, trigger: priority)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Goal")
-                            .wpTypography(.micro)
-                            .foregroundStyle(ColorTokens.textSecondary)
                         Button {
-                            showingGoalPicker = true
+                            showingRepeatSheet = true
                         } label: {
-                            HStack {
-                                Image(systemName: "target")
-                                Text(selectedGoal?.name ?? "No goal")
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 11))
-                            }
-                            .wpTypography(.body)
-                            .foregroundStyle(ColorTokens.textPrimary)
-                            .padding(14)
-                            .background(ColorTokens.surface1)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            Label("Repeat on other days", systemImage: "repeat")
                         }
-                        .buttonStyle(.plain)
-                    }
-
-                    if existingTask == nil {
-                        repeatSection
-                    }
-
-                    Button {
-                        guard theme.isPro else { return }
-                        showingNotesEditor = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "doc.text")
-                            Text(notes.isEmpty ? "Add notes" : "Edit notes")
-                            Spacer()
-                            if !theme.isPro { ProBadge() }
-                        }
-                        .wpTypography(.cardTitle)
-                        .foregroundStyle(ColorTokens.textInProgress)
-                        .padding(14)
-                        .background(ColorTokens.inProgressTint)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .opacity(theme.isPro ? 1 : 0.6)
-                    }
-                    .buttonStyle(.plain)
-
-                    if let existingTask {
-                        VStack(spacing: 10) {
-                            if let onDuplicate {
-                                Button {
-                                    // Not dismissing here on purpose: duplicating might need
-                                    // to hand off to a bump sheet if tomorrow collides, and
-                                    // the parent owns that decision — see the Save button.
-                                    onDuplicate(TaskReplicator.draftForTomorrow(existingTask))
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "plus.square.on.square")
-                                        Text("Duplicate to tomorrow")
-                                        Spacer()
-                                    }
-                                }
-                                .buttonStyle(.wpSecondary)
-                            }
-                            Button {
-                                showingRepeatSheet = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "repeat")
-                                    Text("Repeat on other days")
-                                    Spacer()
-                                }
-                            }
-                            .buttonStyle(.wpSecondary)
-                        }
-                        .padding(.top, 4)
-
                         if onDelete != nil {
                             Button(role: .destructive) {
                                 showingDeleteConfirm = true
                             } label: {
-                                Text("Delete task")
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
+                                Label("Delete task", systemImage: "trash")
                             }
-                            .padding(.top, 6)
                         }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(ColorTokens.textSecondary)
+                            .frame(width: 32, height: 32)
+                    }
+                }
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(ColorTokens.textSecondary)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 18)
+        .padding(.bottom, 6)
+    }
+
+    /// Two pill buttons replacing the old top-corner Cancel/Save — matches the reference's
+    /// "Clear" / "Add" footer instead of a system toolbar.
+    private var footer: some View {
+        HStack(spacing: 12) {
+            Button {
+                dismiss()
+            } label: {
+                Text("Cancel")
+                    .wpTypography(.cardTitle)
+                    .foregroundStyle(ColorTokens.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(ColorTokens.surface0)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                saveTask()
+            } label: {
+                Text("Save")
+                    .wpTypography(.cardTitle)
+                    // Not `.white`: this sits on a `textPrimary` fill, which is a warm
+                    // off-white in dark mode — white-on-white made the label vanish entirely.
+                    // Ink on a `textPrimary` surface has to invert with it, same pairing the
+                    // weekday chips and schedule setup already use.
+                    .foregroundStyle(ColorTokens.surface0)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(ColorTokens.textPrimary)
+                    .clipShape(Capsule())
+                    .opacity(title.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
+            }
+            .buttonStyle(.plain)
+            .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
+        .padding(.bottom, 18)
+    }
+
+    private func saveTask() {
+        // A new task carrying a repeat pattern has to start *on* that pattern. Only the
+        // repeats after it are placed by weekday, so filing this one on whichever day is
+        // currently selected would put the very first occurrence on a weekday the user never
+        // picked — asking for Mon/Thu on a Friday really did create a stray Friday task.
+        // Editing an existing task leaves its date alone: that date is the user's own choice,
+        // shown and editable right there on the page.
+        let day = existingTask == nil ? seedDay : selectedDay
+        let draft = TaskDraft(
+            title: title.isEmpty ? "Untitled task" : title,
+            date: day,
+            startTime: Self.combining(day: day, timeOfDay: startTime),
+            durationMinutes: durationMinutes,
+            priority: priority,
+            notes: notes.isEmpty ? nil : notes,
+            goal: selectedGoal,
+            repeatWeekdays: repeatDays,
+            repeatWeeks: repeatWeeks
+        )
+        // No dismiss() here — onSave may need to hand off to a follow-up sheet (ad-hoc bump
+        // / cascade confirm) instead of just closing, and only the parent knows which. It's
+        // responsible for dismissing.
+        onSave(draft, existingTask)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    titleField
+                    descriptionField
+                    goalField
+
+                    if existingTask != nil {
+                        dateField
+                    }
+
+                    timeDurationRow
+                    priorityRow
+
+                    if existingTask == nil {
+                        repeatSection
                     }
                 }
                 .padding(20)
             }
-            .background(ColorTokens.surface0.ignoresSafeArea())
-            .onAppear { applySmartDefaultsIfNeeded() }
-            .onChange(of: repeatDays) { old, new in
-                // The moment repeat is first turned on, default its length to reach the
-                // task's goal (if any) instead of leaving whatever the stepper happened to
-                // be at — this is what would have caught "8 weeks" vs. the 10 actually
-                // needed to reach a goal 68 days out. Only fires once, and only if a goal is
-                // already selected at that moment; picking a goal afterward doesn't
-                // retroactively change a length the user may have already adjusted.
-                guard old.isEmpty, !new.isEmpty, !didApplySmartRepeatWeeks, let selectedGoal else { return }
-                didApplySmartRepeatWeeks = true
-                repeatWeeks = TaskReplicator.weeksUntil(selectedGoal.resolvedTargetDate, from: selectedDay)
-            }
-            .onChange(of: selectedGoal) { _, _ in
-                // Picking a goal that ends sooner than the currently-chosen length must pull
-                // the stepper back down with it — otherwise `repeatWeeks` sits outside its own
-                // new `1...maxRepeatWeeks` range.
-                repeatWeeks = min(repeatWeeks, maxRepeatWeeks)
-            }
-            .navigationTitle(existingTask == nil ? "New task" : "Task detail")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        let draft = TaskDraft(
-                            title: title.isEmpty ? "Untitled task" : title,
-                            date: selectedDay,
-                            startTime: Self.combining(day: selectedDay, timeOfDay: startTime),
-                            durationMinutes: durationMinutes,
-                            priority: priority,
-                            notes: notes.isEmpty ? nil : notes,
-                            goal: selectedGoal,
-                            repeatWeekdays: repeatDays,
-                            repeatWeeks: repeatWeeks
-                        )
-                        // No dismiss() here — onSave may need to hand off to a follow-up
-                        // sheet (ad-hoc bump / cascade confirm) instead of just closing, and
-                        // only the parent knows which. It's responsible for dismissing.
-                        onSave(draft, existingTask)
-                    }
-                    .tint(theme.accentSwatch.color)
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            }
-            .sheet(isPresented: $showingNotesEditor) {
-                NotesEditorSheet(notes: $notes)
+
+            Divider()
+
+            footer
+        }
+        .background(ColorTokens.surface1)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .padding(16)
+        .onAppear { applySmartDefaultsIfNeeded() }
+        .onChange(of: repeatDays) { old, new in
+            // The moment repeat is first turned on, default its length to reach the
+            // task's goal (if any) instead of leaving whatever the stepper happened to
+            // be at — this is what would have caught "8 weeks" vs. the 10 actually
+            // needed to reach a goal 68 days out. Only fires once, and only if a goal is
+            // already selected at that moment; picking a goal afterward doesn't
+            // retroactively change a length the user may have already adjusted.
+            guard old.isEmpty, !new.isEmpty, !didApplySmartRepeatWeeks, let selectedGoal else { return }
+            didApplySmartRepeatWeeks = true
+            repeatWeeks = TaskReplicator.weeksUntil(selectedGoal.resolvedTargetDate, from: selectedDay)
+        }
+        .onChange(of: selectedGoal) { _, _ in
+            // Picking a goal that ends sooner than the currently-chosen length must pull
+            // the stepper back down with it — otherwise `repeatWeeks` sits outside its own
+            // new `1...maxRepeatWeeks` range.
+            repeatWeeks = min(repeatWeeks, maxRepeatWeeks)
+        }
+        .presentationDragIndicator(.visible)
+        .presentationBackground(ColorTokens.surface0)
+        .sheet(isPresented: $showingDateSheet) {
+                DatePickerSheet(date: $selectedDay, notBefore: earliestSelectableDay)
             }
             .sheet(isPresented: $showingGoalCreate) {
                 GoalCreateView(
@@ -471,14 +692,12 @@ struct NewTaskView: View {
                     }
                 }
             }
-            .alert("Repeat", isPresented: Binding(get: { repeatSummary != nil }, set: { if !$0 { repeatSummary = nil } })) {
-                Button("OK") { repeatSummary = nil }
-            } message: {
-                Text(repeatSummary ?? "")
-            }
+        .alert("Repeat", isPresented: Binding(get: { repeatSummary != nil }, set: { if !$0 { repeatSummary = nil } })) {
+            Button("OK") { repeatSummary = nil }
+        } message: {
+            Text(repeatSummary ?? "")
         }
     }
-
 }
 
 private struct TimePickerSheet: View {
@@ -809,28 +1028,6 @@ private struct RepeatSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-        }
-    }
-}
-
-private struct NotesEditorSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var theme: ThemeManager
-    @Binding var notes: String
-
-    var body: some View {
-        NavigationStack {
-            TextEditor(text: $notes)
-                .padding(12)
-                .background(ColorTokens.surface0.ignoresSafeArea())
-                .navigationTitle("Notes")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { dismiss() }
-                            .tint(theme.accentSwatch.color)
-                    }
-                }
         }
     }
 }
