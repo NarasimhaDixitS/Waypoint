@@ -33,4 +33,15 @@
         <attribute name="title" optional="YES" attributeType="String" defaultValueString=""/>
         <relationship name="goal" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GoalEntity" inverseName="tasks" inverseEntity="GoalEntity"/>
     </entity>
+    <entity name="TaskEventEntity" representedClassName="TaskEventEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="fromDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="goalID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="kind" optional="YES" attributeType="String" defaultValueString="deferred"/>
+        <attribute name="occurredAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="seriesID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="taskID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <attribute name="toDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>
