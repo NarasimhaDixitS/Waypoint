@@ -103,11 +103,14 @@ enum TaskSortMode: String, CaseIterable {
 private enum TimelineItem: Identifiable {
     case task(TaskEntity)
     case block(CommitmentEntity, Date, Date)
+    /// Section label. Only ever present in pairs — see `DayTimelineView.timeline`.
+    case header(String)
 
     var id: String {
         switch self {
         case .task(let t): "task-\(t.id?.uuidString ?? UUID().uuidString)"
         case .block(let c, let s, _): "block-\(c.id?.uuidString ?? UUID().uuidString)-\(s.timeIntervalSince1970)"
+        case .header(let title): "header-\(title)"
         }
     }
 
@@ -115,6 +118,7 @@ private enum TimelineItem: Identifiable {
         switch self {
         case .task(let t): t.resolvedStartTime
         case .block(_, let s, _): s
+        case .header: .distantPast
         }
     }
 
@@ -122,6 +126,7 @@ private enum TimelineItem: Identifiable {
         switch self {
         case .task(let t): t.endTime
         case .block(_, _, let e): e
+        case .header: .distantPast
         }
     }
 
@@ -141,6 +146,10 @@ private enum TimelineItem: Identifiable {
 private struct DayTimelineView: View {
     let day: Date
     let isViewingToday: Bool
+    /// The instant every row resolves its state against. Passed in rather than read per-row so
+    /// the whole day agrees on one reading, and so this subtree actually re-renders when the
+    /// clock moves — see `TodayView.clockTick`.
+    let now: Date
     let commitments: FetchedResults<CommitmentEntity>
     /// Tasks mid-undo-window from a pending delete — kept out of Core Data deletion but
     /// hidden here so the row disappears immediately, before the delete actually finalizes.
@@ -156,6 +165,7 @@ private struct DayTimelineView: View {
     init(
         day: Date,
         isViewingToday: Bool,
+        now: Date,
         commitments: FetchedResults<CommitmentEntity>,
         hiddenTaskIDs: Set<NSManagedObjectID>,
         sortMode: TaskSortMode,
@@ -166,6 +176,7 @@ private struct DayTimelineView: View {
     ) {
         self.day = day
         self.isViewingToday = isViewingToday
+        self.now = now
         self.commitments = commitments
         self.hiddenTaskIDs = hiddenTaskIDs
         self.sortMode = sortMode
@@ -205,16 +216,72 @@ private struct DayTimelineView: View {
         }
     }
 
+    /// Whatever is running right now is hoisted out of the day's order and pinned to the top,
+    /// under its own heading, with everything else — schedule blocks included — left in place
+    /// below. Blocks stay where the clock puts them because they're context, not work.
+    ///
+    /// Built as one flat array rather than two stacks so the promotion is a *reorder* inside a
+    /// single `ForEach`. That animates by itself; moving a row between two separate containers
+    /// would read as one card vanishing and another appearing, and would need matched geometry
+    /// to look like the movement it actually is.
+    ///
+    /// No section headings when nothing is running: a task is only in progress during its own
+    /// scheduled window, which on an ordinary day is a small slice of it, so a standing "In
+    /// progress" heading would sit empty most of the time. `nextTaskID` marks the next thing
+    /// due in place instead.
+    private var sectionedTimeline: [TimelineItem] {
+        let ordered = timeline
+        guard isViewingToday else { return ordered }
+        let running = ordered.filter { $0.taskEntity?.state(at: now) == .inProgress }
+        guard !running.isEmpty else { return ordered }
+        let rest = ordered.filter { item in
+            guard let task = item.taskEntity else { return true }
+            return task.state(at: now) != .inProgress
+        }
+        return [.header("IN PROGRESS")] + running + [.header("TODAY")] + rest
+    }
+
+    /// The next thing due — the earliest unfinished task that hasn't ended yet. Marked only when
+    /// nothing is running, since an in-progress card at the top already answers "what now?".
+    /// It earns its keep because the list is time-ordered: on a morning-heavy day the next thing
+    /// to do sits below everything already finished.
+    private var nextTaskID: NSManagedObjectID? {
+        guard isViewingToday else { return nil }
+        let tasks = timeline.compactMap(\.taskEntity)
+        guard !tasks.contains(where: { $0.state(at: now) == .inProgress }) else { return nil }
+        let outstanding = tasks.filter { !$0.isDone }
+        guard !outstanding.isEmpty else { return nil }
+        // Prefer something whose slot hasn't passed. Late in the evening nothing qualifies, and
+        // the answer to "what now?" is still the earliest thing left undone rather than nothing
+        // at all — so fall back to that instead of dropping the marker exactly when the day is
+        // getting away from you.
+        let upcoming = outstanding.filter { $0.endTime > now }
+        let pool = upcoming.isEmpty ? outstanding : upcoming
+        return pool.min { $0.resolvedStartTime < $1.resolvedStartTime }?.objectID
+    }
+
+    /// A past day has no "+" (see `MainTabView.isViewingPastDay`), so say why rather than
+    /// leaving an empty screen that just looks like the button went missing.
+    private var emptyStateMessage: String {
+        if isViewingToday { return "No tasks yet today. Tap + to add one." }
+        let cal = Calendar.current
+        if cal.startOfDay(for: day) < cal.startOfDay(for: .now) {
+            return "Nothing was scheduled. Past days are a record — they can't be added to."
+        }
+        return "No tasks scheduled for this day."
+    }
+
     var body: some View {
         Group {
             VStack(spacing: 8) {
-                ForEach(timeline) { item in
+                ForEach(sectionedTimeline) { item in
                     row(for: item)
                 }
             }
+            .animation(.easeInOut(duration: 0.3), value: sectionedTimeline.map(\.id))
 
             if timeline.isEmpty {
-                Text(isViewingToday ? "No tasks yet today. Tap + to add one." : "No tasks scheduled for this day.")
+                Text(emptyStateMessage)
                     .wpTypography(.body)
                     .foregroundStyle(ColorTokens.textMuted)
                     .frame(maxWidth: .infinity)
@@ -232,11 +299,21 @@ private struct DayTimelineView: View {
                 onToggle: { onToggle(task) },
                 onStartFocus: { onStartFocus(task) },
                 onReschedule: { onReschedule(task) },
-                isCompletionLocked: !Calendar.current.isDateInToday(task.resolvedDate)
+                isCompletionLocked: !Calendar.current.isDateInToday(task.resolvedDate),
+                isNext: task.objectID == nextTaskID
             )
             .onTapGesture { onEditTask(task) }
         case .block(let commitment, let start, let end):
             ScheduleBlockRow(commitment: commitment, start: start, end: end)
+        case .header(let title):
+            Text(title)
+                .wpTypography(.micro)
+                .fontWeight(.semibold)
+                .tracking(0.6)
+                .foregroundStyle(ColorTokens.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+                .padding(.top, 6)
         }
     }
 }
@@ -302,9 +379,17 @@ struct TodayView: View {
 
     private static let undoWindow: TimeInterval = 4
 
-    private let autoCompleteTimer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
+    /// Drives both auto-complete and the screen's sense of time. Task state is derived from the
+    /// clock, and a view can't re-render on a clock it never observes: before this, a task's row
+    /// only became "in progress" when something *else* rebuilt the screen — a tab switch, a
+    /// sheet closing — so sitting on Today and watching, nothing ever happened. 20s keeps a
+    /// boundary from being visibly late without waking the screen constantly.
+    private let clockTimer = Timer.publish(every: 20, on: .main, in: .common).autoconnect()
+    /// Bumped by `clockTimer`; the only reason this is state is to invalidate the body.
+    @State private var clockTick = Date.now
 
     private var isViewingToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+
 
     private var daysFromToday: Int {
         let cal = Calendar.current
@@ -359,13 +444,14 @@ struct TodayView: View {
                 DayTimelineView(
                     day: selectedDate,
                     isViewingToday: isViewingToday,
+                    now: clockTick,
                     commitments: commitments,
                     hiddenTaskIDs: hiddenTaskIDs,
                     sortMode: sortMode,
                     onToggle: { task in toggleTask(task) },
                     onEditTask: { task in presentSheet(.editTask(task)) },
                     onStartFocus: { task in presentSheet(.pomodoro(task)) },
-                    onReschedule: { task in rescheduleToTomorrow(task) }
+                    onReschedule: { task in presentSheet(.editTask(task)) }
                 )
                 .id(selectedDate)
                 .transition(.asymmetric(
@@ -468,7 +554,10 @@ struct TodayView: View {
         } message: {
             Text(repeatCreationSummary ?? "")
         }
-        .onReceive(autoCompleteTimer) { _ in runAutoComplete() }
+        .onReceive(clockTimer) { tick in
+            withAnimation(.easeInOut(duration: 0.3)) { clockTick = tick }
+            runAutoComplete()
+        }
         .onChange(of: addTaskTrigger) { _, _ in presentSheet(.addTask) }
 
         if let pendingDeletion {
@@ -746,13 +835,7 @@ struct TodayView: View {
     }
 
     private func applyEdit(_ draft: TaskDraft, to existing: TaskEntity) {
-        existing.title = draft.title
-        existing.date = Calendar.current.startOfDay(for: draft.date)
-        existing.startTime = draft.startTime
-        existing.durationMinutes = Int32(draft.durationMinutes)
-        existing.priorityValue = draft.priority
-        existing.goal = draft.goal
-        existing.notes = draft.notes
+        existing.apply(draft, in: context)
         try? context.save()
         rescheduleReminder(for: existing)
     }
@@ -819,6 +902,10 @@ struct TodayView: View {
             pendingDeletion = nil
         }
         for task in pending.tasks {
+            // Logged here rather than in `requestDelete` on purpose: this is the point the
+            // delete becomes real. A delete the user undid inside the toast window is a
+            // decision they reversed, and recording it would count a failure that didn't happen.
+            TaskEventLog.recordAbandonmentIfNeeded(task: task, in: context)
             context.delete(task)
         }
         try? context.save()
@@ -833,33 +920,6 @@ struct TodayView: View {
         }
     }
 
-    /// A single-task quick-action for genuinely out-of-your-control misses — deliberately not
-    /// a bulk "move everything unfinished" action, which would make it too easy to defer
-    /// responsibility for tasks that were actually just skipped. Goes through the same
-    /// collision resolution as a manual edit, so a real conflict on tomorrow still surfaces
-    /// the familiar bump/cascade flow instead of silently overwriting something.
-    ///
-    /// "Tomorrow" here is always relative to *today*, not the task's own (possibly long-past)
-    /// date — a task overdue by several days should clear its overdue state in one tap, not
-    /// creep forward a single day at a time.
-    private func rescheduleToTomorrow(_ task: TaskEntity) {
-        let cal = Calendar.current
-        let tomorrow = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: .now)) ?? task.resolvedDate
-        let timeOfDay = cal.dateComponents([.hour, .minute], from: task.resolvedStartTime)
-        guard let newStart = cal.date(byAdding: timeOfDay, to: tomorrow) else { return }
-        let durationMinutes = Int(task.durationMinutes)
-        let resolution = ScheduleEngine.resolveTimeMove(task: task, newStart: newStart, newDurationMinutes: durationMinutes, context: context)
-        let draft = TaskDraft(
-            title: task.title ?? "",
-            date: tomorrow,
-            startTime: newStart,
-            durationMinutes: durationMinutes,
-            priority: task.priorityValue,
-            notes: task.notes,
-            goal: task.goal
-        )
-        applyResolution(resolution, draft: draft, task: task)
-    }
 
     private func persist(_ draft: TaskDraft) {
         let task = TaskEntity.create(
