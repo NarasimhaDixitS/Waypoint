@@ -17,16 +17,14 @@ enum ColorTokens {
     static let textMuted = Color(hex(0x888780))
     static let border = dynamic(light: hex(0xE5E3DB), dark: hex(0x3A3A37))
 
-    /// Muted sage rather than a vivid "grass" green — the earlier, more saturated shade
-    /// (`#639922`) read as loud enough to visually fight whichever accent was active (especially
-    /// Orange, its near-complement) instead of sitting quietly in the background the way a
-    /// "done" indicator should. Still unmistakably green/success, just calmer.
+    /// Green is a *moment*, not a label. It was once the full dress for every completed task
+    /// — tinted row, green ink, solid green disc — which put the loudest treatment in the app
+    /// on its most common row and left a normal Tuesday showing green, red, purple and the
+    /// user's accent in one column. Completed tasks now recede instead (see `TaskRowView`),
+    /// and green survives only where it marks an event or a fact rather than a state: the
+    /// day-complete celebration, and static "included"/"on" markers. Its companion `textSuccess`
+    /// and `successTint` shades were retired with the tinted done-row they existed for.
     static let success = Color(hex(0x5B8A63))
-    static let textSuccess = dynamic(light: hex(0x3E6444), dark: hex(0xA8C9A0))
-    static let successTint = dynamic(
-        light: mix(hex(0x5B8A63), over: hex(0xFFFFFF), amount: 0.24),
-        dark: mix(hex(0x5B8A63), over: hex(0x242422), amount: 0.24)
-    )
 
     /// "In progress" role token — fixed semantic color, independent of the user's accent swatch.
     static let inProgress = dynamic(light: hex(0x378ADD), dark: hex(0x85B7EB))
@@ -53,13 +51,9 @@ enum ColorTokens {
     /// rather than an accidental match to an accent option.
     static let priorityMedium = Color(hex(0xD4539E))
 
-    /// "Scheduled for later" role token — tasks on a day that hasn't arrived yet.
-    static let scheduled = dynamic(light: hex(0x7B5EA7), dark: hex(0xB79BDB))
-    static let textScheduled = dynamic(light: hex(0x5C4380), dark: hex(0xD3C0EE))
-    static let scheduledTint = dynamic(
-        light: mix(hex(0x7B5EA7), over: hex(0xFFFFFF), amount: 0.24),
-        dark: mix(hex(0xB79BDB), over: hex(0x242422), amount: 0.24)
-    )
+    // The "scheduled for later" purple was retired along with the green done-row: an upcoming
+    // task is depicted by receding (muted ink, dashed marker) rather than by a third hue
+    // competing with the accent. See the note on `TaskRowView.isInProgress`.
 
     /// Elevation scale — was a single flat shadow value app-wide; now three tiers so ordinary
     /// content, "floating" interactive chrome (FAB, banners, the tab bar), and true overlays

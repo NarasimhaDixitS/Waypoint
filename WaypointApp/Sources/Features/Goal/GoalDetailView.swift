@@ -78,7 +78,7 @@ struct GoalDetailView: View {
                     ProgressRing(
                         progress: goal.completionFraction,
                         lineWidth: 9,
-                        color: ColorTokens.success,
+                        color: theme.accentSwatch.markColor,
                         labelFont: .system(size: 22, weight: .semibold)
                     )
                     .frame(width: 148, height: 148)
@@ -151,6 +151,10 @@ struct GoalDetailView: View {
             titleVisibility: .visible
         ) {
             Button("Delete goal and its tasks", role: .destructive) {
+                // One row for the goal, not one per task: the cascade below wipes out every
+                // task under it, and logging each of those as its own abandonment would drown
+                // the single decision that actually happened in up to a few hundred rows.
+                TaskEventLog.recordGoalAbandonmentIfNeeded(goal: goal, in: context)
                 context.delete(goal)
                 try? context.save()
                 dismiss()
@@ -173,6 +177,7 @@ struct GoalDetailView: View {
                     onSave: handleSave,
                     onDelete: {
                         if let id = task.id { NotificationManager.cancelReminder(taskID: id) }
+                        TaskEventLog.recordAbandonmentIfNeeded(task: task, in: context)
                         context.delete(task)
                         try? context.save()
                     },
@@ -299,6 +304,7 @@ struct GoalDetailView: View {
     private func deleteSeries(from task: TaskEntity) {
         guard let seriesID = task.seriesID else {
             if let id = task.id { NotificationManager.cancelReminder(taskID: id) }
+            TaskEventLog.recordAbandonmentIfNeeded(task: task, in: context)
             context.delete(task)
             try? context.save()
             return
@@ -312,6 +318,7 @@ struct GoalDetailView: View {
         let matches = (try? context.fetch(request)) ?? []
         for match in matches {
             if let id = match.id { NotificationManager.cancelReminder(taskID: id) }
+            TaskEventLog.recordAbandonmentIfNeeded(task: match, in: context)
             context.delete(match)
         }
         try? context.save()
@@ -337,13 +344,7 @@ struct GoalDetailView: View {
     }
 
     private func applyEdit(_ draft: TaskDraft, to existing: TaskEntity) {
-        existing.title = draft.title
-        existing.date = Calendar.current.startOfDay(for: draft.date)
-        existing.startTime = draft.startTime
-        existing.durationMinutes = Int32(draft.durationMinutes)
-        existing.priorityValue = draft.priority
-        existing.goal = draft.goal
-        existing.notes = draft.notes
+        existing.apply(draft, in: context)
         try? context.save()
         rescheduleReminder(for: existing)
     }

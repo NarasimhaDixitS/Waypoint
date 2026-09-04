@@ -33,6 +33,11 @@ struct MainTabView: View {
         let refreshTrigger: Int
     }
 
+    private var isViewingPastDay: Bool {
+        let cal = Calendar.current
+        return cal.startOfDay(for: dateStore.selectedDate) < cal.startOfDay(for: .now)
+    }
+
     private func selectTab(_ newValue: Int) {
         if newValue == 0, !Calendar.current.isDateInToday(dateStore.selectedDate) {
             // `.now` is a new Date value on every call (down to the second), so without this
@@ -98,6 +103,10 @@ struct MainTabView: View {
                     .opacity(selectedTab == 3 ? 1 : 0)
                     .allowsHitTesting(selectedTab == 3)
             }
+            // A crossfade, not a slide: the tabs aren't laid out in a row, so sliding would
+            // imply an order that doesn't exist — and it would fight Today's own left/right
+            // day swipe, which does mean something directional.
+            .animation(.easeInOut(duration: 0.2), value: selectedTab)
 
             if searchActive {
                 GlobalSearchOverlay(
@@ -127,8 +136,17 @@ struct MainTabView: View {
                     searchActive: $searchActive
                 )
                 .frame(maxWidth: .infinity)
-                addTaskButton
+                // A past day is a record, not a workspace: completion is locked to a task's
+                // own scheduled day, so anything filed into yesterday could never be ticked
+                // off — it could only accumulate as permanent overdue debt. Keyed on
+                // `dateStore` rather than the tab because `requestAddTask` routes every tab's
+                // "+" through Today, which files the task on `selectedDate`.
+                if !isViewingPastDay {
+                    addTaskButton
+                        .transition(.scale.combined(with: .opacity))
+                }
             }
+            .animation(.easeInOut(duration: 0.2), value: isViewingPastDay)
             .padding(.horizontal, 20)
         }
         .animation(.easeInOut(duration: 0.22), value: searchActive)
@@ -443,9 +461,11 @@ private struct GlobalSearchOverlay: View {
 
     private func taskDotColor(_ task: TaskEntity) -> Color {
         switch task.state {
-        case .done: ColorTokens.success
+        // Mirrors `TaskRowView`'s emphasis ladder at dot scale: done is the accent, overdue
+        // is the only warning hue, and upcoming just sits back from pending.
+        case .done: theme.accentSwatch.markColor
         case .overdue: ColorTokens.warning
-        case .future: ColorTokens.scheduled
+        case .future: ColorTokens.textMuted.opacity(0.45)
         case .inProgress: theme.accentSwatch.inProgressColor
         case .pending: ColorTokens.textMuted
         }

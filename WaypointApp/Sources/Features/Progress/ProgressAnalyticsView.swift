@@ -121,7 +121,7 @@ struct ProgressAnalyticsView: View {
                     x: .value("Week", bucket.label),
                     y: .value("Completion", bucket.completion)
                 )
-                .foregroundStyle(ColorTokens.success)
+                .foregroundStyle(theme.accentSwatch.markColor)
                 .cornerRadius(6)
             }
             .chartYScale(domain: 0...1)

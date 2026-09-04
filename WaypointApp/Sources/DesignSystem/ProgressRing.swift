@@ -3,7 +3,10 @@ import SwiftUI
 struct ProgressRing: View {
     var progress: Double
     var lineWidth: CGFloat = 8
-    var color: Color = ColorTokens.success
+    /// Every call site passes this explicitly — progress is drawn in the user's accent, and
+    /// a view struct can't reach `ThemeManager` from a default argument. Neutral ink is the
+    /// fallback so nothing silently inherits a semantic hue.
+    var color: Color = ColorTokens.textPrimary
     var trackColor: Color = ColorTokens.border
     var showsLabel: Bool = true
     var labelFont: Font = WPTypography.cardTitle.font
@@ -15,6 +18,18 @@ struct ProgressRing: View {
     var body: some View {
         ZStack {
             Circle().stroke(trackColor, lineWidth: lineWidth)
+
+            // Soft glow behind the crisp arc — a blurred, wider, dimmer duplicate of the
+            // same trim so the ring reads as lit from within rather than a flat stroke.
+            // Scaled off `lineWidth` so it settles down on its own at the small sizes this
+            // same component is used at (e.g. the Week tab's compact rings).
+            Circle()
+                .trim(from: 0, to: animatedProgress)
+                .stroke(color, style: StrokeStyle(lineWidth: lineWidth * 2.2, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .blur(radius: lineWidth * 0.85)
+                .opacity(0.55)
+
             Circle()
                 .trim(from: 0, to: animatedProgress)
                 .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))

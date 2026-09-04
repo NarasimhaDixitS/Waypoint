@@ -16,6 +16,29 @@ enum AccentSwatch: String, CaseIterable, Identifiable, Hashable {
 
     var color: Color { Color(ColorTokens.hex(hexValue)) }
 
+    /// The accent drawn as a *mark* — a ring, a progress bar, a dot, a card edge — rather than
+    /// as a fill with white text on it. Identical to `color` in light mode.
+    ///
+    /// The four swatches were picked to sit *under* white text on a solid accent background,
+    /// which wants them dark. That's the opposite of what a mark on a dark card needs: Green
+    /// measures 6.21:1 against white text and only **2.50:1** against the dark card surface, so
+    /// a green progress bar or ring in dark mode was very nearly invisible against its own
+    /// track. Each is lightened here just far enough to clear 4.5:1 on that surface — Green
+    /// needs 28% white, the others 3–9%, which is why this reads as a Green-specific problem
+    /// but is fixed uniformly.
+    var markColor: Color {
+        ColorTokens.dynamic(light: ColorTokens.hex(hexValue), dark: ColorTokens.hex(darkMarkHex))
+    }
+
+    private var darkMarkHex: UInt32 {
+        switch self {
+        case .green: 0x729654
+        case .blue: 0x3D8EDE
+        case .orange: 0xDC6943
+        case .pink: 0xD8648B
+        }
+    }
+
     // MARK: - "In progress" — neutral ink, not accent-tied
 
     /// The "task is happening right now" indicator went through two color schemes before this

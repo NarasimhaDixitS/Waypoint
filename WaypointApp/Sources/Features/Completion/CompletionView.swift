@@ -40,7 +40,12 @@ struct CompletionView: View {
             .opacity(textOpacity)
 
             if let progressBefore, let progressAfter {
-                Text("Goal progress   \(Int(progressBefore * 100))% → \(Int(progressAfter * 100))%")
+                // `Int(_:)` truncates toward zero rather than rounding — a goal with many
+                // tasks (say 131) moves well under 1% per task, so truncating silently
+                // dropped the after-value's fraction and could show "3% → 3%" for a
+                // completion that had actually just crossed into 4%. `.rounded()` first
+                // matches what the user actually sees change.
+                Text("Goal progress   \(Int((progressBefore * 100).rounded()))% → \(Int((progressAfter * 100).rounded()))%")
                     .wpTypography(.body)
                     .foregroundStyle(ColorTokens.textPrimary)
                     .padding(.horizontal, 16)

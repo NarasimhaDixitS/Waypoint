@@ -52,7 +52,7 @@ struct PomodoroView: View {
                 ProgressRing(
                     progress: progress,
                     lineWidth: 8,
-                    color: ColorTokens.inProgress,
+                    color: theme.accentSwatch.markColor,
                     trackColor: ColorTokens.border,
                     showsLabel: false
                 )
@@ -80,7 +80,9 @@ struct PomodoroView: View {
             } label: {
                 Image(systemName: isRunning ? "pause.fill" : "play.fill")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
+                    // Same reason as the Save button in `NewTaskView`: `textPrimary` is a warm
+                    // off-white in dark mode, so a white glyph on it is invisible.
+                    .foregroundStyle(ColorTokens.surface0)
                     .frame(width: 64, height: 64)
                     .background(ColorTokens.textPrimary)
                     .clipShape(Circle())
@@ -115,10 +117,10 @@ struct PomodoroView: View {
         Button(action: action) {
             Text(label)
                 .wpTypography(.body)
-                .foregroundStyle(isSelected ? Color.white : ColorTokens.textSecondary)
+                .foregroundStyle(isSelected ? ColorTokens.surface0 : ColorTokens.textSecondary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(isSelected ? ColorTokens.inProgress : ColorTokens.surface1)
+                .background(isSelected ? ColorTokens.textPrimary : ColorTokens.surface1)
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
