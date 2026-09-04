@@ -275,7 +275,7 @@ struct WeekView: View {
         } label: {
             Text(label)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(mode == target ? theme.accentSwatch.color : .white.opacity(0.85))
+                .foregroundStyle(mode == target ? ColorTokens.textPrimary : .white.opacity(0.85))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 9)
                 .background(mode == target ? Color.white : Color.clear)
@@ -317,7 +317,6 @@ struct WeekView: View {
                 }
                 ForEach(orderedForDisplay(weeksInMonth), id: \.self) { monday in
                     weekCard(
-                        index: weeksInMonth.firstIndex(of: monday) ?? 0,
                         monday: monday,
                         tasks: tasks(forWeekStarting: monday, in: Array(gridTasks)),
                         isExpanded: expandedWeekInMonth == monday
@@ -339,7 +338,6 @@ struct WeekView: View {
                     }
                     ForEach(orderedForDisplay(weeks), id: \.self) { monday in
                         weekCard(
-                            index: weeks.firstIndex(of: monday) ?? 0,
                             monday: monday,
                             tasks: tasks(forWeekStarting: monday, in: goal.sortedTasks),
                             isExpanded: expandedWeekInGoal == monday
@@ -358,13 +356,15 @@ struct WeekView: View {
         }
     }
 
-    /// The current week's card always reads as the focal point — bigger title/meta/progress
-    /// ring and a soft accent-tinted background, the same "this is the one happening right now"
-    /// treatment as the in-progress task row on Today. Every other card stays compact and
-    /// neutral, and tapping one swaps which card gets the treatment (falls out of `isExpanded`
-    /// naturally, since only one week can be expanded per mode at a time).
+    /// Every card carries the same summary in the same shape — date range, done count, and a
+    /// progress bar of identical size — so a month can be compared in one glance instead of one
+    /// tap per week. The expanded card used to jump type sizes and ring sizes as well, which
+    /// made the current week unmistakable but meant no two cards could be read against each
+    /// other. Expansion and the accent edge carry "this is the one you're in" on their own.
+    ///
+    /// A bar, not a ring: a ring is for a single focal value. A stack of weeks is a comparison,
+    /// and bars line up so two lengths can be compared at sight — arcs don't.
     private func weekCard(
-        index: Int,
         monday: Date,
         tasks: [TaskEntity],
         isExpanded: Bool,
@@ -374,37 +374,39 @@ struct WeekView: View {
         let done = tasks.filter(\.isDone).count
         let total = tasks.count
         let rangeLabel = "\(monday.formatted(.dateTime.month(.abbreviated).day()))–\(sunday.formatted(.dateTime.day()))"
-        let accentColor = isExpanded ? theme.accentSwatch.color : ColorTokens.textPrimary
-        let accentMetaColor = isExpanded ? theme.accentSwatch.color.opacity(0.8) : ColorTokens.textSecondary
         let isCurrentWeek = monday == Self.mondayOfWeek(containing: .now)
-        let titleLabel = isCurrentWeek ? "Current Week · Week \(index + 1)" : "Week \(index + 1)"
 
         return VStack(alignment: .leading, spacing: 0) {
             Button(action: onToggle) {
-                HStack(spacing: isExpanded ? 16 : 14) {
-                    VStack(alignment: .leading, spacing: isExpanded ? 5 : 3) {
-                        Text(titleLabel)
-                            .wpTypography(isExpanded ? .bigStat : .cardTitle)
-                            .foregroundStyle(accentColor)
-                        Text(total == 0 ? rangeLabel : "\(rangeLabel) · \(done) of \(total) done")
-                            .wpTypography(isExpanded ? .cardTitle : .body)
-                            .foregroundStyle(accentMetaColor)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        // Neutral ink, deliberately. Accent-on-white measured 3.59–3.93:1 for
+                        // three of the four swatches — below the 4.5:1 a 14.5pt label needs —
+                        // and the 80%-opacity subtext was worse still, bottoming out at 2.73:1.
+                        // The accent identifies the current week through the edge and the bar,
+                        // which are shapes rather than text and answer to a 3:1 bar instead.
+                        Text(rangeLabel)
+                            .wpTypography(.cardTitle)
+                            .foregroundStyle(ColorTokens.textPrimary)
+                        if isCurrentWeek {
+                            Text("CURRENT WEEK")
+                                .wpTypography(.micro)
+                                .fontWeight(.semibold)
+                                .tracking(0.6)
+                                .foregroundStyle(ColorTokens.textSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        Text(total == 0 ? "—" : "\(done) of \(total)")
+                            .wpTypography(.body)
+                            .foregroundStyle(ColorTokens.textSecondary)
+                            .monospacedDigit()
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(ColorTokens.textMuted)
                     }
-                    Spacer(minLength: 8)
-                    if total > 0 {
-                        ProgressRing(
-                            progress: Double(done) / Double(total),
-                            lineWidth: isExpanded ? 5 : 4,
-                            color: theme.accentSwatch.color,
-                            showsLabel: false
-                        )
-                        .frame(width: isExpanded ? 44 : 32, height: isExpanded ? 44 : 32)
-                    }
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: isExpanded ? 14 : 12, weight: .semibold))
-                        .foregroundStyle(isExpanded ? theme.accentSwatch.color : ColorTokens.textMuted)
+                    weekProgressBar(fraction: total == 0 ? 0 : Double(done) / Double(total))
                 }
-                .padding(isExpanded ? 20 : 16)
+                .padding(16)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -421,42 +423,65 @@ struct WeekView: View {
                         dayGroup(group)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
         }
         .background(ColorTokens.surface1)
-        .clipShape(RoundedRectangle(cornerRadius: isExpanded ? 22 : 18, style: .continuous))
         .overlay(alignment: .leading) {
-            // A left-edge accent stripe instead of a full tinted fill — the bigger size and
-            // accent-colored title already say "this is the current one"; a full color wash on
-            // top of that competed too much with the banner and tab bar's own solid accent.
-            if isExpanded {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(theme.accentSwatch.color)
-                    .frame(width: 4)
-                    .padding(.vertical, 10)
+            // Flush and full-height rather than an inset floating pill: clipped by the card's
+            // own corner radius below, it reads as the card's edge instead of a sticker stuck
+            // onto it.
+            if isCurrentWeek {
+                theme.accentSwatch.markColor.frame(width: 4)
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .id(monday)
     }
 
-    private func dayGroup(_ group: (day: Date, tasks: [TaskEntity])) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("\(Self.weekdayAbbrev[Self.weekdayIndex(for: group.day)]) \(group.day.formatted(.dateTime.day()))")
-                    .wpTypography(.cardTitle)
-                    .foregroundStyle(ColorTokens.textPrimary)
-                Rectangle().fill(ColorTokens.border).frame(height: 1)
-                Text("\(group.tasks.count) task\(group.tasks.count == 1 ? "" : "s")")
-                    .wpTypography(.micro)
-                    .foregroundStyle(ColorTokens.textMuted)
+    private func weekProgressBar(fraction: Double) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(ColorTokens.border)
+                if fraction > 0 {
+                    Capsule()
+                        .fill(theme.accentSwatch.markColor)
+                        // Floored at the bar's own height so a single task out of thirty still
+                        // shows as a dot rather than vanishing into a sliver.
+                        .frame(width: max(geo.size.width * fraction, 5))
+                }
             }
-            VStack(spacing: 8) {
+        }
+        .frame(height: 5)
+        .animation(.easeInOut(duration: 0.35), value: fraction)
+    }
+
+    /// An agenda, not a stack of sub-lists. The day used to sit in its own header row with a
+    /// hairline rule and a "3 tasks" count above every group, which cost three lines of chrome
+    /// per day to say something the rows beneath already showed. Here the day lives in a fixed
+    /// left gutter and the tasks flow beside it, so alignment does the grouping — no rules, no
+    /// counts, no per-day header — and a week reads as one column of work instead of five
+    /// nested lists.
+    private func dayGroup(_ group: (day: Date, tasks: [TaskEntity])) -> some View {
+        let isToday = Calendar.current.isDateInToday(group.day)
+        return HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(Self.weekdayAbbrev[Self.weekdayIndex(for: group.day)])
+                    .wpTypography(.micro)
+                    .foregroundStyle(isToday ? ColorTokens.textPrimary : ColorTokens.textSecondary)
+                Text(group.day.formatted(.dateTime.day()))
+                    .wpTypography(.cardTitle)
+                    .foregroundStyle(isToday ? ColorTokens.textPrimary : ColorTokens.textSecondary)
+            }
+            .frame(width: 34, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 7) {
                 ForEach(group.tasks, id: \.objectID) { task in
                     compactTaskRow(task)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -464,29 +489,41 @@ struct WeekView: View {
         Button {
             onSelectDay(task.resolvedDate)
         } label: {
-            HStack(spacing: 9) {
-                Circle().fill(taskDotColor(task)).frame(width: 6, height: 6)
+            HStack(spacing: 10) {
+                // Start time only. The full range was the single biggest source of text on this
+                // screen, and a week overview is asking "what's on" — durations are a question
+                // you go to the day itself for.
+                Text(task.resolvedStartTime.formatted(.dateTime.hour().minute()))
+                    .wpTypography(.micro)
+                    .monospacedDigit()
+                    .foregroundStyle(ColorTokens.textMuted)
+                    .frame(width: 62, alignment: .leading)
                 Text(task.title ?? "")
                     .wpTypography(.body)
                     .foregroundStyle(task.isDone ? ColorTokens.textSecondary : ColorTokens.textPrimary)
                     .strikethrough(task.isDone)
                     .lineLimit(1)
-                Spacer()
-                Text(task.timeRangeLabel)
-                    .wpTypography(.micro)
-                    .foregroundStyle(ColorTokens.textSecondary)
+                Spacer(minLength: 4)
+                stateDot(for: task)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
-    private func taskDotColor(_ task: TaskEntity) -> Color {
+    /// Marks only what isn't already visible — the same rule the badges on Today follow. A done
+    /// task is struck through and greyed, so a dot beside it says nothing a fourth time; a
+    /// pending one needs no mark at all. What's left is the two states you'd actually want to
+    /// spot while scanning a week, which is what makes a dot appearing mean something.
+    @ViewBuilder
+    private func stateDot(for task: TaskEntity) -> some View {
         switch task.state {
-        case .done: ColorTokens.success
-        case .overdue: ColorTokens.warning
-        case .future: ColorTokens.scheduled
-        case .inProgress: theme.accentSwatch.inProgressColor
-        case .pending: ColorTokens.textMuted
+        case .overdue:
+            Circle().fill(ColorTokens.warning).frame(width: 6, height: 6)
+        case .inProgress:
+            Circle().fill(theme.accentSwatch.inProgressColor).frame(width: 6, height: 6)
+        case .done, .pending, .future:
+            EmptyView()
         }
     }
 }
