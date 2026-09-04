@@ -2,7 +2,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var theme: ThemeManager
+    @Environment(\.managedObjectContext) private var context
     @State private var showingPaywall = false
+    @State private var showingDemoConfirm = false
 
     var body: some View {
         ScrollView {
@@ -135,6 +137,25 @@ struct SettingsView: View {
                             .tint(theme.accentSwatch.color)
                     }
                     .wpCard(padding: 0)
+
+                    Button {
+                        showingDemoConfirm = true
+                    } label: {
+                        row {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Load demo data").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                                Text("Replaces all tasks and goals with a seeded 45-day history")
+                                    .wpTypography(.body)
+                                    .foregroundStyle(ColorTokens.textSecondary)
+                            }
+                            Spacer()
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(ColorTokens.textSecondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .wpCard(padding: 0)
                 }
             }
             .padding(.horizontal, 20)
@@ -143,6 +164,18 @@ struct SettingsView: View {
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
+        .confirmationDialog(
+            "Replace everything with demo data?",
+            isPresented: $showingDemoConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Replace tasks and goals", role: .destructive) {
+                SampleData.loadDemo(into: context)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Every task and goal is deleted and replaced with a seeded demo set. Your commitments and settings are left alone. This can't be undone.")
+        }
     }
 
     private var divider: some View {
