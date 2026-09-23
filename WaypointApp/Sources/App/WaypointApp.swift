@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct WaypointApp: App {
     @StateObject private var theme = ThemeManager.shared
-    @StateObject private var auth = AuthManager.shared
+    @StateObject private var account = AccountManager.shared
     let persistence = PersistenceController.shared
     @State private var showingRecoveryNotice = false
 
@@ -36,7 +36,7 @@ struct WaypointApp: App {
                 RootView()
                     .environment(\.managedObjectContext, persistence.container.viewContext)
                     .environmentObject(theme)
-                    .environmentObject(auth)
+                    .environmentObject(account)
                     .onAppear {
                         // Only prime the real system permission prompt for users who already
                         // completed onboarding in a previous launch — a first-time user hasn't

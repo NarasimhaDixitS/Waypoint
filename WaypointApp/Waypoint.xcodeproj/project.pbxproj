@@ -23,9 +23,7 @@
 		3227E1A7B270863316DC1250 /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6326291AAE39E4AFCD24CCE /* FocusSession.swift */; };
 		336714247F3CE0431661E8EC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54604A4F20F4FF521D885078 /* SettingsView.swift */; };
 		400FB0185E2D807FE75A4834 /* DateNavigationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036EE9F351B7734A2F5AD935 /* DateNavigationStore.swift */; };
-		40B9BBAE36C499828E03B0CF /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 87A2E6B7AAA3217AF056DB77 /* Supabase */; };
 		415D3231AF21C9C4459E539E /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24ECA3D57DA1BDC6AAA0C1C7 /* RootView.swift */; };
-		5C3849993FB7B9611B234A0E /* SupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EB7A3CAD3697716ABF2B18C /* SupabaseManager.swift */; };
 		5C435AF590790E4CDDF3DFB1 /* Buttons.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97861208E25D18FD4EDA1C3 /* Buttons.swift */; };
 		62E80A2D7D2E3662061F6458 /* SleepSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0E27307582BCBF61CAE14 /* SleepSetupView.swift */; };
 		653F0D6E91617547083D6332 /* WeekView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31BEC7026BBE9ED825FF591 /* WeekView.swift */; };
@@ -45,6 +43,7 @@
 		97DE7E2B503F26DD7E9107AC /* TaskEventLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18A03E31C5BF860FF284FE9 /* TaskEventLogTests.swift */; };
 		9FAA7DF2F3D0B94F7929F1BC /* CardBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B7584D86923F2172B5800B8 /* CardBackground.swift */; };
 		A53FFB0471686FC364842675 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13F66EB6BA064C5E76B26FB6 /* Assets.xcassets */; };
+		A9D346EB843314571EDA7E34 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA791044EA4D6AE8009883CC /* AccountManager.swift */; };
 		B12E14D9F220506BE25B5E81 /* ScheduleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D9267BE1CEF896F6213025 /* ScheduleEngine.swift */; };
 		B1B48997D8C5ACC29B909437 /* ProgressAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2825CA55C119B410C18DE0 /* ProgressAnalyticsTests.swift */; };
 		B830178B192DA6126F60E980 /* TaskEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */; };
@@ -58,7 +57,6 @@
 		DE3BA15E3EAFC3B63C7B8890 /* TaskReplicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A77AA9974756C96BD976B908 /* TaskReplicator.swift */; };
 		E5A0253695B33E739863FCFB /* TaskRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCCC2E97AF4EC6541D3BBD30 /* TaskRowView.swift */; };
 		E6090248BA262203436E2E40 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F46A704BCA83753D3CD1A0 /* ThemeManager.swift */; };
-		E8100EABD432CDF9B1BB7257 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D67071FFA8430AF2FD4ABD39 /* AuthManager.swift */; };
 		EAB29C9AE0CC289BD954D68F /* GoalWeekStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB06A4AFB082B72DA0F3165 /* GoalWeekStrip.swift */; };
 		EC3E26669CDA55B639FC50BF /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BAFA4BA104B90F5CA8C31AC /* TodayView.swift */; };
 		ECFBF55BDFEF53CE52B6C2E9 /* SleepSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1695D4EF8CC03958DBE2F40A /* SleepSettings.swift */; };
@@ -97,7 +95,6 @@
 		45F46A704BCA83753D3CD1A0 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		49825B536B5B5A7898A561B9 /* ProgressAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAnalyticsView.swift; sourceTree = "<group>"; };
 		54604A4F20F4FF521D885078 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		5EB7A3CAD3697716ABF2B18C /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		648F57DB7F99D00D1D4366D8 /* NewTaskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewTaskView.swift; sourceTree = "<group>"; };
 		6700B3531ED099A170D79DBA /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		6B3430892BB87A3265BC2445 /* ProgressAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAnalytics.swift; sourceTree = "<group>"; };
@@ -123,12 +120,12 @@
 		C766B58B62C0A77895616F9F /* ProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRing.swift; sourceTree = "<group>"; };
 		C92BA47E98AB9488DC68F588 /* ScheduleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEngineTests.swift; sourceTree = "<group>"; };
 		C97861208E25D18FD4EDA1C3 /* Buttons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Buttons.swift; sourceTree = "<group>"; };
+		CA791044EA4D6AE8009883CC /* AccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountManager.swift; sourceTree = "<group>"; };
 		CB56D3F2D27B6CB75FD85E12 /* TaskReplicatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskReplicatorTests.swift; sourceTree = "<group>"; };
 		CC2825CA55C119B410C18DE0 /* ProgressAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAnalyticsTests.swift; sourceTree = "<group>"; };
 		CCB64DD289BA093BF6235177 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		CFCBE172A676F813E78CF8EA /* Waypoint.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Waypoint.xcdatamodel; sourceTree = "<group>"; };
 		D46ADE46F3D3E7582120A827 /* AccentSwatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccentSwatch.swift; sourceTree = "<group>"; };
-		D67071FFA8430AF2FD4ABD39 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		D85917D87C1E0FD562F03FE3 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		DCCC2E97AF4EC6541D3BBD30 /* TaskRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRowView.swift; sourceTree = "<group>"; };
 		E77987438EE104778D038C0B /* DatePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatePickerSheet.swift; sourceTree = "<group>"; };
@@ -138,17 +135,6 @@
 		F6326291AAE39E4AFCD24CCE /* FocusSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSession.swift; sourceTree = "<group>"; };
 		F91116B3A2600B6D867ECAD1 /* CompletionBurst.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionBurst.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		D4A0FA02D8337ADD179DD66A /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				40B9BBAE36C499828E03B0CF /* Supabase in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		3040611283DE5E740B6DA72C /* Onboarding */ = {
@@ -163,7 +149,7 @@
 		429F0F14F2CDDD441DCEEB6A /* Auth */ = {
 			isa = PBXGroup;
 			children = (
-				D67071FFA8430AF2FD4ABD39 /* AuthManager.swift */,
+				CA791044EA4D6AE8009883CC /* AccountManager.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -350,7 +336,6 @@
 			isa = PBXGroup;
 			children = (
 				D85917D87C1E0FD562F03FE3 /* PersistenceController.swift */,
-				5EB7A3CAD3697716ABF2B18C /* SupabaseManager.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -435,7 +420,6 @@
 			buildPhases = (
 				B3B4E65E85A6C36A0EDE4C8A /* Sources */,
 				BBF8D72711C57ADAEE6117C4 /* Resources */,
-				D4A0FA02D8337ADD179DD66A /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -443,7 +427,6 @@
 			);
 			name = Waypoint;
 			packageProductDependencies = (
-				87A2E6B7AAA3217AF056DB77 /* Supabase */,
 			);
 			productName = Waypoint;
 			productReference = BA0E993CFF4FC1F5EB46A65E /* Waypoint.app */;
@@ -469,9 +452,6 @@
 			);
 			mainGroup = E6D07D279A9539D3CB3AC7C2;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				C7E2020579AF27B296D803A5 /* XCRemoteSwiftPackageReference "supabase-swift" */,
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 48DBDF277774A48A4A61A668 /* Products */;
 			projectDirPath = "";
@@ -515,9 +495,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				6D0CBF355D939EE2DE71AC42 /* AccentSwatch.swift in Sources */,
+				A9D346EB843314571EDA7E34 /* AccountManager.swift in Sources */,
 				0391273998145E517435F8EC /* AdhocBumpView.swift in Sources */,
 				F793AC1C4B5BA0671B964170 /* AnalyticsCard.swift in Sources */,
-				E8100EABD432CDF9B1BB7257 /* AuthManager.swift in Sources */,
 				5C435AF590790E4CDDF3DFB1 /* Buttons.swift in Sources */,
 				9FAA7DF2F3D0B94F7929F1BC /* CardBackground.swift in Sources */,
 				66CA047020BB53456CF52163 /* CascadeConfirmView.swift in Sources */,
@@ -548,7 +528,6 @@
 				336714247F3CE0431661E8EC /* SettingsView.swift in Sources */,
 				ECFBF55BDFEF53CE52B6C2E9 /* SleepSettings.swift in Sources */,
 				62E80A2D7D2E3662061F6458 /* SleepSetupView.swift in Sources */,
-				5C3849993FB7B9611B234A0E /* SupabaseManager.swift in Sources */,
 				116C5DCD2ED5586EC1099096 /* TaskDraft.swift in Sources */,
 				B830178B192DA6126F60E980 /* TaskEntity+Extensions.swift in Sources */,
 				1B06FE893BA01C08EB231A8A /* TaskEvent.swift in Sources */,
@@ -808,25 +787,6 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		C7E2020579AF27B296D803A5 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/supabase/supabase-swift.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.5.1;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		87A2E6B7AAA3217AF056DB77 /* Supabase */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C7E2020579AF27B296D803A5 /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Supabase;
-		};
-/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCVersionGroup section */
 		C7FFB68E50A360EC43E84F0A /* Waypoint.xcdatamodeld */ = {
