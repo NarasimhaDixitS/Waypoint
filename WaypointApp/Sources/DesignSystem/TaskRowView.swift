@@ -185,6 +185,10 @@ struct TaskRowView: View {
     /// what's finished lies flat. Uses the shared shadow tokens but a far tighter throw than
     /// `CardBackground`'s card-scale geometry (14pt blur dropped 10pt) — rows sit 8pt apart, so
     /// card values would spill each row's shadow across the one below it.
+    /// Deliberately tighter than `ShadowTier`'s own radius/y. Those are tuned for a card
+    /// sitting on the page; a row sits *inside* one, where the same blur would pool under the
+    /// neighbouring rows instead of separating this one from them. The tier still picks the
+    /// colour, so light/dark behaviour stays consistent with every other surface.
     private var elevation: (tier: ColorTokens.ShadowTier, radius: CGFloat, y: CGFloat)? {
         switch state {
         case .done: nil

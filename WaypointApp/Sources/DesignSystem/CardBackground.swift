@@ -15,31 +15,7 @@ struct CardBackground: ViewModifier {
             .padding(padding)
             .background(ColorTokens.elevatedFill(fill, tier: shadow, isDark: colorScheme == .dark))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
-    }
-
-    private var shadowColor: Color {
-        switch shadow {
-        case .resting: ColorTokens.shadowResting
-        case .raised: ColorTokens.shadowRaised
-        case .floating: ColorTokens.shadowFloating
-        }
-    }
-
-    private var shadowRadius: CGFloat {
-        switch shadow {
-        case .resting: 14
-        case .raised: 22
-        case .floating: 30
-        }
-    }
-
-    private var shadowY: CGFloat {
-        switch shadow {
-        case .resting: 10
-        case .raised: 18
-        case .floating: 28
-        }
+            .shadow(color: shadow.color, radius: shadow.radius, x: 0, y: shadow.y)
     }
 }
 

@@ -6,6 +6,39 @@ enum ColorTokens {
     /// so `elevatedFill` below can be a pure color-token function, not tied to a specific view.
     enum ShadowTier {
         case resting, raised, floating
+
+        /// Geometry lives on the tier, not at the call site. It used to be hand-copied wherever
+        /// a shadow was drawn, and had already drifted — `raised` existed as 22/18, 18/8 and
+        /// 14/8 in three different files, so the tiers could never be tuned as a set.
+        ///
+        /// **Every radius is capped below the 20pt page margin.** Scroll content is inset by 20
+        /// and a `ScrollView` clips to its bounds, so a blur wider than the margin is sliced off
+        /// down both sides — the shadow doesn't read as bigger, it reads as cut, with a hard
+        /// vertical edge where it meets the screen. `floating` is the one exception: it is only
+        /// ever used by overlays that sit outside padded scroll content.
+        var radius: CGFloat {
+            switch self {
+            case .resting: 12
+            case .raised: 16
+            case .floating: 26
+            }
+        }
+
+        var y: CGFloat {
+            switch self {
+            case .resting: 6
+            case .raised: 9
+            case .floating: 18
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .resting: ColorTokens.shadowResting
+            case .raised: ColorTokens.shadowRaised
+            case .floating: ColorTokens.shadowFloating
+            }
+        }
     }
 
     // MARK: - Palette
@@ -13,8 +46,20 @@ enum ColorTokens {
     static let surface0 = dynamic(light: hex(0xF5F5F3), dark: hex(0x1C1C1A))
     static let surface1 = dynamic(light: hex(0xFFFFFF), dark: hex(0x242422))
     static let textPrimary = dynamic(light: hex(0x2C2C2A), dark: hex(0xF1EFE8))
-    static let textSecondary = dynamic(light: hex(0x5F5E5A), dark: hex(0xB4B2A9))
-    static let textMuted = Color(hex(0x888780))
+    static let textSecondary = dynamic(light: hex(0x53524E), dark: hex(0xB4B2A9))
+    /// Was a single flat `0x888780` shared by both schemes, which measured **3.61:1** on a white
+    /// card and **4.31:1** on a dark one — under the 4.5:1 normal text needs, in both. It carries
+    /// start times, day summaries and secondary counts, so a good deal of the app's small text
+    /// was failing. Now scheme-aware and pulled to 5.11:1 light / 5.43:1 dark, which also puts
+    /// real daylight between it and `textSecondary` instead of the two nearly touching.
+    static let textMuted = dynamic(light: hex(0x6F6E69), dark: hex(0x9A998F))
+
+    /// Ink for a surface that is white in **both** schemes — a selected pill on an accent
+    /// banner, a filled chip. `textPrimary` cannot be used there: it inverts with the scheme, so
+    /// in dark mode it resolves to the warm off-white `0xF1EFE8` and vanishes against the white
+    /// underneath it. Fixed dark charcoal, 13.99:1 on white, and deliberately scheme-blind
+    /// because the thing it sits on is too.
+    static let inkOnLight = Color(hex(0x2C2C2A))
     static let border = dynamic(light: hex(0xE5E3DB), dark: hex(0x3A3A37))
 
     /// Green is a *moment*, not a label. It was once the full dress for every completed task
