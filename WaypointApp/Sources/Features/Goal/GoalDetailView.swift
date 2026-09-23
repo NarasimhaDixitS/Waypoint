@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 /// Single sheet driver — see TodayView's ActiveSheet for why this screen doesn't use
 /// several independent `.sheet` modifiers.
@@ -7,7 +8,6 @@ private enum ActiveSheet: Identifiable {
     case newDraftBump(NewTaskBumpInfo)
     case cascadeConfirm(CascadeConfirmInfo)
     case editBump(EditBumpInfo)
-    case paywall
 
     var id: String {
         switch self {
@@ -15,7 +15,6 @@ private enum ActiveSheet: Identifiable {
         case .newDraftBump: "newDraftBump"
         case .cascadeConfirm: "cascadeConfirm"
         case .editBump: "editBump"
-        case .paywall: "paywall"
         }
     }
 }
@@ -93,6 +92,8 @@ struct GoalDetailView: View {
                     statCard(value: "\(goal.doneTaskCount)", label: "Tasks done")
                     statCard(value: "\(goal.dayStreak)", label: "Day streak")
                 }
+
+                goalCharts
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Upcoming")
@@ -182,8 +183,7 @@ struct GoalDetailView: View {
                         try? context.save()
                     },
                     onDeleteSeries: { deleteSeries(from: task) },
-                    onDuplicate: { draft in handleNewDraft(draft) },
-                    onRequestPaywall: { presentSheet(.paywall) }
+                    onDuplicate: { draft in handleNewDraft(draft) }
                 )
             case .newDraftBump(let info):
                 AdhocBumpView(
@@ -201,8 +201,7 @@ struct GoalDetailView: View {
                     appendStart: info.appendStart,
                     onAppendToEnd: info.appendStart.map { start in
                         { persist(appended(info.draft, at: start)) }
-                    },
-                    onRequestPaywall: { presentSheet(.paywall) }
+                    }
                 )
             case .cascadeConfirm(let info):
                 CascadeConfirmView(
@@ -220,11 +219,8 @@ struct GoalDetailView: View {
                         applyEdit(info.edit.draft, to: info.edit.task)
                     },
                     secondaryLabel: "Keep the original time",
-                    onSecondaryAction: {},
-                    onRequestPaywall: { presentSheet(.paywall) }
+                    onSecondaryAction: {}
                 )
-            case .paywall:
-                PaywallView()
             }
         }
     }
@@ -372,6 +368,111 @@ struct GoalDetailView: View {
         NotificationManager.cancelReminder(taskID: id)
         guard theme.notificationsEnabled, !task.isDone else { return }
         NotificationManager.scheduleReminder(taskID: id, title: task.title ?? "Task", startTime: task.resolvedStartTime)
+    }
+
+    /// The same analyses the Progress tab runs, narrowed to one goal. A goal's own page is where
+    /// "am I actually going to finish this" is a live question, and a ring showing 43% answers a
+    /// different one — it says how far along you are, not whether that is far enough by now.
+    @ViewBuilder
+    private var goalCharts: some View {
+        let tasks = goal.sortedTasks
+        let burndown = ProgressAnalytics.burndown(for: goal)
+        let weekday = ProgressAnalytics.completionByWeekday(tasks)
+        let effort = ProgressAnalytics.effortByWeek(tasks, weeks: 6)
+        let priorities = ProgressAnalytics.priorityFollowThrough(tasks)
+        let accent = theme.accentSwatch.markColor
+
+        AnalyticsCard(title: "Will you make the deadline?", caption: paceCaption(burndown)) {
+            if burndown.isEmpty {
+                AnalyticsEmpty(message: "Needs a target date and at least one task.")
+            } else {
+                GoalBurndownChart(points: burndown, accent: accent)
+            }
+        }
+
+        AnalyticsCard(
+            title: "Which days you show up",
+            caption: "How much of this goal's work gets done, by day of the week."
+        ) {
+            let withWork = weekday.filter { $0.total > 0 }
+            if withWork.isEmpty {
+                AnalyticsEmpty(message: "No days have come round yet.")
+            } else {
+                Chart(weekday) { row in
+                    BarMark(x: .value("Day", row.label), y: .value("Completed", row.fraction))
+                        .foregroundStyle(accent)
+                        .cornerRadius(5)
+                }
+                .chartYScale(domain: 0...1)
+                .chartYAxis {
+                    AxisMarks(values: [0, 0.5, 1]) { value in
+                        AxisGridLine().foregroundStyle(ColorTokens.border)
+                        AxisValueLabel {
+                            if let raw = value.as(Double.self) {
+                                Text("\(Int(raw * 100))%").wpTypography(.micro)
+                            }
+                        }
+                    }
+                }
+                .chartXAxis { AxisMarks { _ in AxisValueLabel().font(WPTypography.micro.font) } }
+                .frame(height: 140)
+            }
+        }
+
+        AnalyticsCard(
+            title: "Hours put in",
+            caption: "What this goal has actually cost you, week by week."
+        ) {
+            if effort.allSatisfy({ $0.plannedMinutes == 0 }) {
+                AnalyticsEmpty(message: "No work scheduled in the last six weeks.")
+            } else {
+                Chart(effort) { week in
+                    BarMark(x: .value("Week", week.weekStart, unit: .weekOfYear), y: .value("Done", week.completedHours))
+                        .foregroundStyle(accent)
+                        .cornerRadius(4)
+                }
+                .chartXAxis {
+                    AxisMarks(values: effort.map(\.weekStart)) { value in
+                        AxisValueLabel {
+                            if let date = value.as(Date.self) {
+                                Text(date.formatted(.dateTime.day().month(.abbreviated))).wpTypography(.micro)
+                            }
+                        }
+                    }
+                }
+                .chartYAxis { AxisMarks { _ in
+                    AxisGridLine().foregroundStyle(ColorTokens.border)
+                    AxisValueLabel().font(WPTypography.micro.font)
+                } }
+                .frame(height: 140)
+            }
+        }
+
+        AnalyticsCard(
+            title: "Priorities within this goal",
+            caption: "Whether the work you called important is the work getting done."
+        ) {
+            if priorities.allSatisfy({ $0.total == 0 }) {
+                AnalyticsEmpty(message: "Not enough finished work yet.")
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(priorities) { row in
+                        RatioBar(
+                            label: row.label, done: row.done, total: row.total, fraction: row.fraction,
+                            tint: row.id == Priority.high.rawValue ? ColorTokens.warning : accent
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private func paceCaption(_ points: [ProgressAnalytics.BurndownPoint]) -> String {
+        guard let last = points.last else { return "Work remaining against the pace the deadline needs." }
+        if Double(last.remaining) <= last.idealRemaining {
+            return "On or ahead of pace — \(last.remaining) left, where an even run would still have \(Int(last.idealRemaining))."
+        }
+        return "Behind pace — \(last.remaining) left, where an even run would be down to \(Int(last.idealRemaining))."
     }
 
     private func statCard(value: String, label: String) -> some View {

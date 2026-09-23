@@ -62,7 +62,7 @@ enum SampleData {
     private static func seedGoals(in context: NSManagedObjectContext) -> [GoalEntity] {
         let specs: [(String, Int, Int, PlanningMode, String?)] = [
             ("Half marathon", -40, 44, .manual, "Sub-2:00 at the city run. Long run Sundays, intervals Wednesdays."),
-            ("Ship Waypoint v1", -25, 70, .manual, "Free tier polished, Pro trends behind a paywall, on the App Store."),
+            ("Ship Waypoint v1", -25, 70, .manual, "Week and Today polished, analytics landed, on the App Store."),
             ("Read 12 books", -60, 18, .manual, nil),
             ("Learn Spanish", -10, 110, .ai, "Conversational by spring — 20 minutes a day, no excuses."),
         ]
@@ -134,7 +134,12 @@ enum SampleData {
                 // state we want represented — just not on every other row.
                 if Double.random(in: 0...1, using: &rng) < rate {
                     task.isDone = true
-                    task.completedAt = at(hour: hour + 1, on: date)
+                    // Scattered rather than pinned to "one hour after the start". The
+                    // time-of-day card buckets these into four-hour bands, so a fixture that
+                    // always finished on schedule would draw one hard stripe and look like a
+                    // rendering bug rather than a habit.
+                    task.completedAt = at(hour: hour, on: date)
+                        .addingTimeInterval(Double.random(in: 900...9000, using: &rng))
                 }
             }
         }
@@ -155,7 +160,10 @@ enum SampleData {
                 goal: goal
             )
             task.isDone = true
-            task.completedAt = at(hour: 7, on: date)
+            // Deterministic spread rather than an rng this function doesn't carry — the fixture
+            // has to stay byte-identical across loads, which is what makes it useful for
+            // comparing a design change against the run before it.
+            task.completedAt = at(hour: 6, on: date).addingTimeInterval(Double((abs(offset) * 13) % 55) * 60 + 2100)
         }
     }
 
@@ -243,7 +251,7 @@ enum SampleData {
             )
             if offset < 0 {
                 task.isDone = true
-                task.completedAt = at(hour: 19, on: date)
+                task.completedAt = at(hour: 19, on: date).addingTimeInterval(Double((abs(offset) * 23) % 80) * 60)
             }
         }
     }

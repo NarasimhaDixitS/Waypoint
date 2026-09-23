@@ -83,10 +83,29 @@ extension TaskEntity {
         return task
     }
 
-    func toggleDone() {
+    /// `autoCompleted` records *how* a task got ticked, not just that it did.
+    ///
+    /// Auto-completion stamps `completedAt` with the task's scheduled end rather than the real
+    /// instant — it has no other honest value to use. That makes `completedAt` two different
+    /// measurements sharing one field: a real observation for manual ticks, and a restatement
+    /// of the schedule for automatic ones. Any time-of-day analysis that mixes them shows a
+    /// spike at every task's end time and reads as a genuine pattern, so anything drawing
+    /// conclusions from *when* work happened has to filter on this first.
+    func toggleDone(now: Date = .now) {
         isDone.toggle()
-        completedAt = isDone ? .now : nil
+        completedAt = isDone ? now : nil
+        autoCompleted = false
     }
+
+    /// Marks a task finished because its window elapsed, not because anyone said so.
+    func markAutoCompleted() {
+        isDone = true
+        completedAt = endTime
+        autoCompleted = true
+    }
+
+    /// Completions whose timestamp is a real observation of when work stopped.
+    var hasObservedCompletionTime: Bool { isDone && !autoCompleted && completedAt != nil }
 
     /// The single place an existing task takes on an edit. Lived as a verbatim copy in both
     /// `TodayView` and `GoalDetailView` before this; it's in the model now because deferral
