@@ -7,7 +7,6 @@ struct GoalCreateView: View {
     @EnvironmentObject private var theme: ThemeManager
 
     var onCreated: (GoalEntity) -> Void
-    var onRequestPaywall: () -> Void = {}
 
     @State private var name = ""
     @State private var description = ""
@@ -122,12 +121,10 @@ struct GoalCreateView: View {
 
     private func planningSegment(_ mode: PlanningMode, label: String) -> some View {
         let selected = planningMode == mode
-        let locked = mode == .ai && !theme.isPro
         return HStack(spacing: 5) {
             Text(label)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-            if locked { ProBadge() }
         }
         .wpTypography(.body)
         .foregroundStyle(selected ? ColorTokens.textPrimary : ColorTokens.textSecondary)
@@ -138,15 +135,8 @@ struct GoalCreateView: View {
                 .fill(selected ? ColorTokens.surface1 : Color.clear)
                 .shadow(color: selected ? ColorTokens.shadowResting : .clear, radius: 4, x: 0, y: 2)
         )
-        .opacity(locked ? 0.6 : 1)
         .contentShape(Rectangle())
         .onTapGesture {
-            // Pro-gated: leave the selection alone and let the parent decide how to pitch it,
-            // rather than silently doing nothing on tap.
-            guard !locked else {
-                onRequestPaywall()
-                return
-            }
             withAnimation(.easeInOut(duration: 0.15)) { planningMode = mode }
         }
     }

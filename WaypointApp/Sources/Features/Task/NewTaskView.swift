@@ -47,7 +47,6 @@ struct NewTaskView: View {
     /// untouched.
     var onDeleteSeries: (() -> Void)?
     var onDuplicate: ((TaskDraft) -> Void)?
-    var onRequestPaywall: () -> Void = {}
 
     @State private var title: String
     @State private var selectedDay: Date
@@ -103,7 +102,6 @@ struct NewTaskView: View {
         onDelete: (() -> Void)? = nil,
         onDeleteSeries: (() -> Void)? = nil,
         onDuplicate: ((TaskDraft) -> Void)? = nil,
-        onRequestPaywall: @escaping () -> Void = {}
     ) {
         self.existingTask = existingTask
         self.defaultDate = defaultDate
@@ -112,7 +110,6 @@ struct NewTaskView: View {
         self.onDelete = onDelete
         self.onDeleteSeries = onDeleteSeries
         self.onDuplicate = onDuplicate
-        self.onRequestPaywall = onRequestPaywall
         _title = State(initialValue: existingTask?.title ?? "")
         _selectedDay = State(initialValue: existingTask?.resolvedDate ?? defaultDate)
         _startTime = State(initialValue: existingTask?.startTime ?? Self.nextRoundHour(from: defaultDate))
@@ -638,8 +635,7 @@ struct NewTaskView: View {
             }
             .sheet(isPresented: $showingGoalCreate) {
                 GoalCreateView(
-                    onCreated: { newGoal in selectedGoal = newGoal },
-                    onRequestPaywall: onRequestPaywall
+                    onCreated: { newGoal in selectedGoal = newGoal }
                 )
             }
             .sheet(isPresented: $showingTimeSheet) {

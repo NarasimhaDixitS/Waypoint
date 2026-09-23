@@ -50,24 +50,19 @@ final class ThemeManager: ObservableObject {
         }
     }
     /// Dev-only toggle standing in for a resolved StoreKit subscription state.
-    @Published var isPro: Bool {
-        didSet { UserDefaults.standard.set(isPro, forKey: Keys.isPro) }
-    }
 
     private enum Keys {
         static let appearance = "themeAppearanceMode"
         static let accent = "themeAccentSwatch"
         static let completion = "themeCompletionMode"
         static let notifications = "themeNotificationsEnabled"
-        static let isPro = "themeIsPro"
     }
 
     private init() {
         let defaults = UserDefaults.standard
         appearanceMode = AppearanceMode(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .system
-        accentSwatch = AccentSwatch(rawValue: defaults.string(forKey: Keys.accent) ?? "") ?? .green
+        accentSwatch = AccentSwatch(rawValue: defaults.string(forKey: Keys.accent) ?? "") ?? .teal
         completionMode = CompletionMode(rawValue: defaults.string(forKey: Keys.completion) ?? "") ?? .manual
         notificationsEnabled = defaults.object(forKey: Keys.notifications) as? Bool ?? true
-        isPro = defaults.object(forKey: Keys.isPro) as? Bool ?? false
     }
 }

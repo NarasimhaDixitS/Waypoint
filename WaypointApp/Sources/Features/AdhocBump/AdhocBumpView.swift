@@ -16,7 +16,6 @@ struct AdhocBumpView: View {
     /// task on at the end instead of bumping anything.
     var appendStart: Date? = nil
     var onAppendToEnd: (() -> Void)? = nil
-    var onRequestPaywall: () -> Void = {}
 
     @State private var selected: TaskEntity?
 
@@ -89,17 +88,14 @@ struct AdhocBumpView: View {
                 }
 
                 Button {
-                    guard theme.isPro else { return }
                     selected = collidingTasks.min { $0.priorityValue.sortWeight > $1.priorityValue.sortWeight }
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "sparkles")
                         Text("Suggest best swap")
-                        if !theme.isPro { ProBadge() }
                     }
                     .wpTypography(.body)
                     .foregroundStyle(ColorTokens.textInProgress)
-                    .opacity(theme.isPro ? 1 : 0.6)
                 }
                 .buttonStyle(.plain)
             }

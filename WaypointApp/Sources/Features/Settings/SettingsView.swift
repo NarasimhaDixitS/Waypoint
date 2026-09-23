@@ -3,14 +3,13 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var theme: ThemeManager
     @Environment(\.managedObjectContext) private var context
-    @State private var showingPaywall = false
     @State private var showingDemoConfirm = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Settings")
-                    .wpTypography(.screenTitle)
+                    .wpTypography(.appTitle)
                     .foregroundStyle(ColorTokens.textPrimary)
                     .padding(.top, 8)
 
@@ -104,40 +103,10 @@ struct SettingsView: View {
                 }
                 .wpCard(padding: 0)
 
-                Button {
-                    showingPaywall = true
-                } label: {
-                    row {
-                        Text(theme.isPro ? "Manage subscription" : "Upgrade to Pro")
-                            .wpTypography(.cardTitle)
-                            .foregroundStyle(ColorTokens.textPrimary)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(ColorTokens.textMuted)
-                    }
-                }
-                .buttonStyle(.plain)
-                .wpCard(padding: 0)
-
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Developer")
                         .wpTypography(.micro)
                         .foregroundStyle(ColorTokens.textSecondary)
-                    row {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Simulate Pro").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
-                            Text("Stands in for a resolved StoreKit subscription")
-                                .wpTypography(.body)
-                                .foregroundStyle(ColorTokens.textSecondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: $theme.isPro)
-                            .labelsHidden()
-                            .tint(theme.accentSwatch.color)
-                    }
-                    .wpCard(padding: 0)
-
                     Button {
                         showingDemoConfirm = true
                     } label: {
@@ -163,7 +132,6 @@ struct SettingsView: View {
         }
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
-        .sheet(isPresented: $showingPaywall) { PaywallView() }
         .confirmationDialog(
             "Replace everything with demo data?",
             isPresented: $showingDemoConfirm,

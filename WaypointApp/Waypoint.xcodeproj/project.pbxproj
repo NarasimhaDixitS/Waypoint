@@ -14,7 +14,6 @@
 		0A824A02868B79111A8A83CD /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6700B3531ED099A170D79DBA /* WelcomeView.swift */; };
 		0FB1B42E983A00343B16C2DC /* CommitmentEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B296A9CCFF099A42AA51B3 /* CommitmentEntity+Extensions.swift */; };
 		116C5DCD2ED5586EC1099096 /* TaskDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 852BCE3589044E4C173DE674 /* TaskDraft.swift */; };
-		1311A3A1DCE41F441D7D50A3 /* ProBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F72A67DF8D514BDD23A89798 /* ProBadge.swift */; };
 		1A881EBB0C58FEFAF5FB9101 /* SampleDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46587CE13756D4E953FA227 /* SampleDataTests.swift */; };
 		1B06FE893BA01C08EB231A8A /* TaskEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90667575439EB7F1720690EE /* TaskEvent.swift */; };
 		1C1EC3598704DA3D10F4B79E /* WaypointApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8850A4AD6D4B8CA9B911E947 /* WaypointApp.swift */; };
@@ -22,7 +21,6 @@
 		271814CD866A39D92687A731 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85917D87C1E0FD562F03FE3 /* PersistenceController.swift */; };
 		282DF72FF66F505186DF4381 /* ScheduleSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5B6B74E18146252DE5EECF /* ScheduleSetupView.swift */; };
 		336714247F3CE0431661E8EC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54604A4F20F4FF521D885078 /* SettingsView.swift */; };
-		382D8B866267D75CABE10EDE /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADBDE4286DDF140EAFB318B /* PaywallView.swift */; };
 		400FB0185E2D807FE75A4834 /* DateNavigationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036EE9F351B7734A2F5AD935 /* DateNavigationStore.swift */; };
 		40B9BBAE36C499828E03B0CF /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 87A2E6B7AAA3217AF056DB77 /* Supabase */; };
 		415D3231AF21C9C4459E539E /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24ECA3D57DA1BDC6AAA0C1C7 /* RootView.swift */; };
@@ -37,6 +35,7 @@
 		6FE99472D1487F9D7F11167A /* PomodoroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93C01144EA82905973FDAC5B /* PomodoroView.swift */; };
 		70742552221EB329839E8778 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB518A0FA9D4FFF75FBC21B /* MainTabView.swift */; };
 		7BD20FD2295557FE33DA3FC3 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 964A24658EDB3CFCD37A6C71 /* NotificationManager.swift */; };
+		7ECD95A3E01805497F3F08C3 /* ProgressAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B3430892BB87A3265BC2445 /* ProgressAnalytics.swift */; };
 		83AD6D98E2D33E9B9FEAC484 /* ScheduleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92BA47E98AB9488DC68F588 /* ScheduleEngineTests.swift */; };
 		880F64ECC57A5DAE9CC1E551 /* TaskStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90DAA1220894578F53EF0F8 /* TaskStateTests.swift */; };
 		8ADFF848E23D11FBEE5C2E32 /* ColorTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FA0A1BEACD65026BD0B1E3B /* ColorTokens.swift */; };
@@ -46,6 +45,7 @@
 		9FAA7DF2F3D0B94F7929F1BC /* CardBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B7584D86923F2172B5800B8 /* CardBackground.swift */; };
 		A53FFB0471686FC364842675 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13F66EB6BA064C5E76B26FB6 /* Assets.xcassets */; };
 		B12E14D9F220506BE25B5E81 /* ScheduleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D9267BE1CEF896F6213025 /* ScheduleEngine.swift */; };
+		B1B48997D8C5ACC29B909437 /* ProgressAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2825CA55C119B410C18DE0 /* ProgressAnalyticsTests.swift */; };
 		B830178B192DA6126F60E980 /* TaskEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */; };
 		B8AE3F3458A1577CB492669D /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B6B74DE3D70181181BFF7E /* SampleData.swift */; };
 		B9B8319683994671D16A0B23 /* GoalEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414FAA12C134A64B5FAC53AB /* GoalEntity+Extensions.swift */; };
@@ -61,6 +61,7 @@
 		EAB29C9AE0CC289BD954D68F /* GoalWeekStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB06A4AFB082B72DA0F3165 /* GoalWeekStrip.swift */; };
 		EC3E26669CDA55B639FC50BF /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BAFA4BA104B90F5CA8C31AC /* TodayView.swift */; };
 		ECFBF55BDFEF53CE52B6C2E9 /* SleepSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1695D4EF8CC03958DBE2F40A /* SleepSettings.swift */; };
+		F793AC1C4B5BA0671B964170 /* AnalyticsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F429E69B3E9941492AB2E20 /* AnalyticsCard.swift */; };
 		FADECE428C4516741B153F17 /* GoalStreakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC551CFE31C80A5743D2C5E7 /* GoalStreakTests.swift */; };
 		FD011C345784CD18872C0386 /* Waypoint.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = C7FFB68E50A360EC43E84F0A /* Waypoint.xcdatamodeld */; };
 /* End PBXBuildFile section */
@@ -88,6 +89,7 @@
 		37E074FA3AF1BBB691783155 /* WaypointTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WaypointTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B7584D86923F2172B5800B8 /* CardBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardBackground.swift; sourceTree = "<group>"; };
 		3EB06A4AFB082B72DA0F3165 /* GoalWeekStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalWeekStrip.swift; sourceTree = "<group>"; };
+		3F429E69B3E9941492AB2E20 /* AnalyticsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsCard.swift; sourceTree = "<group>"; };
 		3FB518A0FA9D4FFF75FBC21B /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		414FAA12C134A64B5FAC53AB /* GoalEntity+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GoalEntity+Extensions.swift"; sourceTree = "<group>"; };
 		42D9267BE1CEF896F6213025 /* ScheduleEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEngine.swift; sourceTree = "<group>"; };
@@ -97,11 +99,11 @@
 		5EB7A3CAD3697716ABF2B18C /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		648F57DB7F99D00D1D4366D8 /* NewTaskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewTaskView.swift; sourceTree = "<group>"; };
 		6700B3531ED099A170D79DBA /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		6B3430892BB87A3265BC2445 /* ProgressAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAnalytics.swift; sourceTree = "<group>"; };
 		7CD855111609613CF8664261 /* GoalDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalDetailView.swift; sourceTree = "<group>"; };
 		839DE3860FCAAD6AB1E2A92C /* CompletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionView.swift; sourceTree = "<group>"; };
 		852BCE3589044E4C173DE674 /* TaskDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDraft.swift; sourceTree = "<group>"; };
 		8850A4AD6D4B8CA9B911E947 /* WaypointApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaypointApp.swift; sourceTree = "<group>"; };
-		8ADBDE4286DDF140EAFB318B /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		90667575439EB7F1720690EE /* TaskEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEvent.swift; sourceTree = "<group>"; };
 		93C01144EA82905973FDAC5B /* PomodoroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroView.swift; sourceTree = "<group>"; };
 		95FBD25B6E15C0E91381F6E8 /* AdhocBumpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdhocBumpView.swift; sourceTree = "<group>"; };
@@ -121,6 +123,7 @@
 		C92BA47E98AB9488DC68F588 /* ScheduleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEngineTests.swift; sourceTree = "<group>"; };
 		C97861208E25D18FD4EDA1C3 /* Buttons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Buttons.swift; sourceTree = "<group>"; };
 		CB56D3F2D27B6CB75FD85E12 /* TaskReplicatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskReplicatorTests.swift; sourceTree = "<group>"; };
+		CC2825CA55C119B410C18DE0 /* ProgressAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAnalyticsTests.swift; sourceTree = "<group>"; };
 		CCB64DD289BA093BF6235177 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		CFCBE172A676F813E78CF8EA /* Waypoint.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Waypoint.xcdatamodel; sourceTree = "<group>"; };
 		D46ADE46F3D3E7582120A827 /* AccentSwatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccentSwatch.swift; sourceTree = "<group>"; };
@@ -131,7 +134,6 @@
 		EF5B6B74E18146252DE5EECF /* ScheduleSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleSetupView.swift; sourceTree = "<group>"; };
 		F0F0E27307582BCBF61CAE14 /* SleepSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSetupView.swift; sourceTree = "<group>"; };
 		F31BEC7026BBE9ED825FF591 /* WeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekView.swift; sourceTree = "<group>"; };
-		F72A67DF8D514BDD23A89798 /* ProBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProBadge.swift; sourceTree = "<group>"; };
 		F91116B3A2600B6D867ECAD1 /* CompletionBurst.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionBurst.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -154,14 +156,6 @@
 				6700B3531ED099A170D79DBA /* WelcomeView.swift */,
 			);
 			path = Onboarding;
-			sourceTree = "<group>";
-		};
-		3F9D0C5EF8BCCE8FEDC7B4D9 /* Paywall */ = {
-			isa = PBXGroup;
-			children = (
-				8ADBDE4286DDF140EAFB318B /* PaywallView.swift */,
-			);
-			path = Paywall;
 			sourceTree = "<group>";
 		};
 		429F0F14F2CDDD441DCEEB6A /* Auth */ = {
@@ -233,6 +227,8 @@
 		77D4BA0E1825765A4473687E /* Progress */ = {
 			isa = PBXGroup;
 			children = (
+				3F429E69B3E9941492AB2E20 /* AnalyticsCard.swift */,
+				6B3430892BB87A3265BC2445 /* ProgressAnalytics.swift */,
 				49825B536B5B5A7898A561B9 /* ProgressAnalyticsView.swift */,
 			);
 			path = Progress;
@@ -288,7 +284,6 @@
 				64CE4325EAF0BBCE71D34A64 /* Completion */,
 				7EF14A6F153F42E0161EC78D /* Goal */,
 				3040611283DE5E740B6DA72C /* Onboarding */,
-				3F9D0C5EF8BCCE8FEDC7B4D9 /* Paywall */,
 				B3011F16F72CF1F3449C54D7 /* Pomodoro */,
 				77D4BA0E1825765A4473687E /* Progress */,
 				AC9E994AC913F053E6282AC1 /* Schedule */,
@@ -340,7 +335,6 @@
 				F91116B3A2600B6D867ECAD1 /* CompletionBurst.swift */,
 				E77987438EE104778D038C0B /* DatePickerSheet.swift */,
 				3EB06A4AFB082B72DA0F3165 /* GoalWeekStrip.swift */,
-				F72A67DF8D514BDD23A89798 /* ProBadge.swift */,
 				C766B58B62C0A77895616F9F /* ProgressRing.swift */,
 				0D3738DCD1C1C901FB58D4F5 /* TaskProgressWave.swift */,
 				DCCC2E97AF4EC6541D3BBD30 /* TaskRowView.swift */,
@@ -401,6 +395,7 @@
 			children = (
 				BC551CFE31C80A5743D2C5E7 /* GoalStreakTests.swift */,
 				ADE15B6BE478A64CBB4C6353 /* PersistenceRecoveryTests.swift */,
+				CC2825CA55C119B410C18DE0 /* ProgressAnalyticsTests.swift */,
 				B46587CE13756D4E953FA227 /* SampleDataTests.swift */,
 				C92BA47E98AB9488DC68F588 /* ScheduleEngineTests.swift */,
 				C18A03E31C5BF860FF284FE9 /* TaskEventLogTests.swift */,
@@ -503,6 +498,7 @@
 			files = (
 				FADECE428C4516741B153F17 /* GoalStreakTests.swift in Sources */,
 				07263B67CC8B310B380FB1B3 /* PersistenceRecoveryTests.swift in Sources */,
+				B1B48997D8C5ACC29B909437 /* ProgressAnalyticsTests.swift in Sources */,
 				1A881EBB0C58FEFAF5FB9101 /* SampleDataTests.swift in Sources */,
 				83AD6D98E2D33E9B9FEAC484 /* ScheduleEngineTests.swift in Sources */,
 				97DE7E2B503F26DD7E9107AC /* TaskEventLogTests.swift in Sources */,
@@ -517,6 +513,7 @@
 			files = (
 				6D0CBF355D939EE2DE71AC42 /* AccentSwatch.swift in Sources */,
 				0391273998145E517435F8EC /* AdhocBumpView.swift in Sources */,
+				F793AC1C4B5BA0671B964170 /* AnalyticsCard.swift in Sources */,
 				E8100EABD432CDF9B1BB7257 /* AuthManager.swift in Sources */,
 				5C435AF590790E4CDDF3DFB1 /* Buttons.swift in Sources */,
 				9FAA7DF2F3D0B94F7929F1BC /* CardBackground.swift in Sources */,
@@ -534,11 +531,10 @@
 				70742552221EB329839E8778 /* MainTabView.swift in Sources */,
 				0173E1DAB7E2CE778FD87D09 /* NewTaskView.swift in Sources */,
 				7BD20FD2295557FE33DA3FC3 /* NotificationManager.swift in Sources */,
-				382D8B866267D75CABE10EDE /* PaywallView.swift in Sources */,
 				271814CD866A39D92687A731 /* PersistenceController.swift in Sources */,
 				6FE99472D1487F9D7F11167A /* PomodoroView.swift in Sources */,
 				0A486CE868C5538D3BC75F2C /* Priority.swift in Sources */,
-				1311A3A1DCE41F441D7D50A3 /* ProBadge.swift in Sources */,
+				7ECD95A3E01805497F3F08C3 /* ProgressAnalytics.swift in Sources */,
 				D578F0738C862DB4AD3C34E7 /* ProgressAnalyticsView.swift in Sources */,
 				BFB17E314B1FED350DC83406 /* ProgressRing.swift in Sources */,
 				415D3231AF21C9C4459E539E /* RootView.swift in Sources */,
