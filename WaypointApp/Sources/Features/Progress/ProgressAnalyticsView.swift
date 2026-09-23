@@ -15,19 +15,105 @@ struct ProgressAnalyticsView: View {
     private var goals: FetchedResults<GoalEntity>
     @FetchRequest private var sessions: FetchedResults<FocusSessionEntity>
 
-    /// 120 days rather than 60: weekday and time-of-day breakdowns divide the window into 7 and
-    /// 42 buckets respectively, so a two-month window leaves single figures in each and noise
-    /// that looks like signal.
-    /// One window for the whole page, so the period line under the title is true of every card.
-    static let windowDays = 120
+    /// The window every card on the page is drawn from. One setting rather than per-card
+    /// controls: nine charts each with their own period would make the page impossible to read
+    /// as a whole, since no two numbers would be comparable.
+    enum Range: String, CaseIterable, Identifiable {
+        case fourWeeks, threeMonths, allTime
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .fourWeeks: "4 weeks"
+            case .threeMonths: "3 months"
+            case .allTime: "All time"
+            }
+        }
+
+        var caption: String {
+            switch self {
+            case .fourWeeks: "Last 4 weeks"
+            case .threeMonths: "Last 3 months"
+            case .allTime: "All time"
+            }
+        }
+
+        /// `nil` means no lower bound.
+        var days: Int? {
+            switch self {
+            case .fourWeeks: 28
+            case .threeMonths: 90
+            case .allTime: nil
+            }
+        }
+
+        /// How many weeks the effort chart plots. Capped for "all time" — a line with two years
+        /// of weekly points on a phone is a smear, not a chart.
+        var effortWeeks: Int {
+            switch self {
+            case .fourWeeks: 4
+            case .threeMonths: 12
+            case .allTime: 26
+            }
+        }
+
+        func start(from now: Date = .now) -> Date {
+            guard let days else { return .distantPast }
+            return Calendar.current.date(byAdding: .day, value: -days, to: Calendar.current.startOfDay(for: now))!
+        }
+    }
+
+    @State private var range: Range = .fourWeeks
+
+    /// Tasks scheduled ahead still matter to the current week's effort figures, so the window
+    /// runs forward regardless of which range is chosen.
+    private static func end(from now: Date = .now) -> Date {
+        Calendar.current.date(byAdding: .day, value: 90, to: Calendar.current.startOfDay(for: now))!
+    }
 
     init() {
-        let cal = Calendar.current
-        let end = cal.date(byAdding: .day, value: 90, to: cal.startOfDay(for: .now))!
-        let start = cal.date(byAdding: .day, value: -Self.windowDays, to: cal.startOfDay(for: .now))!
-        _recentTasks = FetchRequest(fetchRequest: TaskEntity.fetchRequest(from: start, to: end))
+        let start = Range.fourWeeks.start()
+        _recentTasks = FetchRequest(fetchRequest: TaskEntity.fetchRequest(from: start, to: Self.end()))
         _events = FetchRequest(fetchRequest: TaskEventEntity.fetchRequest(kind: nil, since: start))
         _sessions = FetchRequest(fetchRequest: FocusSessionEntity.fetchRequest(since: start))
+    }
+
+    /// `@FetchRequest` is built in `init` and won't follow a changed value on its own, so the
+    /// predicates are retargeted here rather than the view being rebuilt around a new identity —
+    /// rebuilding would throw away scroll position and every chart's entry animation.
+    private func applyRange(_ newRange: Range) {
+        let start = newRange.start()
+        recentTasks.nsPredicate = NSPredicate(
+            format: "date >= %@ AND date < %@", start as NSDate, Self.end() as NSDate
+        )
+        events.nsPredicate = NSPredicate(format: "occurredAt >= %@", start as NSDate)
+        sessions.nsPredicate = NSPredicate(format: "endedAt >= %@", start as NSDate)
+    }
+
+    private var rangePicker: some View {
+        HStack(spacing: 4) {
+            ForEach(Range.allCases) { option in
+                let selected = range == option
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) { range = option }
+                } label: {
+                    Text(option.label)
+                        .wpTypography(.micro)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(selected ? ColorTokens.surface0 : ColorTokens.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(selected ? ColorTokens.textPrimary : Color.clear)
+                        .clipShape(Capsule())
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(ColorTokens.surface1)
+        .clipShape(Capsule())
     }
 
     private var tasks: [TaskEntity] { Array(recentTasks) }
@@ -44,11 +130,14 @@ struct ProgressAnalyticsView: View {
                     // Every figure on this page is drawn from one window. Without it stated
                     // once, "71%" has no period attached and the whole screen is unreadable —
                     // 71% of what, since when.
-                    Text("Last \(Self.windowDays / 30) months")
+                    Text(range.caption)
                         .wpTypography(.body)
                         .foregroundStyle(ColorTokens.textSecondary)
+                        .contentTransition(.opacity)
                 }
                 .padding(.top, 8)
+
+                rangePicker
 
                 headline
                 weekdayCard
@@ -67,6 +156,7 @@ struct ProgressAnalyticsView: View {
         }
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
+        .onChange(of: range) { _, newRange in applyRange(newRange) }
     }
 
     // MARK: - Headline
@@ -137,16 +227,17 @@ struct ProgressAnalyticsView: View {
     // MARK: - 2. Effort
 
     private var effortCard: some View {
-        let data = ProgressAnalytics.effortByWeek(tasks)
+        let data = ProgressAnalytics.effortByWeek(tasks, weeks: range.effortWeeks)
         let latest = data.last
         let caption: String = if let latest, latest.plannedHours > 0 {
             "This week you planned \(hours(latest.plannedHours)) and completed \(hours(latest.completedHours)). Task counts hide this — a short errand and a long block count the same."
         } else {
             "Hours planned against hours completed, week by week."
         }
+        let emptyMessage = "Nothing scheduled in this period."
         return AnalyticsCard(title: "Hours planned vs done", caption: caption) {
             if data.allSatisfy({ $0.plannedMinutes == 0 }) {
-                AnalyticsEmpty(message: "Nothing scheduled in the last six weeks.")
+                AnalyticsEmpty(message: emptyMessage)
             } else {
                 Chart(data) { week in
                     AreaMark(x: .value("Week", week.weekStart), y: .value("Planned", week.plannedHours))
