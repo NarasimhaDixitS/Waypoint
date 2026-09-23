@@ -12,13 +12,6 @@ struct ProgressRing: View {
     var labelFont: Font = WPTypography.cardTitle.font
     var labelColor: Color = ColorTokens.textPrimary
 
-    /// Where the day currently stands, 0–1, drawn as a mark on the track. The arc says how much
-    /// is done; this says how much *should* be by now, and the gap between them is the only
-    /// thing on the card that answers "am I behind". `nil` hides it — for a past day, where
-    /// pace is meaningless, and anywhere the ring isn't measuring a day at all.
-    var paceMark: Double? = nil
-    var paceMarkColor: Color = ColorTokens.textPrimary
-
     @State private var animatedProgress: Double = 0
     @State private var pulse = false
 
@@ -42,21 +35,6 @@ struct ProgressRing: View {
                 .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .scaleEffect(pulse ? 1.05 : 1.0)
-
-            if let paceMark {
-                // A radial tick across the track's own width, not a dot sitting on it: a dot
-                // reads as another piece of progress, where a line cutting the track reads as a
-                // position — which is what this is.
-                GeometryReader { geo in
-                    let radius = (min(geo.size.width, geo.size.height) - lineWidth) / 2
-                    Capsule()
-                        .fill(paceMarkColor)
-                        .frame(width: 2, height: lineWidth + 5)
-                        .offset(y: -radius)
-                        .rotationEffect(.degrees(min(max(paceMark, 0), 1) * 360))
-                        .frame(width: geo.size.width, height: geo.size.height)
-                }
-            }
 
             if showsLabel {
                 Text("\(Int(round(progress * 100)))%")

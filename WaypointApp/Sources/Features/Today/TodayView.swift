@@ -187,19 +187,6 @@ private struct TodaySummaryCard: View {
     /// one definition across every page of the carousel matters more than a stricter rule here
     /// would — a strip that meant "anything done" on one card and "everything done" on the next
     /// would be unreadable.
-    /// How far `now` has travelled between the day's first scheduled start and its last
-    /// scheduled end. Measured against the day's own plan rather than the clock's 24 hours:
-    /// being "40% through the day" at noon means nothing if nothing is scheduled before six.
-    ///
-    /// `nil` when there's no span to measure against — which is also what hides the mark.
-    private var dayFraction: Double? {
-        guard !todaysTasks.isEmpty,
-              let first = todaysTasks.map(\.resolvedStartTime).min(),
-              let last = todaysTasks.map(\.endTime).max(),
-              last > first else { return nil }
-        return min(max(now.timeIntervalSince(first) / last.timeIntervalSince(first), 0), 1)
-    }
-
     private var week: [(date: Date, done: Bool)] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
@@ -252,11 +239,7 @@ private struct TodaySummaryCard: View {
                     color: .white,
                     trackColor: .white.opacity(0.3),
                     labelFont: .system(size: 17, weight: .bold),
-                    labelColor: .white,
-                    paceMark: dayFraction,
-                    // Inverse ink on the accent: the arc and the track are both white, so a
-                    // white mark would be invisible against one and lost in the other.
-                    paceMarkColor: ColorTokens.inkOnLight.opacity(0.75)
+                    labelColor: .white
                 )
                 .frame(width: 68, height: 68)
             }

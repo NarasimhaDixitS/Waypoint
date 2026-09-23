@@ -31,14 +31,6 @@ struct ProgressAnalyticsView: View {
             }
         }
 
-        var caption: String {
-            switch self {
-            case .fourWeeks: "Last 4 weeks"
-            case .threeMonths: "Last 3 months"
-            case .allTime: "All time"
-            }
-        }
-
         /// `nil` means no lower bound.
         var days: Int? {
             switch self {
@@ -91,29 +83,39 @@ struct ProgressAnalyticsView: View {
         sessions.nsPredicate = NSPredicate(format: "endedAt >= %@", start as NSDate)
     }
 
-    private var rangePicker: some View {
-        HStack(spacing: 4) {
+    /// A menu rather than a row of pills, and it carries the period label instead of repeating
+    /// it underneath. Three pills spent a full-width row saying what one word says, and left two
+    /// dead options on screen permanently; the menu states the current window and hides the
+    /// alternatives until they're wanted.
+    ///
+    /// Deliberately the same shape as Today's `Sort:` control — same type size, same capsule,
+    /// same muted ink. A second, differently-styled dropdown would read as a different kind of
+    /// control doing a different kind of thing.
+    private var rangeMenu: some View {
+        Menu {
             ForEach(Range.allCases) { option in
-                let selected = range == option
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) { range = option }
                 } label: {
                     Text(option.label)
-                        .wpTypography(.micro)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(selected ? ColorTokens.surface0 : ColorTokens.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                        .background(selected ? ColorTokens.textPrimary : Color.clear)
-                        .clipShape(Capsule())
-                        .contentShape(Rectangle())
+                    if range == option { Image(systemName: "checkmark") }
                 }
-                .buttonStyle(.plain)
             }
+        } label: {
+            HStack(spacing: 5) {
+                Text(range.label)
+                    .contentTransition(.opacity)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .wpTypography(.micro)
+            .fontWeight(.semibold)
+            .foregroundStyle(ColorTokens.textSecondary)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6)
+            .background(ColorTokens.surface1)
+            .clipShape(Capsule())
         }
-        .padding(3)
-        .background(ColorTokens.surface1)
-        .clipShape(Capsule())
     }
 
     private var tasks: [TaskEntity] { Array(recentTasks) }
@@ -123,21 +125,17 @@ struct ProgressAnalyticsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
+                // The control sits on the title line and states the window itself, so the page
+                // still says what period every figure covers — "71%" with no period attached is
+                // unreadable — without spending a second line to repeat it.
+                HStack(alignment: .firstTextBaseline) {
                     Text("Progress")
                         .wpTypography(.appTitle)
                         .foregroundStyle(ColorTokens.textPrimary)
-                    // Every figure on this page is drawn from one window. Without it stated
-                    // once, "71%" has no period attached and the whole screen is unreadable —
-                    // 71% of what, since when.
-                    Text(range.caption)
-                        .wpTypography(.body)
-                        .foregroundStyle(ColorTokens.textSecondary)
-                        .contentTransition(.opacity)
+                    Spacer(minLength: 8)
+                    rangeMenu
                 }
                 .padding(.top, 8)
-
-                rangePicker
 
                 headline
                 weekdayCard
