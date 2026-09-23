@@ -90,7 +90,12 @@ struct MainTabView: View {
                             }
                         }
                     )
-                    .id(WeekIdentity(month: selectedMonth, refreshTrigger: weekRefreshTrigger))
+                    // Deliberately NOT keyed on the month. It used to be, which tore the whole
+                    // view down and rebuilt it on every month step — taking its `@State` and,
+                    // fatally, any in-flight transition with it. That is why stepping months
+                    // snapped while switching modes (plain internal state) slid correctly.
+                    // WeekView now retargets its own fetch when the month changes.
+                    .id(weekRefreshTrigger)
                 }
                 .opacity(selectedTab == 1 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 1)
@@ -165,7 +170,7 @@ struct MainTabView: View {
                 .frame(width: 68, height: 68)
                 .background(theme.accentSwatch.color)
                 .clipShape(Circle())
-                .shadow(color: ColorTokens.shadowRaised, radius: 18, x: 0, y: 8)
+                .shadow(color: ColorTokens.ShadowTier.raised.color, radius: ColorTokens.ShadowTier.raised.radius, x: 0, y: ColorTokens.ShadowTier.raised.y)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("New task")
@@ -226,7 +231,7 @@ private struct CustomTabBar: View {
                 NotchedBarShape(notchCenterX: notchCenterX, notchWidth: notchWidth, notchDepth: notchDepth)
                     .fill(theme.accentSwatch.color)
                     .frame(height: barHeight)
-                    .shadow(color: ColorTokens.shadowRaised, radius: 22, x: 0, y: 18)
+                    .shadow(color: ColorTokens.ShadowTier.raised.color, radius: ColorTokens.ShadowTier.raised.radius, x: 0, y: ColorTokens.ShadowTier.raised.y)
                     .offset(y: badgeLift)
 
                 HStack(spacing: 0) {
@@ -252,7 +257,7 @@ private struct CustomTabBar: View {
                     ZStack {
                         Circle()
                             .fill(badgeFill)
-                            .shadow(color: ColorTokens.shadowRaised, radius: 14, x: 0, y: 8)
+                            .shadow(color: ColorTokens.ShadowTier.raised.color, radius: ColorTokens.ShadowTier.raised.radius, x: 0, y: ColorTokens.ShadowTier.raised.y)
                         Image(systemName: filledIcons[activeIndex] ?? icons[activeIndex])
                             .font(.system(size: 24, weight: .semibold))
                             .foregroundStyle(badgeIconColor)
@@ -386,7 +391,7 @@ private struct GlobalSearchOverlay: View {
             .frame(maxHeight: 320)
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .shadow(color: ColorTokens.shadowFloating, radius: 30, x: 0, y: 28)
+            .shadow(color: ColorTokens.ShadowTier.floating.color, radius: ColorTokens.ShadowTier.floating.radius, x: 0, y: ColorTokens.ShadowTier.floating.y)
         }
     }
 
@@ -399,7 +404,7 @@ private struct GlobalSearchOverlay: View {
             .frame(maxWidth: .infinity)
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .shadow(color: ColorTokens.shadowFloating, radius: 30, x: 0, y: 28)
+            .shadow(color: ColorTokens.ShadowTier.floating.color, radius: ColorTokens.ShadowTier.floating.radius, x: 0, y: ColorTokens.ShadowTier.floating.y)
     }
 
     private var searchFieldRow: some View {
@@ -422,7 +427,7 @@ private struct GlobalSearchOverlay: View {
             .padding(12)
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: ColorTokens.shadowRaised, radius: 22, x: 0, y: 18)
+            .shadow(color: ColorTokens.ShadowTier.raised.color, radius: ColorTokens.ShadowTier.raised.radius, x: 0, y: ColorTokens.ShadowTier.raised.y)
 
             Button("Cancel", action: onCancel)
                 .foregroundStyle(theme.accentSwatch.color)

@@ -52,7 +52,7 @@ private struct CompletionInfo: Identifiable {
 /// A single driver for every sheet this screen can show. SwiftUI only reliably supports one
 /// active sheet presentation per view — stacking many independent `.sheet(isPresented:)` /
 /// `.sheet(item:)` modifiers on the same view invites exactly the bug this replaced: two of
-/// them going true at once (e.g. a Pro-gated action inside "New Task" requesting the paywall
+/// them going true at once (e.g. an action inside "New Task" opening another sheet
 /// while the New Task sheet itself is still showing) produces a second, blank sheet.
 private enum ActiveSheet: Identifiable {
     case addTask
@@ -63,7 +63,6 @@ private enum ActiveSheet: Identifiable {
     case editBump(EditBumpInfo)
     case completion(CompletionInfo)
     case pomodoro(TaskEntity)
-    case paywall
 
     var id: String {
         switch self {
@@ -75,7 +74,6 @@ private enum ActiveSheet: Identifiable {
         case .editBump: "editBump"
         case .completion(let info): "completion-\(info.id)"
         case .pomodoro(let t): "pomodoro-\(t.objectID)"
-        case .paywall: "paywall"
         }
     }
 }
@@ -133,6 +131,128 @@ private enum TimelineItem: Identifiable {
     var taskEntity: TaskEntity? {
         if case .task(let t) = self { return t }
         return nil
+    }
+}
+
+/// The day's own page in the carousel, shaped exactly like a goal card — eyebrow, title,
+/// summary line, ring, and the same "Last 7 days" strip. The Today page previously carried an
+/// accent block about a *goal* and a list of individual tasks, and nothing at all about the
+/// day; this fills that slot in the vocabulary already established rather than inventing a
+/// second kind of summary above it.
+///
+/// Anchored to today rather than to the browsed day, like every other page in this carousel:
+/// "Last 7 days" is a today-relative idea, and goal progress isn't day-scoped either. Browsing
+/// to another day changes the list below; this stays the standing picture of today.
+private struct TodaySummaryCard: View {
+    let now: Date
+    /// Tasks mid-undo-window from a pending delete, so the count drops the moment the row does.
+    let hiddenTaskIDs: Set<NSManagedObjectID>
+
+    @EnvironmentObject private var theme: ThemeManager
+    @FetchRequest private var recentTasks: FetchedResults<TaskEntity>
+
+    init(now: Date, hiddenTaskIDs: Set<NSManagedObjectID>) {
+        self.now = now
+        self.hiddenTaskIDs = hiddenTaskIDs
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: now)
+        let start = cal.date(byAdding: .day, value: -6, to: today)!
+        let end = cal.date(byAdding: .day, value: 1, to: today)!
+        _recentTasks = FetchRequest(fetchRequest: TaskEntity.fetchRequest(from: start, to: end))
+    }
+
+    private var visible: [TaskEntity] {
+        recentTasks.filter { !hiddenTaskIDs.contains($0.objectID) }
+    }
+
+    /// Commitments are excluded by construction — they're a separate entity and never fetched
+    /// here. A fixed Work or Gym block isn't something you tick off, so counting it would
+    /// inflate both halves of the ratio with work you never chose and can never complete.
+    private var todaysTasks: [TaskEntity] {
+        let today = Calendar.current.startOfDay(for: now)
+        return visible.filter { Calendar.current.startOfDay(for: $0.resolvedDate) == today }
+    }
+
+    private var done: Int { todaysTasks.filter(\.isDone).count }
+
+    private var fraction: Double {
+        todaysTasks.isEmpty ? 0 : Double(done) / Double(todaysTasks.count)
+    }
+
+    private var remainingMinutes: Int {
+        todaysTasks.filter { !$0.isDone }.reduce(0) { $0 + Int($1.durationMinutes) }
+    }
+
+    /// Same meaning as the goal strip's: a day counts if you finished something on it. Keeping
+    /// one definition across every page of the carousel matters more than a stricter rule here
+    /// would — a strip that meant "anything done" on one card and "everything done" on the next
+    /// would be unreadable.
+    private var week: [(date: Date, done: Bool)] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: now)
+        let doneDays = Set(visible.filter(\.isDone).map { cal.startOfDay(for: $0.resolvedDate) })
+        return (0..<7).reversed().map { offset in
+            let day = cal.date(byAdding: .day, value: -offset, to: today)!
+            return (day, doneDays.contains(day))
+        }
+    }
+
+    private var summaryLine: String {
+        guard !todaysTasks.isEmpty else { return "Nothing scheduled" }
+        let base = "\(done) of \(todaysTasks.count) done"
+        guard remainingMinutes > 0 else { return base }
+        let hours = remainingMinutes / 60
+        let minutes = remainingMinutes % 60
+        let span = hours > 0 ? (minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h") : "\(minutes)m"
+        // "left" alone read as wall-clock time remaining, which this is not: it's the planned
+        // effort still outstanding, so ticking off a 45-minute task drops it by 45 minutes
+        // whenever you tick it. Naming the unit is the whole fix.
+        return "\(base) · \(span) of work left"
+    }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    // TODAY takes the title slot rather than the eyebrow one a goal card uses
+                    // for "GOAL". A goal's name has to be the largest thing on its card because
+                    // it's the only thing identifying which goal you're looking at; this card
+                    // has no such name, so the eyebrow was the only word carrying identity and
+                    // it was set in the smallest type on the card.
+                    Text("TODAY")
+                        .wpTypography(.screenTitle)
+                        .tracking(1)
+                        .foregroundStyle(.white)
+                    Text(now.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+                        .wpTypography(.body)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .lineLimit(1)
+                    Text(summaryLine)
+                        .wpTypography(.body)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .lineLimit(1)
+                }
+                Spacer()
+                ProgressRing(
+                    progress: fraction,
+                    lineWidth: 7,
+                    color: .white,
+                    trackColor: .white.opacity(0.3),
+                    labelFont: .system(size: 17, weight: .bold),
+                    labelColor: .white
+                )
+                .frame(width: 68, height: 68)
+            }
+            Rectangle().fill(Color.white.opacity(0.22)).frame(height: 1)
+            VStack(spacing: 8) {
+                Text("Last 7 days")
+                    .wpTypography(.cardTitle)
+                    .foregroundStyle(.white.opacity(0.75))
+                GoalWeekStrip(days: week)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .wpCard(padding: 20, fill: theme.accentSwatch.color, shadow: .raised)
     }
 }
 
@@ -480,8 +600,7 @@ struct TodayView: View {
                 NewTaskView(
                     defaultDate: selectedDate,
                     goal: goals.first,
-                    onSave: handleSave,
-                    onRequestPaywall: { presentSheet(.paywall) }
+                    onSave: handleSave
                 )
             case .editTask(let task):
                 NewTaskView(
@@ -490,11 +609,10 @@ struct TodayView: View {
                     onSave: handleSave,
                     onDelete: { requestDelete(task) },
                     onDeleteSeries: { deleteSeries(from: task) },
-                    onDuplicate: { draft in handleNewDraft(draft) },
-                    onRequestPaywall: { presentSheet(.paywall) }
+                    onDuplicate: { draft in handleNewDraft(draft) }
                 )
             case .goalCreate:
-                GoalCreateView(onCreated: { _ in }, onRequestPaywall: { presentSheet(.paywall) })
+                GoalCreateView(onCreated: { _ in })
             case .adhocBump(let info):
                 AdhocBumpView(
                     headline: "New task needs a slot",
@@ -511,8 +629,7 @@ struct TodayView: View {
                     appendStart: info.appendStart,
                     onAppendToEnd: info.appendStart.map { start in
                         { persist(appended(info.draft, at: start)) }
-                    },
-                    onRequestPaywall: { presentSheet(.paywall) }
+                    }
                 )
             case .cascadeConfirm(let info):
                 CascadeConfirmView(
@@ -530,8 +647,7 @@ struct TodayView: View {
                         applyEdit(info.edit.draft, to: info.edit.task)
                     },
                     secondaryLabel: "Keep the original time",
-                    onSecondaryAction: {},
-                    onRequestPaywall: { presentSheet(.paywall) }
+                    onSecondaryAction: {}
                 )
             case .completion(let info):
                 CompletionView(
@@ -545,8 +661,6 @@ struct TodayView: View {
                 NavigationStack {
                     PomodoroView(focusTitle: task.title)
                 }
-            case .paywall:
-                PaywallView()
             }
         }
         .alert("Repeat", isPresented: Binding(get: { repeatCreationSummary != nil }, set: { if !$0 { repeatCreationSummary = nil } })) {
@@ -676,29 +790,59 @@ struct TodayView: View {
 
     private static let goalBannerHeight: CGFloat = 264
 
+    /// The page margin every screen's scroll content uses. Named here because the carousel has
+    /// to cancel it and re-apply it one level down.
+    static let pageMargin: CGFloat = 20
+
+    /// One page of the goal carousel: the page margin lives here rather than on the TabView, so
+    /// each card sits inset from the clip boundary with room for its shadow. The bottom inset
+    /// lifts the card clear of the paging dots.
+    private func carouselPage<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .padding(.horizontal, Self.pageMargin)
+            .padding(.bottom, 24)
+    }
+
     /// Always ends with an "Add another goal" page — swiping to it is the one, always-
     /// reachable place to start a new goal, whether you have zero goals or several already.
     private var goalSection: some View {
         TabView {
-            ForEach(goals) { goal in
-                NavigationLink {
-                    GoalDetailView(goal: goal)
-                } label: {
-                    goalCard(goal)
-                }
-                .buttonStyle(.plain)
-                .padding(.bottom, 24)
+            carouselPage {
+                TodaySummaryCard(now: clockTick, hiddenTaskIDs: hiddenTaskIDs)
             }
 
-            Button { presentSheet(.goalCreate) } label: {
-                addGoalCard
+            ForEach(goals) { goal in
+                carouselPage {
+                    NavigationLink {
+                        GoalDetailView(goal: goal)
+                    } label: {
+                        goalCard(goal)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .buttonStyle(.plain)
-            .padding(.bottom, 24)
+
+            carouselPage {
+                Button { presentSheet(.goalCreate) } label: {
+                    addGoalCard
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .tabViewStyle(.page(indexDisplayMode: goals.isEmpty ? .never : .automatic))
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
         .indexViewStyle(.page(backgroundDisplayMode: .always))
         .frame(height: Self.goalBannerHeight)
+        // Full-bleed, then the margin is re-applied per page in `carouselPage`.
+        //
+        // A paging TabView clips to its own bounds. Inset by the page margin it was exactly as
+        // wide as the card inside it, so the card's shadow — which has to extend past the card
+        // to be a shadow at all — was sliced off flush with the card's edge, leaving a hard
+        // vertical line down both sides. Capping the blur against the *scroll view's* margin
+        // didn't help, because this is a second, tighter clip inside that one. Widening the
+        // carousel to the screen edge puts the margin inside the clip bounds, where the shadow
+        // can fall on actual page background. It also makes the swipe feel right: a carousel
+        // should page edge to edge, not inside a 40pt-narrower window.
+        .padding(.horizontal, -Self.pageMargin)
     }
 
     private func goalCard(_ goal: GoalEntity) -> some View {
@@ -1006,8 +1150,7 @@ struct TodayView: View {
         guard theme.completionMode == .autoByTime else { return }
         var didChange = false
         for task in realTodayTasks where !task.isDone && Date.now >= task.endTime {
-            task.isDone = true
-            task.completedAt = task.endTime
+            task.markAutoCompleted()
             didChange = true
         }
         if didChange { try? context.save() }
