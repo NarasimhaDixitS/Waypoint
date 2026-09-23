@@ -11,7 +11,6 @@ struct GoalCreateView: View {
     @State private var name = ""
     @State private var description = ""
     @State private var targetDate = Calendar.current.date(byAdding: .day, value: 30, to: .now) ?? .now
-    @State private var planningMode: PlanningMode = .manual
     @State private var showingDateSheet = false
 
     /// Same flat, borderless "inset well" as the task editor: `surface0` (the page-background
@@ -93,54 +92,6 @@ struct GoalCreateView: View {
         }
     }
 
-    /// Same segmented capsule as the task editor's Priority row — both options visible, tap to
-    /// choose. The per-mode explanation moves to a caption underneath, since a segment is too
-    /// narrow to carry it and only the selected one's description is worth reading.
-    private var planningRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Planning")
-                .wpTypography(.micro)
-                .foregroundStyle(ColorTokens.textSecondary)
-            HStack(spacing: 4) {
-                planningSegment(.manual, label: "I'll plan it")
-                planningSegment(.ai, label: "AI-planned")
-            }
-            .padding(4)
-            .background(ColorTokens.surface0)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-            Text(planningMode == .ai
-                 ? "Describe your routine, AI builds daily tasks."
-                 : "You'll add the tasks yourself.")
-                .wpTypography(.micro)
-                .foregroundStyle(ColorTokens.textSecondary)
-                .contentTransition(.opacity)
-        }
-        .sensoryFeedback(.selection, trigger: planningMode)
-    }
-
-    private func planningSegment(_ mode: PlanningMode, label: String) -> some View {
-        let selected = planningMode == mode
-        return HStack(spacing: 5) {
-            Text(label)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .wpTypography(.body)
-        .foregroundStyle(selected ? ColorTokens.textPrimary : ColorTokens.textSecondary)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(selected ? ColorTokens.surface1 : Color.clear)
-                .shadow(color: selected ? ColorTokens.shadowResting : .clear, radius: 4, x: 0, y: 2)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.15)) { planningMode = mode }
-        }
-    }
-
     private var footer: some View {
         HStack(spacing: 12) {
             Button {
@@ -187,7 +138,6 @@ struct GoalCreateView: View {
                     nameField
                     descriptionField
                     targetDateField
-                    planningRow
                 }
                 .padding(20)
             }
@@ -211,44 +161,11 @@ struct GoalCreateView: View {
             in: context,
             name: name,
             targetDate: targetDate,
-            planningMode: planningMode,
+            planningMode: .manual,
             notes: description.isEmpty ? nil : description
         )
-        if planningMode == .ai {
-            AIPlanningStub.generateDailyTasks(for: goal, in: context)
-        }
         try? context.save()
         onCreated(goal)
         dismiss()
     }
-}
-
-/// Local stand-in for the Claude-API-backed goal breakdown described in the spec.
-/// Produces a placeholder daily task per day so the Pro flow is demonstrable offline;
-/// swap for a real call to the backend's goal-breakdown endpoint later.
-enum AIPlanningStub {
-    static func generateDailyTasks(for goal: GoalEntity, in context: NSManagedObjectContext) {
-        let cal = Calendar.current
-        let start = cal.date(byAdding: .day, value: 1, to: .now) ?? .now
-        let dayCount = max(cal.dateComponents([.day], from: start, to: goal.resolvedTargetDate).day ?? 0, 1)
-        for offset in 0..<min(dayCount, 60) {
-            let day = cal.date(byAdding: .day, value: offset, to: start)!
-            let startTime = cal.date(bySettingHour: 9, minute: 0, second: 0, of: day) ?? day
-            TaskEntity.create(
-                in: context,
-                title: "\(goal.name ?? "Goal") – step \(offset + 1)",
-                date: day,
-                startTime: startTime,
-                durationMinutes: 45,
-                priority: offset % 5 == 0 ? .high : .medium,
-                goal: goal
-            )
-        }
-    }
-}
-
-#Preview {
-    GoalCreateView(onCreated: { _ in })
-        .environmentObject(ThemeManager.shared)
-        .environment(\.managedObjectContext, PersistenceController(inMemory: true).container.viewContext)
 }

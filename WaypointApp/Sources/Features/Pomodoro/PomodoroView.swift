@@ -1,10 +1,14 @@
 import SwiftUI
+import CoreData
 
 struct PomodoroView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.managedObjectContext) private var context
     @EnvironmentObject private var theme: ThemeManager
 
     var focusTitle: String?
+    /// Raw id, matching how the event log refers to tasks: the record has to outlive the task.
+    var focusTaskID: UUID?
     var onSessionComplete: (() -> Void)?
 
     /// Remembered across sessions so returning users don't have to reselect a duration.
@@ -18,11 +22,28 @@ struct PomodoroView: View {
     @State private var showingCustomPicker = false
     @State private var customMinutes = 25
 
+    // MARK: - Session accounting
+    //
+    // Focused time is accumulated across run stretches rather than read off the countdown,
+    // because the two are not the same number. A timer paused over lunch and resumed still
+    // shows the same remaining seconds, and treating the gap as focus would make every estimate
+    // look wildly optimistic. Only stretches where it was actually running count.
+
+    /// When the current run stretch began; `nil` while paused.
+    @State private var runStartedAt: Date?
+    /// Focused seconds banked from earlier stretches of this session.
+    @State private var bankedSeconds: Int = 0
+    /// When the user first pressed play — the session's own start, kept across pauses.
+    @State private var sessionStartedAt: Date?
+    /// Guards against recording twice when the timer finishes and the sheet is then dismissed.
+    @State private var didRecord = false
+
     private let presets = [25, 30, 45]
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    init(focusTitle: String? = nil, onSessionComplete: (() -> Void)? = nil) {
+    init(focusTitle: String? = nil, focusTaskID: UUID? = nil, onSessionComplete: (() -> Void)? = nil) {
         self.focusTitle = focusTitle
+        self.focusTaskID = focusTaskID
         self.onSessionComplete = onSessionComplete
         let minutes = UserDefaults.standard.object(forKey: "pomodoroMinutes") as? Int ?? 25
         _remainingSeconds = State(initialValue: minutes * 60)
@@ -106,6 +127,7 @@ struct PomodoroView: View {
         }
         .onReceive(timer) { _ in tick() }
         .onChange(of: isRunning) { toggleRunning($1) }
+        .onDisappear { recordSession(ranToCompletion: false) }
         .sheet(isPresented: $showingCustomPicker) {
             CustomDurationSheet(minutes: $customMinutes) {
                 select(minutes: customMinutes)
@@ -127,16 +149,30 @@ struct PomodoroView: View {
     }
 
     private func select(minutes: Int) {
+        // Picking a different length ends whatever was running and banks it — the time spent so
+        // far was still spent, and silently folding it into a session with a different planned
+        // length would corrupt exactly the comparison this data exists for.
+        recordSession(ranToCompletion: false)
         selectedMinutes = minutes
         remainingSeconds = minutes * 60
         endDate = nil
         isRunning = false
+        resetSessionAccounting()
         NotificationManager.cancelPomodoroComplete()
+    }
+
+    private func resetSessionAccounting() {
+        runStartedAt = nil
+        bankedSeconds = 0
+        sessionStartedAt = nil
+        didRecord = false
     }
 
     private func toggleRunning(_ running: Bool) {
         if running {
             endDate = Date.now.addingTimeInterval(TimeInterval(remainingSeconds))
+            runStartedAt = .now
+            if sessionStartedAt == nil { sessionStartedAt = .now }
             if theme.notificationsEnabled {
                 NotificationManager.schedulePomodoroComplete(in: TimeInterval(remainingSeconds), taskTitle: focusTitle)
             }
@@ -144,9 +180,37 @@ struct PomodoroView: View {
             if let endDate {
                 remainingSeconds = max(0, Int(endDate.timeIntervalSinceNow.rounded()))
             }
+            bankRunStretch()
             endDate = nil
             NotificationManager.cancelPomodoroComplete()
         }
+    }
+
+    /// Moves the stretch just ended into `bankedSeconds`.
+    private func bankRunStretch() {
+        guard let runStartedAt else { return }
+        bankedSeconds += max(0, Int(Date.now.timeIntervalSince(runStartedAt).rounded()))
+        self.runStartedAt = nil
+    }
+
+    /// Writes the session down. Called both when the countdown reaches zero and when the sheet
+    /// closes, since a session abandoned halfway is as much a fact about how long work takes as
+    /// one that ran its course — `ranToCompletion` is what tells them apart.
+    private func recordSession(ranToCompletion: Bool) {
+        guard !didRecord, let startedAt = sessionStartedAt else { return }
+        bankRunStretch()
+        didRecord = true
+        FocusSessionLog.record(
+            taskID: focusTaskID,
+            taskTitle: focusTitle,
+            startedAt: startedAt,
+            endedAt: .now,
+            plannedSeconds: totalSeconds,
+            actualSeconds: bankedSeconds,
+            ranToCompletion: ranToCompletion,
+            in: context
+        )
+        try? context.save()
     }
 
     private func tick() {
@@ -154,6 +218,7 @@ struct PomodoroView: View {
         let remaining = max(0, Int(endDate.timeIntervalSinceNow.rounded()))
         remainingSeconds = remaining
         if remaining <= 0 {
+            recordSession(ranToCompletion: true)
             isRunning = false
             self.endDate = nil
             onSessionComplete?()

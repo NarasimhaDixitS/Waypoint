@@ -28,10 +28,32 @@ struct PersistenceController {
     /// Read at launch to tell the user what happened; see `WaypointApp`.
     let recovery: Recovery?
 
+    /// Loaded once and shared by every container.
+    ///
+    /// `NSPersistentContainer(name:)` parses the model file afresh each time it's called, and
+    /// each parse produces entity descriptions that all claim the same generated classes —
+    /// `TaskEntity`, `GoalEntity` and the rest. Core Data then can't decide which description a
+    /// class belongs to, logs "Failed to find a unique match for an NSEntityDescription", and
+    /// hands back fetch requests with no entity attached, which throw on execution.
+    ///
+    /// The app only ever builds one container so it never noticed. The test suite builds one
+    /// per test case, which is why every run ended in a wall of Core Data errors and an uncaught
+    /// exception after the last test — alarming, unrelated to any failure, and exactly the kind
+    /// of noise a real crash would one day hide in.
+    private static let model: NSManagedObjectModel = {
+        guard let url = Bundle.main.url(forResource: "Waypoint", withExtension: "momd"),
+              let model = NSManagedObjectModel(contentsOf: url) else {
+            // Only reachable if the compiled model is missing from the bundle, which is a build
+            // configuration error rather than anything a user can cause or recover from.
+            fatalError("Waypoint.momd is missing from the app bundle")
+        }
+        return model
+    }()
+
     /// - Parameter storeURL: overrides where the store lives. Only for tests, which need to
     ///   point at a file they've deliberately damaged.
     init(inMemory: Bool = false, storeURL: URL? = nil) {
-        let container = NSPersistentContainer(name: "Waypoint")
+        let container = NSPersistentContainer(name: "Waypoint", managedObjectModel: Self.model)
         if inMemory {
             container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
         } else if let storeURL {

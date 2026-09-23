@@ -659,7 +659,7 @@ struct TodayView: View {
                 )
             case .pomodoro(let task):
                 NavigationStack {
-                    PomodoroView(focusTitle: task.title)
+                    PomodoroView(focusTitle: task.title, focusTaskID: task.id)
                 }
             }
         }

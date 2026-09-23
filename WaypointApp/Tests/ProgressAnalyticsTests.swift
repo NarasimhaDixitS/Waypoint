@@ -189,7 +189,93 @@ final class ProgressAnalyticsTests: XCTestCase {
         XCTAssertTrue(ProgressAnalytics.burndown(for: goal, now: day(2026, 9, 3)).isEmpty)
     }
 
+    // MARK: - Estimate accuracy
+
+    private func session(taskID: UUID?, title: String, actualSeconds: Int, planned: Int = 1500) {
+        FocusSessionLog.record(
+            taskID: taskID, taskTitle: title,
+            startedAt: day(2026, 9, 8), endedAt: day(2026, 9, 8),
+            plannedSeconds: planned, actualSeconds: actualSeconds,
+            ranToCompletion: true, in: context
+        )
+    }
+
+    /// The point of the whole feature: a 60-minute booking that actually took 90.
+    func testEstimateAccuracyComparesBookedTimeAgainstTimeSpent() {
+        let t = task(on: day(2026, 9, 8), minutes: 60)
+        session(taskID: t.id, title: "Task", actualSeconds: 90 * 60)
+
+        let rows = ProgressAnalytics.estimateAccuracy(sessions: fetchSessions(), tasks: fetchTasks())
+
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.plannedMinutes, 60)
+        XCTAssertEqual(rows.first?.actualMinutes, 90)
+        XCTAssertEqual(rows.first?.overrunMinutes, 30)
+    }
+
+    /// Several sittings on one task are one estimate, not several. Scoring each against the
+    /// whole booking would call a well-estimated task three severe under-runs.
+    func testMultipleSessionsOnOneTaskAreSummed() {
+        let t = task(on: day(2026, 9, 8), minutes: 60)
+        session(taskID: t.id, title: "Task", actualSeconds: 25 * 60)
+        session(taskID: t.id, title: "Task", actualSeconds: 35 * 60)
+
+        let rows = ProgressAnalytics.estimateAccuracy(sessions: fetchSessions(), tasks: fetchTasks())
+
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.actualMinutes, 60)
+        XCTAssertEqual(rows.first?.ratio, 1)
+    }
+
+    /// A task nobody timed is not evidence that the estimate was right.
+    func testTasksWithNoSessionsAreExcluded() {
+        task(on: day(2026, 9, 8), minutes: 60)
+        XCTAssertTrue(ProgressAnalytics.estimateAccuracy(sessions: fetchSessions(), tasks: fetchTasks()).isEmpty)
+    }
+
+    /// One timer left running all afternoon shouldn't decide what the typical estimate looks
+    /// like — which is why the headline figure is a median.
+    func testMedianRatioIsNotThrownByASingleOutlier() {
+        let normal = (0..<4).map { _ -> ProgressAnalytics.Estimate in
+            ProgressAnalytics.Estimate(id: UUID().uuidString, title: "t", plannedMinutes: 60, actualMinutes: 60)
+        }
+        let outlier = ProgressAnalytics.Estimate(id: "x", title: "left running", plannedMinutes: 60, actualMinutes: 600)
+
+        let median = ProgressAnalytics.medianEstimateRatio(normal + [outlier])
+
+        XCTAssertEqual(median ?? 0, 1, accuracy: 0.001)
+    }
+
+    /// Opening the timer and closing it again isn't data; a pile of such rows would drag every
+    /// average down while looking like evidence.
+    func testVeryShortSessionsAreNotRecorded() {
+        let written = FocusSessionLog.record(
+            taskID: UUID(), taskTitle: "Blip",
+            startedAt: day(2026, 9, 8), endedAt: day(2026, 9, 8),
+            plannedSeconds: 1500, actualSeconds: 9,
+            ranToCompletion: false, in: context
+        )
+        XCTAssertNil(written)
+        XCTAssertTrue(fetchSessions().isEmpty)
+    }
+
+    /// An abandoned session still says something about how long work takes.
+    func testAnAbandonedSessionIsStillRecorded() {
+        let written = FocusSessionLog.record(
+            taskID: UUID(), taskTitle: "Gave up",
+            startedAt: day(2026, 9, 8), endedAt: day(2026, 9, 8),
+            plannedSeconds: 1500, actualSeconds: 400,
+            ranToCompletion: false, in: context
+        )
+        XCTAssertNotNil(written)
+        XCTAssertEqual(written?.ranToCompletion, false)
+    }
+
     // MARK: - Helpers
+
+    private func fetchSessions() -> [FocusSessionEntity] {
+        (try? context.fetch(FocusSessionEntity.fetchRequest(since: nil))) ?? []
+    }
 
     private func fetchTasks() -> [TaskEntity] { (try? context.fetch(TaskEntity.fetchRequest())) ?? [] }
     private func fetchEvents() -> [TaskEventEntity] { (try? context.fetch(TaskEventEntity.fetchRequest())) ?? [] }

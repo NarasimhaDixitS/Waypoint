@@ -13,16 +13,21 @@ struct ProgressAnalyticsView: View {
     @FetchRequest private var events: FetchedResults<TaskEventEntity>
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \GoalEntity.createdAt, ascending: true)])
     private var goals: FetchedResults<GoalEntity>
+    @FetchRequest private var sessions: FetchedResults<FocusSessionEntity>
 
     /// 120 days rather than 60: weekday and time-of-day breakdowns divide the window into 7 and
     /// 42 buckets respectively, so a two-month window leaves single figures in each and noise
     /// that looks like signal.
+    /// One window for the whole page, so the period line under the title is true of every card.
+    static let windowDays = 120
+
     init() {
         let cal = Calendar.current
         let end = cal.date(byAdding: .day, value: 90, to: cal.startOfDay(for: .now))!
-        let start = cal.date(byAdding: .day, value: -120, to: cal.startOfDay(for: .now))!
+        let start = cal.date(byAdding: .day, value: -Self.windowDays, to: cal.startOfDay(for: .now))!
         _recentTasks = FetchRequest(fetchRequest: TaskEntity.fetchRequest(from: start, to: end))
         _events = FetchRequest(fetchRequest: TaskEventEntity.fetchRequest(kind: nil, since: start))
+        _sessions = FetchRequest(fetchRequest: FocusSessionEntity.fetchRequest(since: start))
     }
 
     private var tasks: [TaskEntity] { Array(recentTasks) }
@@ -32,10 +37,18 @@ struct ProgressAnalyticsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Progress")
-                    .wpTypography(.appTitle)
-                    .foregroundStyle(ColorTokens.textPrimary)
-                    .padding(.top, 8)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Progress")
+                        .wpTypography(.appTitle)
+                        .foregroundStyle(ColorTokens.textPrimary)
+                    // Every figure on this page is drawn from one window. Without it stated
+                    // once, "71%" has no period attached and the whole screen is unreadable —
+                    // 71% of what, since when.
+                    Text("Last \(Self.windowDays / 30) months")
+                        .wpTypography(.body)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                }
+                .padding(.top, 8)
 
                 headline
                 weekdayCard
@@ -46,6 +59,7 @@ struct ProgressAnalyticsView: View {
                 goalSplitCard
                 habitCard
                 timeOfDayCard
+                estimateCard
                 burndownCard
             }
             .padding(.horizontal, 20)
@@ -61,11 +75,14 @@ struct ProgressAnalyticsView: View {
         let elapsed = tasks.filter { Calendar.current.startOfDay(for: $0.resolvedDate) <= Calendar.current.startOfDay(for: .now) }
         let done = elapsed.filter(\.isDone).count
         let rate = elapsed.isEmpty ? 0 : Double(done) / Double(elapsed.count)
-        let deferrals = allEvents.filter { $0.kindValue == .deferred }.count
+        // Distinct titles, not raw events. One task pushed six times is six rows in the log
+        // but one thing you keep avoiding, and "tasks pushed off" has to mean tasks — the
+        // per-task counts live on the leaderboard card below.
+        let pushed = Set(allEvents.filter { $0.kindValue == .deferred }.map { $0.title ?? "" }).count
         return HStack(spacing: 10) {
-            statTile(value: "\(Int(rate * 100))%", label: "Completed")
+            statTile(value: "\(Int(rate * 100))%", label: "Of work done")
             statTile(value: "\(done)", label: "Tasks done")
-            statTile(value: "\(deferrals)", label: "Times put off")
+            statTile(value: "\(pushed)", label: "Tasks pushed off")
         }
     }
 
@@ -156,7 +173,10 @@ struct ProgressAnalyticsView: View {
                     AxisValueLabel().font(WPTypography.micro.font)
                 } }
                 .frame(height: 160)
-                legend(items: [("Planned", ColorTokens.textMuted), ("Completed", accent)])
+                ChartLegend(items: [
+                    ("Hours planned", .dashed(ColorTokens.textMuted)),
+                    ("Hours completed", .line(accent))
+                ])
             }
         }
     }
@@ -350,7 +370,11 @@ struct ProgressAnalyticsView: View {
         } else {
             "When in the week you actually finish things."
         }
-        return AnalyticsCard(title: "When you get things done", caption: caption) {
+        return AnalyticsCard(
+            title: "When you get things done",
+            caption: caption,
+            footnote: "Only counts tasks you ticked off yourself. Ones completed automatically record the time they were scheduled to end, not when you actually stopped."
+        ) {
             if observed < 8 {
                 AnalyticsEmpty(message: "Only \(observed) completions carry a real timestamp so far.")
             } else {
@@ -365,6 +389,7 @@ struct ProgressAnalyticsView: View {
                 .chartXAxis { AxisMarks { _ in AxisValueLabel().font(WPTypography.micro.font) } }
                 .chartYAxis { AxisMarks { _ in AxisValueLabel().font(WPTypography.micro.font) } }
                 .frame(height: 190)
+                ChartLegend(items: [("Fewer finished", .fade(accent)), ("More", .swatch(accent))])
             }
         }
     }
@@ -375,7 +400,60 @@ struct ProgressAnalyticsView: View {
         return 0.18 + 0.82 * (Double(count) / Double(peak))
     }
 
-    // MARK: - 9. Burn-down
+    // MARK: - 9. Estimate accuracy
+
+    private var estimateCard: some View {
+        let data = ProgressAnalytics.estimateAccuracy(sessions: Array(sessions), tasks: tasks)
+        let median = ProgressAnalytics.medianEstimateRatio(data)
+        let caption: String = if let median, median > 1.1 {
+            "Work typically takes \(Int((median - 1) * 100))% longer than you book for it. Adding that to new estimates is the fastest way to make a plan hold."
+        } else if let median, median < 0.9 {
+            "You typically finish in \(Int((1 - median) * 100))% less time than you book. There's room to plan more into a day."
+        } else if median != nil {
+            "Your estimates are close to what work actually takes."
+        } else {
+            "How long work really takes, against how long you booked for it."
+        }
+        return AnalyticsCard(
+            title: "How good are your estimates?",
+            caption: caption,
+            footnote: "Measured from focus timer sessions, added up per task. Paused time doesn't count."
+        ) {
+            if data.isEmpty {
+                AnalyticsEmpty(message: "Run the focus timer on a task to start measuring this.")
+            } else {
+                Chart(data) { row in
+                    BarMark(
+                        x: .value("Minutes", row.plannedMinutes),
+                        y: .value("Task", row.title),
+                        stacking: .unstacked
+                    )
+                    .foregroundStyle(ColorTokens.textMuted.opacity(0.45))
+                    .cornerRadius(4)
+                    BarMark(
+                        x: .value("Minutes", row.actualMinutes),
+                        y: .value("Task", row.title),
+                        stacking: .unstacked
+                    )
+                    .foregroundStyle(row.ratio > 1 ? ColorTokens.warning : accent)
+                    .cornerRadius(4)
+                }
+                .chartXAxis { AxisMarks { _ in
+                    AxisGridLine().foregroundStyle(ColorTokens.border)
+                    AxisValueLabel().font(WPTypography.micro.font)
+                } }
+                .chartYAxis { AxisMarks { _ in AxisValueLabel().font(WPTypography.micro.font) } }
+                .frame(height: CGFloat(data.count) * 34 + 24)
+                ChartLegend(items: [
+                    ("Booked", .swatch(ColorTokens.textMuted.opacity(0.45))),
+                    ("Actually took", .swatch(accent)),
+                    ("Overran", .swatch(ColorTokens.warning))
+                ])
+            }
+        }
+    }
+
+    // MARK: - 10. Burn-down
 
     private var burndownCard: some View {
         let goal = goals.first { !$0.sortedTasks.isEmpty }
@@ -388,7 +466,11 @@ struct ProgressAnalyticsView: View {
         } else {
             "Work remaining against the pace the deadline needs."
         }
-        return AnalyticsCard(title: "Will you make the deadline?", caption: caption) {
+        return AnalyticsCard(
+            title: "Will you make the deadline?",
+            caption: caption,
+            footnote: "The dotted line is where you'd be finishing an equal share of the work every day between starting and the target date."
+        ) {
             if points.isEmpty {
                 AnalyticsEmpty(message: "Create a goal with a target date to see its pace.")
             } else {
@@ -403,16 +485,6 @@ struct ProgressAnalyticsView: View {
         value >= 10 ? "\(Int(value.rounded()))h" : String(format: "%.1fh", value)
     }
 
-    private func legend(items: [(String, Color)]) -> some View {
-        HStack(spacing: 14) {
-            ForEach(items, id: \.0) { item in
-                HStack(spacing: 6) {
-                    Capsule().fill(item.1).frame(width: 14, height: 3)
-                    Text(item.0).wpTypography(.micro).foregroundStyle(ColorTokens.textSecondary)
-                }
-            }
-        }
-    }
 }
 
 /// Shared with `GoalDetailView`, which draws the same chart for one specific goal.
@@ -421,6 +493,7 @@ struct GoalBurndownChart: View {
     let accent: Color
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
         Chart {
             ForEach(points) { point in
                 LineMark(
@@ -456,5 +529,11 @@ struct GoalBurndownChart: View {
             AxisValueLabel().font(WPTypography.micro.font)
         } }
         .frame(height: 170)
+
+        ChartLegend(items: [
+            ("Tasks left", .line(accent)),
+            ("Pace needed", .dashed(ColorTokens.textMuted))
+        ])
+        }
     }
 }

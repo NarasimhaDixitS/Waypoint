@@ -9,6 +9,10 @@ import SwiftUI
 struct AnalyticsCard<Content: View>: View {
     let title: String
     let caption: String
+    /// Only for a card with a genuine catch — how the number is arrived at, where that would
+    /// change how it's read. Most cards have none, and that's the point: a footnote on every
+    /// card is a page nobody finishes.
+    var footnote: String? = nil
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -23,9 +27,57 @@ struct AnalyticsCard<Content: View>: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             content
+            if let footnote {
+                Text(footnote)
+                    .wpTypography(.micro)
+                    .foregroundStyle(ColorTokens.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .wpCard(padding: 18)
+    }
+}
+
+/// Names what a mark on a chart means. A chart carrying two lines and no key is not a hard
+/// chart to read — it is an unreadable one, because nothing on screen says which line is which.
+struct ChartLegend: View {
+    enum Mark { case line(Color), dashed(Color), swatch(Color), fade(Color) }
+
+    let items: [(String, Mark)]
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ForEach(items, id: \.0) { label, mark in
+                HStack(spacing: 6) {
+                    glyph(mark)
+                    Text(label)
+                        .wpTypography(.micro)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private func glyph(_ mark: Mark) -> some View {
+        switch mark {
+        case .line(let color):
+            Capsule().fill(color).frame(width: 16, height: 3)
+        case .dashed(let color):
+            // Drawn as a real dashed stroke rather than a solid stub, so the key looks like the
+            // thing it is keying.
+            Path { $0.addLines([CGPoint(x: 0, y: 1.5), CGPoint(x: 16, y: 1.5)]) }
+                .stroke(color, style: StrokeStyle(lineWidth: 2, dash: [3, 2.5]))
+                .frame(width: 16, height: 3)
+        case .swatch(let color):
+            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 11, height: 11)
+        case .fade(let color):
+            LinearGradient(colors: [color.opacity(0.18), color], startPoint: .leading, endPoint: .trailing)
+                .frame(width: 26, height: 11)
+                .clipShape(RoundedRectangle(cornerRadius: 2))
+        }
     }
 }
 

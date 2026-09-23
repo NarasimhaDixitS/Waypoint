@@ -275,6 +275,69 @@ enum ProgressAnalytics {
         }
     }
 
+    // MARK: - 10. Estimate accuracy
+
+    struct Estimate: Identifiable {
+        let id: String
+        let title: String
+        let plannedMinutes: Int
+        let actualMinutes: Int
+        /// >1 means it took longer than planned.
+        var ratio: Double { plannedMinutes == 0 ? 0 : Double(actualMinutes) / Double(plannedMinutes) }
+        var overrunMinutes: Int { actualMinutes - plannedMinutes }
+    }
+
+    /// How long work actually takes against how long it was booked for.
+    ///
+    /// Sessions are summed per task, not compared one at a time: a two-hour task worked in three
+    /// sittings is one estimate that was roughly right, and scoring each sitting against the
+    /// whole booking would call it three severe under-runs.
+    ///
+    /// Only tasks with a real session attached appear. An untouched task has no evidence either
+    /// way, and assuming it took exactly as long as planned would quietly pull the whole average
+    /// towards "you estimate perfectly".
+    static func estimateAccuracy(
+        sessions: [FocusSessionEntity],
+        tasks: [TaskEntity],
+        limit: Int = 6
+    ) -> [Estimate] {
+        var actualByTask: [UUID: Int] = [:]
+        var titleByTask: [UUID: String] = [:]
+        for session in sessions {
+            guard let id = session.taskID else { continue }
+            actualByTask[id, default: 0] += Int(session.actualSeconds)
+            if let title = session.taskTitle { titleByTask[id] = title }
+        }
+        let plannedByTask = Dictionary(
+            tasks.compactMap { task -> (UUID, TaskEntity)? in task.id.map { ($0, task) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return actualByTask.compactMap { id, seconds -> Estimate? in
+            let planned = plannedByTask[id].map { Int($0.durationMinutes) } ?? 0
+            guard planned > 0 else { return nil }
+            let title = plannedByTask[id]?.title ?? titleByTask[id] ?? "Untitled"
+            return Estimate(
+                id: id.uuidString,
+                title: title,
+                plannedMinutes: planned,
+                actualMinutes: Int((Double(seconds) / 60).rounded())
+            )
+        }
+        .sorted { abs($0.overrunMinutes) > abs($1.overrunMinutes) }
+        .prefix(limit)
+        .map { $0 }
+    }
+
+    /// One number for the headline: how far off the typical estimate is. Median rather than mean
+    /// — a single forgotten timer left running produces an outlier that drags an average to
+    /// nonsense, and this figure has to survive one bad day.
+    static func medianEstimateRatio(_ estimates: [Estimate]) -> Double? {
+        let ratios = estimates.map(\.ratio).filter { $0 > 0 }.sorted()
+        guard !ratios.isEmpty else { return nil }
+        let mid = ratios.count / 2
+        return ratios.count.isMultiple(of: 2) ? (ratios[mid - 1] + ratios[mid]) / 2 : ratios[mid]
+    }
+
     // MARK: - Helpers
 
     static func mondayOfWeek(containing date: Date) -> Date {

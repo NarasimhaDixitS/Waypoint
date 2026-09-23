@@ -20,6 +20,7 @@
 		26F8CD307627BD1AF8548EE3 /* CompletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 839DE3860FCAAD6AB1E2A92C /* CompletionView.swift */; };
 		271814CD866A39D92687A731 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85917D87C1E0FD562F03FE3 /* PersistenceController.swift */; };
 		282DF72FF66F505186DF4381 /* ScheduleSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5B6B74E18146252DE5EECF /* ScheduleSetupView.swift */; };
+		3227E1A7B270863316DC1250 /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6326291AAE39E4AFCD24CCE /* FocusSession.swift */; };
 		336714247F3CE0431661E8EC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54604A4F20F4FF521D885078 /* SettingsView.swift */; };
 		400FB0185E2D807FE75A4834 /* DateNavigationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036EE9F351B7734A2F5AD935 /* DateNavigationStore.swift */; };
 		40B9BBAE36C499828E03B0CF /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 87A2E6B7AAA3217AF056DB77 /* Supabase */; };
@@ -134,6 +135,7 @@
 		EF5B6B74E18146252DE5EECF /* ScheduleSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleSetupView.swift; sourceTree = "<group>"; };
 		F0F0E27307582BCBF61CAE14 /* SleepSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSetupView.swift; sourceTree = "<group>"; };
 		F31BEC7026BBE9ED825FF591 /* WeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekView.swift; sourceTree = "<group>"; };
+		F6326291AAE39E4AFCD24CCE /* FocusSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSession.swift; sourceTree = "<group>"; };
 		F91116B3A2600B6D867ECAD1 /* CompletionBurst.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionBurst.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -189,6 +191,7 @@
 			isa = PBXGroup;
 			children = (
 				B0B296A9CCFF099A42AA51B3 /* CommitmentEntity+Extensions.swift */,
+				F6326291AAE39E4AFCD24CCE /* FocusSession.swift */,
 				414FAA12C134A64B5FAC53AB /* GoalEntity+Extensions.swift */,
 				C37C69C067FEC19CC0D353A2 /* Priority.swift */,
 				B4B6B74DE3D70181181BFF7E /* SampleData.swift */,
@@ -524,6 +527,7 @@
 				26F8CD307627BD1AF8548EE3 /* CompletionView.swift in Sources */,
 				400FB0185E2D807FE75A4834 /* DateNavigationStore.swift in Sources */,
 				D7FE8414B73861CA65EA2647 /* DatePickerSheet.swift in Sources */,
+				3227E1A7B270863316DC1250 /* FocusSession.swift in Sources */,
 				8DC2D818FECF68F4351808F1 /* GoalCreateView.swift in Sources */,
 				96952B100095640D68BB1441 /* GoalDetailView.swift in Sources */,
 				B9B8319683994671D16A0B23 /* GoalEntity+Extensions.swift in Sources */,

@@ -9,6 +9,16 @@
         <attribute name="name" optional="YES" attributeType="String" defaultValueString=""/>
         <attribute name="startTime" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <entity name="FocusSessionEntity" representedClassName="FocusSessionEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="actualSeconds" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="endedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="plannedSeconds" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="ranToCompletion" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="startedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="taskID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="taskTitle" optional="YES" attributeType="String"/>
+    </entity>
     <entity name="GoalEntity" representedClassName="GoalEntity" syncable="YES" codeGenerationType="class">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
