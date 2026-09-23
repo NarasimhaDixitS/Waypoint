@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import CoreData
 
 private struct PendingEdit {
@@ -668,8 +669,18 @@ struct TodayView: View {
         } message: {
             Text(repeatCreationSummary ?? "")
         }
+        // Today's set has to be rebuilt when the app comes back, not only when something is
+        // edited: reminders are scheduled a day at a time, so an app left closed overnight
+        // wakes with yesterday's queue — which is empty — and nothing for the day ahead.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            NotificationManager.refreshTaskReminders(tasks: Array(realTodayTasks), enabled: theme.notificationsEnabled)
+        }
         .onReceive(clockTimer) { tick in
+            let dayChanged = !Calendar.current.isDate(tick, inSameDayAs: clockTick)
             withAnimation(.easeInOut(duration: 0.3)) { clockTick = tick }
+            if dayChanged {
+                NotificationManager.refreshTaskReminders(tasks: Array(realTodayTasks), enabled: theme.notificationsEnabled)
+            }
             runAutoComplete()
         }
         .onChange(of: addTaskTrigger) { _, _ in presentSheet(.addTask) }
@@ -1139,11 +1150,13 @@ struct TodayView: View {
 
     /// Cancels any pending reminder for the task, then re-schedules one if it's still
     /// pending, in the future, and notifications are on.
+    /// Rebuilds every task reminder from today's list.
+    ///
+    /// Called after anything that could change what's due — create, edit, complete, delete,
+    /// cascade — rather than each of those trying to patch a single notification. Patching is
+    /// what let reminders drift out of step with reality; a rebuild can't.
     private func rescheduleReminder(for task: TaskEntity) {
-        guard let id = task.id else { return }
-        NotificationManager.cancelReminder(taskID: id)
-        guard theme.notificationsEnabled, !task.isDone else { return }
-        NotificationManager.scheduleReminder(taskID: id, title: task.title ?? "Task", startTime: task.resolvedStartTime)
+        NotificationManager.refreshTaskReminders(tasks: Array(realTodayTasks), enabled: theme.notificationsEnabled)
     }
 
     private func runAutoComplete() {

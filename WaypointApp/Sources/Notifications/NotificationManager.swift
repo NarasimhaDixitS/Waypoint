@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import CoreData
 
 /// Local-notification scheduling for task reminders, the evening day summary, and streak
 /// nudges. Everything here is on-device (UNUserNotificationCenter) — there's no APNs/backend
@@ -15,7 +16,9 @@ enum NotificationManager {
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
             guard settings.authorizationStatus == .notDetermined else { return }
-            center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+            // `.timeSensitive` in the options is what lets a notification request that
+            // interruption level at all; without it the level is silently downgraded.
+            center.requestAuthorization(options: [.alert, .sound, .badge, .timeSensitive]) { _, _ in }
         }
     }
 
@@ -24,27 +27,77 @@ enum NotificationManager {
         center.removeAllPendingNotificationRequests()
     }
 
-    // MARK: - Per-task reminders
+    // MARK: - Task reminders
+
+    /// iOS keeps at most **64 pending local notifications per app** — not per day, per app, for
+    /// the whole queue. Past that it keeps the 64 that fire soonest and silently discards the
+    /// rest, with nothing to tell you it happened.
+    ///
+    /// This used to schedule one per task for every future task, so three weeks of planned work
+    /// sat at 30–60 and real use would quietly cross the line. Reminders would then stop
+    /// arriving for no visible reason — the worst kind of bug, because the app looks fine.
+    ///
+    /// Only *today* is ever scheduled, which caps the queue at a handful and matches what a
+    /// reminder is for: a day has maybe a dozen tasks, and a nudge about next Thursday isn't a
+    /// reminder, it's noise.
+    static let maxPendingReminders = 64
 
     static func reminderIdentifier(for taskID: UUID) -> String {
         "wp.task.\(taskID.uuidString)"
     }
 
-    static func scheduleReminder(taskID: UUID, title: String, startTime: Date) {
-        cancelReminder(taskID: taskID)
+    /// Rebuilds the whole reminder set from today's tasks.
+    ///
+    /// Wholesale rather than per-task: the previous code cancelled and re-added one task at a
+    /// time from two different screens, so a task deleted somewhere that forgot to call it kept
+    /// its reminder and fired for work that no longer existed. Rebuilding from the current list
+    /// can't drift, because the list *is* the source of truth.
+    ///
+    /// - Parameter tasks: every task for today, done or not. Filtering happens here so callers
+    ///   can't disagree about the rules.
+    static func refreshTaskReminders(tasks: [TaskEntity], enabled: Bool, now: Date = .now) {
+        let center = UNUserNotificationCenter.current()
+        center.getPendingNotificationRequests { pending in
+            let stale = pending.map(\.identifier).filter { $0.hasPrefix("wp.task.") }
+            center.removePendingNotificationRequests(withIdentifiers: stale)
 
-        let fireDate = startTime.addingTimeInterval(-reminderLeadTime)
-        guard fireDate > .now else { return }
+            guard enabled else { return }
+            let cal = Calendar.current
+            let today = cal.startOfDay(for: now)
+            let due = tasks
+                .filter { !$0.isDone }
+                .filter { cal.startOfDay(for: $0.resolvedDate) == today }
+                .filter { $0.resolvedStartTime.addingTimeInterval(-reminderLeadTime) > now }
+                .sorted { $0.resolvedStartTime < $1.resolvedStartTime }
+                .prefix(maxPendingReminders - reservedNonTaskSlots)
 
+            for task in due {
+                guard let id = task.id else { continue }
+                center.add(reminderRequest(taskID: id, title: task.title ?? "Task", startTime: task.resolvedStartTime))
+            }
+        }
+    }
+
+    /// The day summary, the streak nudge and a running Pomodoro each hold a slot, so task
+    /// reminders can't be allowed to fill the queue right to the cap.
+    private static let reservedNonTaskSlots = 4
+
+    private static func reminderRequest(taskID: UUID, title: String, startTime: Date) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = "Starts in 5 minutes"
         content.sound = .default
+        // As close to an alarm as a third-party app is allowed to get. Only Apple's Clock can
+        // ring through silent mode; `.timeSensitive` is the one level that breaks through a
+        // Focus mode when the user permits it, and it needs no special entitlement — unlike
+        // `.critical`, which Apple grants to medical and safety apps and would not grant here.
+        content.interruptionLevel = .timeSensitive
+        content.threadIdentifier = "wp.task"
 
+        let fireDate = startTime.addingTimeInterval(-reminderLeadTime)
         let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
-        let request = UNNotificationRequest(identifier: reminderIdentifier(for: taskID), content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request)
+        return UNNotificationRequest(identifier: reminderIdentifier(for: taskID), content: content, trigger: trigger)
     }
 
     static func cancelReminder(taskID: UUID) {

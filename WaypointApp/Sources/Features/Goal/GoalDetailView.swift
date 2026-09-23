@@ -363,11 +363,13 @@ struct GoalDetailView: View {
         rescheduleReminder(for: task)
     }
 
+    /// Same wholesale rebuild Today does. This screen can edit a task scheduled for today, so
+    /// it has to refresh the same set rather than patch one notification — it just has to fetch
+    /// today's tasks itself, having no list of them on screen.
     private func rescheduleReminder(for task: TaskEntity) {
-        guard let id = task.id else { return }
-        NotificationManager.cancelReminder(taskID: id)
-        guard theme.notificationsEnabled, !task.isDone else { return }
-        NotificationManager.scheduleReminder(taskID: id, title: task.title ?? "Task", startTime: task.resolvedStartTime)
+        let request = TaskEntity.fetchRequest(on: .now, context: context)
+        let todays = (try? context.fetch(request)) ?? []
+        NotificationManager.refreshTaskReminders(tasks: todays, enabled: theme.notificationsEnabled)
     }
 
     /// The same analyses the Progress tab runs, narrowed to one goal. A goal's own page is where
