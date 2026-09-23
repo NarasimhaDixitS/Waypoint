@@ -5,6 +5,8 @@ import UIKit
 struct MainTabView: View {
     @EnvironmentObject private var theme: ThemeManager
     @StateObject private var dateStore = DateNavigationStore()
+    @EnvironmentObject private var subscription: SubscriptionManager
+    @State private var showingPaywall = false
     @State private var selectedTab = 0
     /// The first-of-month anchor for whichever month is currently browsed in the Week tab —
     /// persists across tab switches (browsing to next month, checking Today, coming back to
@@ -62,6 +64,14 @@ struct MainTabView: View {
     /// Today — someone browsing a future day who taps "+" almost certainly wants a task on
     /// *that* day, not to be bounced back to today first.
     private func requestAddTask() {
+        // The gate. Everything already in the app stays readable, completable and editable when
+        // a trial lapses — only *making more* stops, because that's the thing being paid for.
+        // Locking someone out of work they already typed in earns refunds and one-star reviews,
+        // and it isn't what they agreed to when they typed it.
+        guard subscription.status.canCreate else {
+            showingPaywall = true
+            return
+        }
         if selectedTab != 0 {
             selectedTab = 0
         }
@@ -156,6 +166,13 @@ struct MainTabView: View {
         }
         .animation(.easeInOut(duration: 0.22), value: searchActive)
         .environmentObject(dateStore)
+        .sheet(isPresented: $showingPaywall) { PaywallView() }
+        // A trial ends by the clock moving, and nothing fires an event when it does. Without
+        // this, an app left open across the boundary would keep letting someone create work
+        // until they happened to relaunch it.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            subscription.refresh()
+        }
     }
 
     /// Docked in the tab bar's own reserved chrome instead of floating over Today's content —

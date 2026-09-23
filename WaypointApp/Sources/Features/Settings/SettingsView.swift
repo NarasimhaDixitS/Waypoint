@@ -4,9 +4,11 @@ import AuthenticationServices
 struct SettingsView: View {
     @EnvironmentObject private var theme: ThemeManager
     @EnvironmentObject private var account: AccountManager
+    @EnvironmentObject private var subscription: SubscriptionManager
     @Environment(\.managedObjectContext) private var context
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingDemoConfirm = false
+    @State private var showingPaywall = false
 
     var body: some View {
         ScrollView {
@@ -17,6 +19,7 @@ struct SettingsView: View {
                     .padding(.top, 8)
 
                 accountCard
+                subscriptionCard
 
                 VStack(spacing: 0) {
                     row {
@@ -112,6 +115,31 @@ struct SettingsView: View {
                     Text("Developer")
                         .wpTypography(.micro)
                         .foregroundStyle(ColorTokens.textSecondary)
+                    row {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Subscription state").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                            // Waiting seven days is not a testing strategy.
+                            Text("Jump the trial so the lapsed state can be seen")
+                                .wpTypography(.body)
+                                .foregroundStyle(ColorTokens.textSecondary)
+                        }
+                        Spacer()
+                    }
+                    .wpCard(padding: 0)
+
+                    HStack(spacing: 10) {
+                        Button("Expire now") { subscription.expireNow() }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .wpCard(padding: 0)
+                        Button("Reset trial") { subscription.resetTrial() }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .wpCard(padding: 0)
+                    }
+                    .wpTypography(.body)
+                    .foregroundStyle(ColorTokens.textPrimary)
+
                     Button {
                         showingDemoConfirm = true
                     } label: {
@@ -137,6 +165,7 @@ struct SettingsView: View {
         }
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
+        .sheet(isPresented: $showingPaywall) { PaywallView() }
         .confirmationDialog(
             "Replace everything with demo data?",
             isPresented: $showingDemoConfirm,
@@ -155,7 +184,47 @@ struct SettingsView: View {
         Divider().overlay(ColorTokens.border).padding(.leading, 14)
     }
 
-/// Sign in with Apple, as a placeholder.
+private var subscriptionCard: some View {
+        Button { showingPaywall = true } label: {
+            row {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(subscriptionTitle)
+                        .wpTypography(.cardTitle)
+                        .foregroundStyle(ColorTokens.textPrimary)
+                    Text(subscriptionDetail)
+                        .wpTypography(.body)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ColorTokens.textMuted)
+            }
+        }
+        .buttonStyle(.plain)
+        .wpCard(padding: 0)
+    }
+
+    private var subscriptionTitle: String {
+        switch subscription.status {
+        case .trial: "Free trial"
+        case .subscribed(let plan, _): "Waypoint \(plan.title)"
+        case .expired: "Trial ended"
+        }
+    }
+
+    private var subscriptionDetail: String {
+        switch subscription.status {
+        case .trial(let daysLeft):
+            daysLeft == 1 ? "Last day — tap to subscribe" : "\(daysLeft) days left — tap to subscribe"
+        case .subscribed(_, let renewsAt):
+            "Renews \(renewsAt.formatted(.dateTime.day().month(.abbreviated).year()))"
+        case .expired:
+            "Subscribe to add new tasks. Everything you've made stays readable."
+        }
+    }
+
+    /// Sign in with Apple, as a placeholder.
     ///
     /// Apple's own `SignInWithAppleButton` is used rather than a lookalike: its wording, corner
     /// radius and light/dark behaviour are specified by Apple and a hand-rolled copy is grounds
