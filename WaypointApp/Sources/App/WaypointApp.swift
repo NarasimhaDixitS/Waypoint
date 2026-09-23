@@ -23,25 +23,31 @@ struct WaypointApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if auth.isReady {
-                    RootView()
-                        .environment(\.managedObjectContext, persistence.container.viewContext)
-                        .environmentObject(theme)
-                        .environmentObject(auth)
-                        .onAppear {
-                            // Only prime the real system permission prompt for users who already
-                            // completed onboarding in a previous launch — a first-time user hasn't
-                            // engaged with the app yet, so this fires again right after they finish
-                            // onboarding instead (see RootView).
-                            guard UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") else { return }
-                            if theme.notificationsEnabled {
-                                NotificationManager.requestAuthorizationIfNeeded()
-                                NotificationManager.scheduleDailySummary()
-                            }
+                // Drawn immediately, never gated on the network.
+                //
+                // This used to wait for `auth.isReady` — a round trip to Supabase for an
+                // anonymous session — before drawing anything, so the app sat on a blank screen
+                // until that answered. With no connection it didn't skip, it waited for the
+                // *failure*, which takes longer: worst exactly when someone is most impatient.
+                //
+                // Nothing needed the answer. Every task and goal is already on the device, and
+                // the session's user id is read by nothing. A local app has no business asking
+                // permission from a server before showing a user their own data.
+                RootView()
+                    .environment(\.managedObjectContext, persistence.container.viewContext)
+                    .environmentObject(theme)
+                    .environmentObject(auth)
+                    .onAppear {
+                        // Only prime the real system permission prompt for users who already
+                        // completed onboarding in a previous launch — a first-time user hasn't
+                        // engaged with the app yet, so this fires again right after they finish
+                        // onboarding instead (see RootView).
+                        guard UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") else { return }
+                        if theme.notificationsEnabled {
+                            NotificationManager.requestAuthorizationIfNeeded()
+                            NotificationManager.scheduleDailySummary()
                         }
-                } else {
-                    ColorTokens.surface0.ignoresSafeArea()
-                }
+                    }
             }
             .tint(theme.accentSwatch.color)
             .preferredColorScheme(theme.appearanceMode.colorScheme)
