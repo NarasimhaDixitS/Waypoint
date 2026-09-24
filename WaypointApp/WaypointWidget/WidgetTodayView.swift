@@ -170,25 +170,16 @@ struct WidgetTodayView: View {
         .padding(2)
     }
 
-    /// Only the running task links to its focus timer, matching the app — a task row there
-    /// shows the play button for `.inProgress` and nothing else. Offering it on finished work
-    /// was the widget inventing an action the app doesn't have, and a focus timer for something
-    /// already done has nothing to time.
+    /// Rows are information, not controls.
     ///
-    /// Every other row still opens the app on Today, via the widget-wide URL. A widget where
-    /// most of the surface does nothing reads as broken rather than as deliberate.
-    @ViewBuilder
+    /// They briefly linked the running task to its focus timer, which sounded useful and wasn't:
+    /// it worked for one row, in one state, for part of the day, with nothing on screen to say
+    /// which row or when. A shortcut nobody can predict isn't a shortcut — and it carried a
+    /// whole class of bug with it, since a widget renders a snapshot that can sit on a home
+    /// screen for an hour after the thing it describes has finished.
+    ///
+    /// The whole card opens Today instead. One destination, always the same, always right.
     private func row(_ item: DaySnapshot.Item) -> some View {
-        if item.isRunning {
-            Link(destination: URL(string: "waypoint://focus/\(item.id.uuidString)")!) {
-                rowContent(item)
-            }
-        } else {
-            rowContent(item)
-        }
-    }
-
-    private func rowContent(_ item: DaySnapshot.Item) -> some View {
             HStack(spacing: 8) {
                 Text(item.start.formatted(.dateTime.hour().minute()))
                     .font(.system(size: 11, weight: .medium))

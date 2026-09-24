@@ -27,8 +27,6 @@ struct MainTabView: View {
     /// means it can never end up rendered on top of a list row's own controls, whatever that
     /// row's size or position happens to be.
     @State private var addTaskTrigger = 0
-    /// Set by a widget tap; `TodayView` picks it up and opens the focus timer for that task.
-    @State private var focusTaskID: UUID?
 
     /// Combines both reasons `WeekView` might need a fresh fetch — a different month, or just
     /// revisiting the tab — into one identity so `.id()` rebuilds on either.
@@ -83,9 +81,7 @@ struct MainTabView: View {
     var body: some View {
         ZStack {
             ZStack {
-                NavigationStack {
-                    TodayView(addTaskTrigger: addTaskTrigger, focusTaskID: $focusTaskID)
-                }
+                NavigationStack { TodayView(addTaskTrigger: addTaskTrigger) }
                     .opacity(selectedTab == 0 ? 1 : 0)
                     .allowsHitTesting(selectedTab == 0)
 
@@ -171,18 +167,14 @@ struct MainTabView: View {
         .animation(.easeInOut(duration: 0.22), value: searchActive)
         .environmentObject(dateStore)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
-        // waypoint://focus/<task id> — a widget row. The widget can only open a URL or run a
-        // small background action, and silently starting a timer the user can't see or stop
-        // would be the wrong half of the job, so the tap brings them to the timer itself.
+        // waypoint://today — the widget. It opens the app on today rather than wherever the
+        // user last was, which is the whole of what a glanceable card should promise.
         .onOpenURL { url in
             guard url.scheme == "waypoint" else { return }
-            // Both widget destinations land on Today; only one of them also opens a timer.
             withAnimation(.easeInOut(duration: 0.25)) {
                 dateStore.selectedDate = .now
                 selectedTab = 0
             }
-            guard url.host == "focus", let id = UUID(uuidString: url.lastPathComponent) else { return }
-            focusTaskID = id
         }
         // A trial ends by the clock moving, and nothing fires an event when it does. Without
         // this, an app left open across the boundary would keep letting someone create work
