@@ -25,9 +25,14 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: com.waypoint.app
+            CFBundleURLSchemes:
+              - waypoint
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.waypoint.app
+        CODE_SIGN_ENTITLEMENTS: Generated/Waypoint.entitlements
         SWIFT_VERSION: 5.0
         TARGETED_DEVICE_FAMILY: "1"
         ASSETSCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -36,14 +41,48 @@ targets:
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_EMIT_LOC_STRINGS: true
+    dependencies:
+      - target: WaypointWidgetExtension
+        embed: true
     scheme:
       testTargets:
         - WaypointTests
+  WaypointWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: WaypointWidget
+      # Shared with the app rather than duplicated: the widget needs the same model, the same
+      # task rules and the same colour tokens, and a second copy of any of them would drift.
+      - path: Sources/Models
+      - path: Sources/Persistence
+      - path: Sources/Theme/AccentSwatch.swift
+      - path: Sources/Theme/ColorTokens.swift
+      - path: Resources
+    info:
+      path: Generated/WidgetInfo.plist
+      properties:
+        CFBundleDisplayName: Waypoint
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.waypoint.app.widget
+        CODE_SIGN_ENTITLEMENTS: Generated/Waypoint.entitlements
+        SWIFT_VERSION: 5.0
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: true
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+
   WaypointTests:
     type: bundle.unit-test
     platform: iOS
     sources:
       - path: Tests
+      # The widget's own types, so its snapshot logic is covered by the app's suite rather
+      # than being the one part of the codebase nothing checks.
+      - path: WaypointWidget/DaySnapshot.swift
     dependencies:
       - target: Waypoint
     settings:

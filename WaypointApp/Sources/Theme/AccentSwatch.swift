@@ -5,6 +5,20 @@ enum AccentSwatch: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
+    /// Shared with the widget, which runs in its own process and cannot see the app's own
+    /// `UserDefaults`. Mirrored by `ThemeManager` on every change so a widget drawn minutes
+    /// later still matches the app it belongs to — an accent that drifts a shade away is the
+    /// thing that makes both look unfinished.
+    static let sharedDefaults = UserDefaults(suiteName: PersistenceController.appGroupID)
+
+    static let storageKey = "themeAccentSwatch"
+
+    static var current: AccentSwatch {
+        let raw = sharedDefaults?.string(forKey: storageKey)
+            ?? UserDefaults.standard.string(forKey: storageKey)
+        return AccentSwatch(rawValue: raw ?? "") ?? .teal
+    }
+
     /// Teal is a **darkened** form of the requested #17B2C6, not that value itself. Every
     /// accent in this app is a fill with white text and white glyphs on it — the banner, the
     /// "+" button, the "Jump to Today" pill — and #17B2C6 measures **2.55:1** under white,

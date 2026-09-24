@@ -33,7 +33,11 @@ final class ThemeManager: ObservableObject {
         didSet { UserDefaults.standard.set(appearanceMode.rawValue, forKey: Keys.appearance) }
     }
     @Published var accentSwatch: AccentSwatch {
-        didSet { UserDefaults.standard.set(accentSwatch.rawValue, forKey: Keys.accent) }
+        didSet {
+            UserDefaults.standard.set(accentSwatch.rawValue, forKey: Keys.accent)
+            // Mirrored into the shared suite so the widget draws in the same accent.
+            AccentSwatch.sharedDefaults?.set(accentSwatch.rawValue, forKey: AccentSwatch.storageKey)
+        }
     }
     @Published var completionMode: CompletionMode {
         didSet { UserDefaults.standard.set(completionMode.rawValue, forKey: Keys.completion) }
@@ -64,5 +68,8 @@ final class ThemeManager: ObservableObject {
         accentSwatch = AccentSwatch(rawValue: defaults.string(forKey: Keys.accent) ?? "") ?? .teal
         completionMode = CompletionMode(rawValue: defaults.string(forKey: Keys.completion) ?? "") ?? .manual
         notificationsEnabled = defaults.object(forKey: Keys.notifications) as? Bool ?? true
+        // Seeded here rather than only in `didSet`: an install that never touches the accent
+        // again would otherwise leave the widget reading an empty suite and falling back.
+        AccentSwatch.sharedDefaults?.set(accentSwatch.rawValue, forKey: AccentSwatch.storageKey)
     }
 }

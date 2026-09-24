@@ -117,6 +117,71 @@ final class PersistenceRecoveryTests: XCTestCase {
         )
     }
 
+/// The widget runs in its own process and can't see the app's private container, so the
+    /// store moves into a shared one. That move happens once, on a real device, over somebody's
+    /// only copy of their history — so it's checked here against real files rather than trusted.
+    func testMovingAStoreCarriesItsContentAcross() throws {
+        let source = directory.appendingPathComponent("Source.sqlite")
+        let destination = directory.appendingPathComponent("Shared/Waypoint.sqlite")
+        try FileManager.default.createDirectory(
+            at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
+        )
+
+        let original = PersistenceController(storeURL: source)
+        TaskEntity.create(
+            in: original.container.viewContext, title: "Survives the move",
+            date: .now, startTime: .now, durationMinutes: 30, priority: .medium
+        )
+        try original.container.viewContext.save()
+
+        // What `migrateToAppGroupIfNeeded` does, against the same API. Not `copyItem`: a SQLite
+        // store is three files, and copying only the database silently drops everything still
+        // sitting in the write-ahead log.
+        let coordinator = NSPersistentStoreCoordinator(
+            managedObjectModel: original.container.managedObjectModel
+        )
+        try coordinator.replacePersistentStore(
+            at: destination, destinationOptions: nil,
+            withPersistentStoreFrom: source, sourceOptions: nil, type: .sqlite
+        )
+
+        let moved = PersistenceController(storeURL: destination)
+        let tasks = try moved.container.viewContext.fetch(TaskEntity.fetchRequest())
+
+        XCTAssertEqual(tasks.count, 1)
+        XCTAssertEqual(tasks.first?.title, "Survives the move")
+        XCTAssertNil(moved.recovery, "a moved store has to open cleanly, not land in recovery")
+    }
+
+    /// The source is left alone. It is the only copy of the user's history if the move turns
+    /// out to be wrong in a way testing missed.
+    func testTheOriginalStoreIsNotDestroyedByTheMove() throws {
+        let source = directory.appendingPathComponent("Source.sqlite")
+        let destination = directory.appendingPathComponent("Shared2/Waypoint.sqlite")
+        try FileManager.default.createDirectory(
+            at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
+        )
+
+        let original = PersistenceController(storeURL: source)
+        TaskEntity.create(
+            in: original.container.viewContext, title: "Still here",
+            date: .now, startTime: .now, durationMinutes: 30, priority: .medium
+        )
+        try original.container.viewContext.save()
+
+        let coordinator = NSPersistentStoreCoordinator(
+            managedObjectModel: original.container.managedObjectModel
+        )
+        try coordinator.replacePersistentStore(
+            at: destination, destinationOptions: nil,
+            withPersistentStoreFrom: source, sourceOptions: nil, type: .sqlite
+        )
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path))
+        let reopened = PersistenceController(storeURL: source)
+        XCTAssertEqual(try reopened.container.viewContext.fetch(TaskEntity.fetchRequest()).count, 1)
+    }
+
     func testInMemoryStoresAreUnaffected() {
         let controller = PersistenceController(inMemory: true)
 

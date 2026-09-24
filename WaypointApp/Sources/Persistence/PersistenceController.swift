@@ -24,6 +24,32 @@ struct PersistenceController {
 
     static let shared = PersistenceController()
 
+    /// Shared with the widget extension, which runs in its own process and cannot see the app's
+    /// private container at all.
+    static let appGroupID = "group.com.waypoint.app"
+
+    /// Where the store lives. The App Group container once it's reachable, the app's own
+    /// Application Support directory otherwise.
+    ///
+    /// The fallback is not defensive padding: `containerURL` returns nil whenever the
+    /// entitlement isn't in the running build — a provisioning profile without the capability,
+    /// or a configuration that hasn't picked it up. Treating that as fatal would turn a
+    /// signing problem into an app that won't open, which is a much worse failure than a widget
+    /// that has nothing to show.
+    static var storeDirectory: URL {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
+            ?? NSPersistentContainer.defaultDirectoryURL()
+    }
+
+    static var defaultStoreURL: URL {
+        storeDirectory.appendingPathComponent("Waypoint.sqlite")
+    }
+
+    /// Where the store used to live, before the widget needed to read it.
+    private static var legacyStoreURL: URL {
+        NSPersistentContainer.defaultDirectoryURL().appendingPathComponent("Waypoint.sqlite")
+    }
+
     let container: NSPersistentContainer
     /// Read at launch to tell the user what happened; see `WaypointApp`.
     let recovery: Recovery?
@@ -58,6 +84,9 @@ struct PersistenceController {
             container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
         } else if let storeURL {
             container.persistentStoreDescriptions.first?.url = storeURL
+        } else {
+            Self.migrateToAppGroupIfNeeded()
+            container.persistentStoreDescriptions.first?.url = Self.defaultStoreURL
         }
         self.container = container
         self.recovery = Self.load(container, inMemory: inMemory)
@@ -80,6 +109,42 @@ struct PersistenceController {
             return .unavailable(retryError.localizedDescription)
         }
         return .setAside(archive)
+    }
+
+/// Moves an existing store into the App Group container, once.
+    ///
+    /// Done through `replacePersistentStore` rather than `FileManager.copyItem`, because a
+    /// SQLite store is three files — the database, the write-ahead log and the shared-memory
+    /// file — and copying only the first silently loses every change still sitting in the WAL.
+    /// Core Data checkpoints and moves the set as a unit.
+    ///
+    /// The original is left where it is. It costs a few hundred kilobytes and it is the only
+    /// copy of the user's history if this move turns out to be wrong in a way testing missed;
+    /// a later release can delete it once this has been in the wild long enough to trust.
+    /// Everything here is best-effort — a migration that fails leaves the app opening on the
+    /// old store, which is the behaviour it had yesterday.
+    private static func migrateToAppGroupIfNeeded() {
+        let fileManager = FileManager.default
+        let destination = defaultStoreURL
+        let legacy = legacyStoreURL
+
+        // Same path means the container isn't available, so there is nothing to move into.
+        guard destination != legacy else { return }
+        guard fileManager.fileExists(atPath: legacy.path) else { return }
+        guard !fileManager.fileExists(atPath: destination.path) else { return }
+
+        let coordinator = NSPersistentStoreCoordinator(managedObjectModel: model)
+        do {
+            try coordinator.replacePersistentStore(
+                at: destination,
+                destinationOptions: nil,
+                withPersistentStoreFrom: legacy,
+                sourceOptions: nil,
+                type: .sqlite
+            )
+        } catch {
+            assertionFailure("Store migration to the App Group failed: \(error)")
+        }
     }
 
     private static func attemptLoad(_ container: NSPersistentContainer) -> Error? {
