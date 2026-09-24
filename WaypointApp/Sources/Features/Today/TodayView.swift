@@ -1161,13 +1161,20 @@ struct TodayView: View {
     /// cascade — rather than each of those trying to patch a single notification. Patching is
     /// what let reminders drift out of step with reality; a rebuild can't.
     /// Resolves a task id from a widget tap and opens its focus timer.
+    ///
+    /// The state is re-checked here rather than trusted from the link. A widget renders a
+    /// snapshot and can sit on screen for an hour, so a task that was running when it drew may
+    /// have finished long before the tap lands — and a focus timer for work that isn't
+    /// happening any more has nothing to time. Failing that check lands the user on Today,
+    /// which is where the link was taking them anyway.
     private func openFocus(for id: UUID?) {
         guard let id else { return }
         defer { focusTaskID.wrappedValue = nil }
         // Looked up in today's fetch rather than by a fresh query: the widget only ever links
         // to today, and a task deleted between the widget drawing and the tap landing should
         // quietly do nothing rather than open an empty timer.
-        guard let task = realTodayTasks.first(where: { $0.id == id }) else { return }
+        guard let task = realTodayTasks.first(where: { $0.id == id }),
+              task.state(at: .now) == .inProgress else { return }
         presentSheet(.pomodoro(task))
     }
 

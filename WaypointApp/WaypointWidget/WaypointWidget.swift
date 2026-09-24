@@ -31,6 +31,7 @@ struct WaypointWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "WaypointToday", provider: DayProvider()) { entry in
             WidgetTodayView(snapshot: entry.snapshot)
+                .widgetURL(URL(string: "waypoint://today"))
                 // The accent, edge to edge, the same as the card this mirrors in the app.
                 // `containerBackground` is what fills to the widget's real bounds — a colour
                 // set on the content instead leaves the system's default margin showing.

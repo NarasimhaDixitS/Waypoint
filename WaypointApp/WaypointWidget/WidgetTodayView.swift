@@ -170,11 +170,25 @@ struct WidgetTodayView: View {
         .padding(2)
     }
 
-    /// Each row links into the app's focus timer for that task. A widget can only open a URL or
-    /// run a small background action, and starting a timer the user can't then see or stop
-    /// would be the wrong half of the job — so the tap brings them to the timer itself.
+    /// Only the running task links to its focus timer, matching the app — a task row there
+    /// shows the play button for `.inProgress` and nothing else. Offering it on finished work
+    /// was the widget inventing an action the app doesn't have, and a focus timer for something
+    /// already done has nothing to time.
+    ///
+    /// Every other row still opens the app on Today, via the widget-wide URL. A widget where
+    /// most of the surface does nothing reads as broken rather than as deliberate.
+    @ViewBuilder
     private func row(_ item: DaySnapshot.Item) -> some View {
-        Link(destination: URL(string: "waypoint://focus/\(item.id.uuidString)")!) {
+        if item.isRunning {
+            Link(destination: URL(string: "waypoint://focus/\(item.id.uuidString)")!) {
+                rowContent(item)
+            }
+        } else {
+            rowContent(item)
+        }
+    }
+
+    private func rowContent(_ item: DaySnapshot.Item) -> some View {
             HStack(spacing: 8) {
                 Text(item.start.formatted(.dateTime.hour().minute()))
                     .font(.system(size: 11, weight: .medium))
@@ -206,6 +220,5 @@ struct WidgetTodayView: View {
                 }
             }
             .padding(.vertical, 1)
-        }
     }
 }

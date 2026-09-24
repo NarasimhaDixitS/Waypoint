@@ -175,12 +175,13 @@ struct MainTabView: View {
         // small background action, and silently starting a timer the user can't see or stop
         // would be the wrong half of the job, so the tap brings them to the timer itself.
         .onOpenURL { url in
-            guard url.scheme == "waypoint", url.host == "focus",
-                  let id = UUID(uuidString: url.lastPathComponent) else { return }
+            guard url.scheme == "waypoint" else { return }
+            // Both widget destinations land on Today; only one of them also opens a timer.
             withAnimation(.easeInOut(duration: 0.25)) {
                 dateStore.selectedDate = .now
                 selectedTab = 0
             }
+            guard url.host == "focus", let id = UUID(uuidString: url.lastPathComponent) else { return }
             focusTaskID = id
         }
         // A trial ends by the clock moving, and nothing fires an event when it does. Without
