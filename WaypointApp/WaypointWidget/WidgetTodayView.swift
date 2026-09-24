@@ -16,37 +16,85 @@ struct WidgetTodayView: View {
 
     /// Medium fits a header and about three rows; large about nine. Fixed, because a widget is
     /// a rectangle the system sizes — there is no scrolling to fall back on.
-    private var rowLimit: Int { family == .systemLarge ? 9 : 3 }
+    private var rowLimit: Int { family == .systemLarge ? 6 : 3 }
 
     private var visible: [DaySnapshot.Item] { Array(snapshot.items.prefix(rowLimit)) }
     private var overflow: Int { max(0, snapshot.items.count - visible.count) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
+        VStack(alignment: .leading, spacing: 0) {
             header
+
             if snapshot.items.isEmpty {
                 Spacer(minLength: 0)
                 Text("Nothing scheduled today.")
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.75))
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Spacer(minLength: 0)
             } else {
-                Rectangle()
-                    .fill(.white.opacity(0.22))
-                    .frame(height: 1)
-                VStack(alignment: .leading, spacing: family == .systemLarge ? 7 : 5) {
+                rule.padding(.vertical, 11)
+                VStack(alignment: .leading, spacing: family == .systemLarge ? 8 : 6) {
                     ForEach(visible) { item in
                         row(item)
                     }
                     if overflow > 0 {
                         Text("+\(overflow) more")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(.white.opacity(0.65))
                     }
                 }
+            }
+
+            // Large left a dead half-screen under a short list. The strip fills it with the
+            // same thing the app's card puts there rather than padding — and on a day with two
+            // tasks, a week of context is more use than white space.
+            if family == .systemLarge {
+                Spacer(minLength: 12)
+                rule.padding(.bottom, 10)
+                weekStrip
+            } else {
                 Spacer(minLength: 0)
             }
         }
+    }
+
+    private var rule: some View {
+        Rectangle().fill(.white.opacity(0.22)).frame(height: 1)
+    }
+
+    private var weekStrip: some View {
+        VStack(spacing: 8) {
+            Text("Last 7 days")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.75))
+            HStack(spacing: 0) {
+                ForEach(Array(zip(snapshot.week, snapshot.weekLetters()).enumerated()), id: \.offset) { index, pair in
+                    VStack(spacing: 5) {
+                        ZStack {
+                            Circle()
+                                .strokeBorder(.white.opacity(pair.0 ? 1 : 0.4), lineWidth: 1.6)
+                                .frame(width: 15, height: 15)
+                            if pair.0 {
+                                Circle().fill(.white).frame(width: 15, height: 15)
+                            }
+                            // Today gets a ring around it, the same mark the app's strip uses.
+                            if index == snapshot.week.count - 1 {
+                                Circle()
+                                    .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
+                                    .frame(width: 21, height: 21)
+                            }
+                        }
+                        .frame(height: 21)
+                        Text(pair.1)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var header: some View {

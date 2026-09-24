@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import WidgetKit
 
 enum AppearanceMode: String, CaseIterable, Hashable {
     case system, light, dark
@@ -37,6 +38,10 @@ final class ThemeManager: ObservableObject {
             UserDefaults.standard.set(accentSwatch.rawValue, forKey: Keys.accent)
             // Mirrored into the shared suite so the widget draws in the same accent.
             AccentSwatch.sharedDefaults?.set(accentSwatch.rawValue, forKey: AccentSwatch.storageKey)
+            // Writing the value isn't enough. A widget renders on a timeline WidgetKit owns,
+            // and it will happily keep showing a cached frame for hours — so the app has to
+            // say when something it depends on has changed.
+            WidgetCenter.shared.reloadAllTimelines()
         }
     }
     @Published var completionMode: CompletionMode {

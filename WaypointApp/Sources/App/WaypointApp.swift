@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 @main
 struct WaypointApp: App {
@@ -7,6 +8,7 @@ struct WaypointApp: App {
     @StateObject private var subscription = SubscriptionManager.shared
     let persistence = PersistenceController.shared
     @State private var showingRecoveryNotice = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private var recoveryMessage: String {
         switch persistence.recovery {
@@ -63,6 +65,12 @@ struct WaypointApp: App {
             }
             .onAppear {
                 showingRecoveryNotice = persistence.recovery != nil
+            }
+            // Redrawn when the app leaves the foreground, which is the moment the widget is
+            // about to be the only thing the user sees. Cheaper and more reliable than trying
+            // to catch every individual edit — WidgetKit coalesces these anyway.
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { WidgetCenter.shared.reloadAllTimelines() }
             }
         }
     }

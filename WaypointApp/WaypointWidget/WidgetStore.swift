@@ -22,6 +22,27 @@ enum WidgetStore {
                     isDone: task.isDone
                 )
             }
-        return DaySnapshot(date: Calendar.current.startOfDay(for: now), items: items)
+        return DaySnapshot(
+            date: Calendar.current.startOfDay(for: now),
+            items: items,
+            week: weekCompletion(context: context, now: now)
+        )
+    }
+
+    /// One fetch across the whole week rather than seven day-fetches — the widget process is
+    /// woken briefly and killed, so the work it does at launch is the work that matters.
+    private static func weekCompletion(context: NSManagedObjectContext, now: Date) -> [Bool] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: now)
+        guard let start = cal.date(byAdding: .day, value: -6, to: today),
+              let end = cal.date(byAdding: .day, value: 1, to: today) else {
+            return Array(repeating: false, count: 7)
+        }
+        let request = TaskEntity.fetchRequest(from: start, to: end)
+        let tasks = (try? context.fetch(request)) ?? []
+        let doneDays = Set(tasks.filter(\.isDone).map { cal.startOfDay(for: $0.resolvedDate) })
+        return (0..<7).reversed().compactMap { offset in
+            cal.date(byAdding: .day, value: -offset, to: today).map { doneDays.contains($0) }
+        }
     }
 }

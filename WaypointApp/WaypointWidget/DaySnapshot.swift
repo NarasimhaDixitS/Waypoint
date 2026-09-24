@@ -18,6 +18,9 @@ struct DaySnapshot {
 
     let date: Date
     let items: [Item]
+    /// Last seven days, oldest first, each true if anything was finished that day. Same meaning
+    /// as the strip on the app's card — a day counts if you finished something on it.
+    var week: [Bool] = Array(repeating: false, count: 7)
 
     var done: Int { items.filter(\.isDone).count }
     var total: Int { items.count }
@@ -43,6 +46,20 @@ struct DaySnapshot {
         items.first(where: \.isRunning) ?? items.first { !$0.isDone && $0.end > .now }
     }
 
+    /// Fixed English letters rather than `Calendar` data: the device region here is `en_IN`,
+    /// whose narrow-weekday values have already rendered blank elsewhere in this app, and a
+    /// widget is a bad place to discover that.
+    static let weekdayLetters = ["S", "M", "T", "W", "T", "F", "S"]
+
+    /// The letter for each of the last seven days, aligned with `week`.
+    func weekLetters(now: Date = .now) -> [String] {
+        let cal = Calendar.current
+        return (0..<7).reversed().compactMap { offset in
+            guard let day = cal.date(byAdding: .day, value: -offset, to: now) else { return nil }
+            return Self.weekdayLetters[cal.component(.weekday, from: day) - 1]
+        }
+    }
+
     static let placeholder = DaySnapshot(
         date: .now,
         items: (0..<4).map { index in
@@ -53,7 +70,8 @@ struct DaySnapshot {
                 end: Date.now.addingTimeInterval(Double(index) * 3600 + 1800),
                 isDone: index == 0
             )
-        }
+        },
+        week: [false, true, true, false, true, true, false]
     )
 }
 
