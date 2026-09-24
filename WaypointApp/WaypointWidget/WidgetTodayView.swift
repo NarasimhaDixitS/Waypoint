@@ -1,36 +1,38 @@
 import SwiftUI
 import WidgetKit
 
-/// The Today banner, rebuilt at widget scale.
+/// The Today card from the app, at widget scale.
 ///
-/// Shares the app's tokens rather than restating them, so the accent, the ink and the surfaces
-/// stay in step — a widget drifting a shade away from the app it belongs to is the thing that
-/// makes both look unfinished.
+/// Accent-filled with white ink rather than a neutral surface — the first pass drew a grey card
+/// with an accent ring, which read as a different app's widget sitting next to the one it came
+/// from. A widget is the app's face on the home screen: if it doesn't look like the thing it
+/// opens, it looks like it belongs to nobody.
+///
+/// Tokens come from the app rather than being restated here, so the accent, the ink and the
+/// ring's weights stay in step by construction.
 struct WidgetTodayView: View {
     let snapshot: DaySnapshot
     @Environment(\.widgetFamily) private var family
 
-    private var accent: Color { AccentSwatch.current.markColor }
-
     /// Medium fits a header and about three rows; large about nine. Fixed, because a widget is
-    /// a rectangle the system decides the size of — there is no scrolling to fall back on.
+    /// a rectangle the system sizes — there is no scrolling to fall back on.
     private var rowLimit: Int { family == .systemLarge ? 9 : 3 }
 
     private var visible: [DaySnapshot.Item] { Array(snapshot.items.prefix(rowLimit)) }
     private var overflow: Int { max(0, snapshot.items.count - visible.count) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 11) {
             header
             if snapshot.items.isEmpty {
                 Spacer(minLength: 0)
                 Text("Nothing scheduled today.")
                     .font(.system(size: 13))
-                    .foregroundStyle(ColorTokens.textMuted)
+                    .foregroundStyle(.white.opacity(0.75))
                 Spacer(minLength: 0)
             } else {
                 Rectangle()
-                    .fill(ColorTokens.border)
+                    .fill(.white.opacity(0.22))
                     .frame(height: 1)
                 VStack(alignment: .leading, spacing: family == .systemLarge ? 7 : 5) {
                     ForEach(visible) { item in
@@ -38,8 +40,8 @@ struct WidgetTodayView: View {
                     }
                     if overflow > 0 {
                         Text("+\(overflow) more")
-                            .font(.system(size: 11))
-                            .foregroundStyle(ColorTokens.textMuted)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.6))
                     }
                 }
                 Spacer(minLength: 0)
@@ -49,52 +51,71 @@ struct WidgetTodayView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("TODAY")
-                    .font(.system(size: 11, weight: .semibold))
-                    .tracking(0.8)
-                    .foregroundStyle(ColorTokens.textSecondary)
-                Text("\(snapshot.done) of \(snapshot.total) done")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(ColorTokens.textPrimary)
-                Text(snapshot.remainingLabel)
+                    .font(.system(size: 19, weight: .semibold))
+                    .tracking(1)
+                    .foregroundStyle(.white)
+                Text(snapshot.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
                     .font(.system(size: 12))
-                    .foregroundStyle(ColorTokens.textSecondary)
+                    .foregroundStyle(.white.opacity(0.75))
+                Text("\(snapshot.done) of \(snapshot.total) done · \(snapshot.remainingLabel)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
             Spacer(minLength: 0)
             ring
         }
     }
 
+    /// The app's ring, aura and all. The glow is a wider, blurred copy of the same arc — it
+    /// survives into a widget because a widget is rendered once as a static image, so a blur
+    /// costs nothing at display time.
     private var ring: some View {
         ZStack {
-            Circle().stroke(ColorTokens.border, lineWidth: 5)
+            Circle().stroke(.white.opacity(0.3), lineWidth: 6)
+
             Circle()
                 .trim(from: 0, to: snapshot.fraction)
-                .stroke(accent, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                .stroke(.white, style: StrokeStyle(lineWidth: 13, lineCap: .round))
                 .rotationEffect(.degrees(-90))
+                .blur(radius: 5)
+                .opacity(0.55)
+
+            Circle()
+                .trim(from: 0, to: snapshot.fraction)
+                .stroke(.white, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+
             Text("\(Int(snapshot.fraction * 100))%")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(ColorTokens.textPrimary)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.white)
         }
-        .frame(width: 46, height: 46)
+        .frame(width: 56, height: 56)
     }
 
-    /// Each row is a link into the app's focus timer for that task. A widget can only open a
-    /// URL or run a small background action, and starting a timer you then can't see or stop
-    /// would be the wrong half of the job — so the tap takes you to the thing itself.
+    /// Each row links into the app's focus timer for that task. A widget can only open a URL or
+    /// run a small background action, and starting a timer the user can't then see or stop
+    /// would be the wrong half of the job — so the tap brings them to the timer itself.
     private func row(_ item: DaySnapshot.Item) -> some View {
         Link(destination: URL(string: "waypoint://focus/\(item.id.uuidString)")!) {
             HStack(spacing: 8) {
                 Text(item.start.formatted(.dateTime.hour().minute()))
                     .font(.system(size: 11, weight: .medium))
                     .monospacedDigit()
-                    .foregroundStyle(ColorTokens.textMuted)
-                    .frame(width: 52, alignment: .leading)
+                    .foregroundStyle(.white.opacity(item.isDone ? 0.6 : 0.78))
+                    .frame(width: 54, alignment: .leading)
 
                 Text(item.title)
                     .font(.system(size: 13, weight: item.isRunning ? .semibold : .regular))
-                    .foregroundStyle(item.isDone ? ColorTokens.textMuted : ColorTokens.textPrimary)
+                    // Done work recedes rather than disappearing, so a finished day still reads
+                    // as a full day. Only to 0.8 though: the strikethrough already says "done",
+                    // and dimming further was doing that job a second time at the cost of
+                    // legibility — on the blue accent it measured 1.97:1, which isn't a faded
+                    // row, it's an unreadable one.
+                    .foregroundStyle(.white.opacity(item.isDone ? 0.8 : 1))
                     .strikethrough(item.isDone)
                     .lineLimit(1)
 
@@ -106,7 +127,7 @@ struct WidgetTodayView: View {
                     Text(timerInterval: Date.now...item.end, countsDown: true)
                         .font(.system(size: 11, weight: .semibold))
                         .monospacedDigit()
-                        .foregroundStyle(accent)
+                        .foregroundStyle(.white)
                         .frame(width: 44, alignment: .trailing)
                 }
             }
