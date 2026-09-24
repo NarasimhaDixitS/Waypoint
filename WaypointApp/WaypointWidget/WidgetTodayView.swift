@@ -14,11 +14,32 @@ struct WidgetTodayView: View {
     let snapshot: DaySnapshot
     @Environment(\.widgetFamily) private var family
 
-    /// Medium fits a header and about three rows; large about nine. Fixed, because a widget is
-    /// a rectangle the system sizes — there is no scrolling to fall back on.
-    private var rowLimit: Int { family == .systemLarge ? 6 : 3 }
+    /// Each family gets its own proportions rather than one layout squeezed into both.
+    ///
+    /// Medium was running past its content area, which is why it ended up pressed against the
+    /// edges: a widget doesn't scroll or clip gracefully, it just fills and touches the sides.
+    /// The margin isn't decoration — it's the thing that makes it read as a card rather than a
+    /// coloured rectangle, so the content has to be sized to leave it alone.
+    private struct Metrics {
+        let rowLimit: Int
+        let ringSize: CGFloat
+        let ringWidth: CGFloat
+        let titleSize: CGFloat
+        /// Medium has no room for both the date and the counts, and the counts say more.
+        let showsDate: Bool
+        let rulePadding: CGFloat
+        let rowSpacing: CGFloat
+    }
 
-    private var visible: [DaySnapshot.Item] { Array(snapshot.items.prefix(rowLimit)) }
+    private var metrics: Metrics {
+        family == .systemLarge
+            ? Metrics(rowLimit: 6, ringSize: 58, ringWidth: 6, titleSize: 20,
+                      showsDate: true, rulePadding: 12, rowSpacing: 8)
+            : Metrics(rowLimit: 3, ringSize: 48, ringWidth: 5, titleSize: 17,
+                      showsDate: false, rulePadding: 8, rowSpacing: 5)
+    }
+
+    private var visible: [DaySnapshot.Item] { Array(snapshot.items.prefix(metrics.rowLimit)) }
     private var overflow: Int { max(0, snapshot.items.count - visible.count) }
 
     var body: some View {
@@ -33,8 +54,8 @@ struct WidgetTodayView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Spacer(minLength: 0)
             } else {
-                rule.padding(.vertical, 11)
-                VStack(alignment: .leading, spacing: family == .systemLarge ? 8 : 6) {
+                rule.padding(.vertical, metrics.rulePadding)
+                VStack(alignment: .leading, spacing: metrics.rowSpacing) {
                     ForEach(visible) { item in
                         row(item)
                     }
@@ -101,17 +122,19 @@ struct WidgetTodayView: View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
                 Text("TODAY")
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(.system(size: metrics.titleSize, weight: .semibold))
                     .tracking(1)
                     .foregroundStyle(.white)
-                Text(snapshot.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.75))
+                if metrics.showsDate {
+                    Text(snapshot.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.75))
+                }
                 Text("\(snapshot.done) of \(snapshot.total) done · \(snapshot.remainingLabel)")
                     .font(.system(size: 12))
                     .foregroundStyle(.white.opacity(0.75))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .minimumScaleFactor(0.8)
             }
             Spacer(minLength: 0)
             ring
@@ -123,25 +146,28 @@ struct WidgetTodayView: View {
     /// costs nothing at display time.
     private var ring: some View {
         ZStack {
-            Circle().stroke(.white.opacity(0.3), lineWidth: 6)
+            Circle().stroke(.white.opacity(0.3), lineWidth: metrics.ringWidth)
 
             Circle()
                 .trim(from: 0, to: snapshot.fraction)
-                .stroke(.white, style: StrokeStyle(lineWidth: 13, lineCap: .round))
+                .stroke(.white, style: StrokeStyle(lineWidth: metrics.ringWidth * 2.2, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .blur(radius: 5)
+                .blur(radius: metrics.ringWidth * 0.85)
                 .opacity(0.55)
 
             Circle()
                 .trim(from: 0, to: snapshot.fraction)
-                .stroke(.white, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                .stroke(.white, style: StrokeStyle(lineWidth: metrics.ringWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
 
             Text("\(Int(snapshot.fraction * 100))%")
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: metrics.ringSize * 0.25, weight: .bold))
                 .foregroundStyle(.white)
         }
-        .frame(width: 56, height: 56)
+        .frame(width: metrics.ringSize, height: metrics.ringSize)
+        // The aura is a blur, so it paints past the circle's own bounds. Without room reserved
+        // for it the system margin clips the glow flat on the trailing edge.
+        .padding(2)
     }
 
     /// Each row links into the app's focus timer for that task. A widget can only open a URL or
