@@ -449,6 +449,9 @@ struct TodayView: View {
     /// `body`. A plain trigger count rather than a bound Bool so tapping it again while the
     /// sheet is already open (e.g. after switching tabs and back) still re-fires reliably.
     var addTaskTrigger: Int = 0
+    /// Bumped by `MainTabView` when this tab is selected. The carousel keeps its own page
+    /// otherwise, so leaving it on a goal means coming back to that goal rather than to today.
+    var returnToTodayTrigger: Int = 0
 
     /// Always the *real* current day's tasks, regardless of `selectedDate` — auto-complete
     /// and the streak/completion celebration must never act on whatever day is being
@@ -497,6 +500,7 @@ struct TodayView: View {
     /// kept separate from `pendingDeletion` (singular) so `DayTimelineView` has a simple set
     /// to filter against without knowing about the toast itself.
     @State private var hiddenTaskIDs: Set<NSManagedObjectID> = []
+    @State private var carouselPage = TodayView.todayPage
 
     private static let undoWindow: TimeInterval = 4
 
@@ -693,6 +697,9 @@ struct TodayView: View {
             runAutoComplete()
         }
         .onChange(of: addTaskTrigger) { _, _ in presentSheet(.addTask) }
+        .onChange(of: returnToTodayTrigger) { _, _ in
+            withAnimation(.easeInOut(duration: 0.3)) { carouselPage = Self.todayPage }
+        }
 
         if let pendingDeletion {
             undoToast(pendingDeletion)
@@ -814,6 +821,9 @@ struct TodayView: View {
 
     private static let goalBannerHeight: CGFloat = 264
 
+    /// Today is always page zero, so resetting to it is what "come back to today" means.
+    private static let todayPage = 0
+
     /// The page margin every screen's scroll content uses. Named here because the carousel has
     /// to cancel it and re-apply it one level down.
     static let pageMargin: CGFloat = 20
@@ -830,12 +840,13 @@ struct TodayView: View {
     /// Always ends with an "Add another goal" page — swiping to it is the one, always-
     /// reachable place to start a new goal, whether you have zero goals or several already.
     private var goalSection: some View {
-        TabView {
+        TabView(selection: $carouselPage) {
             carouselPage {
                 TodaySummaryCard(now: clockTick, hiddenTaskIDs: hiddenTaskIDs)
             }
+            .tag(Self.todayPage)
 
-            ForEach(goals) { goal in
+            ForEach(Array(goals.enumerated()), id: \.element) { index, goal in
                 carouselPage {
                     NavigationLink {
                         GoalDetailView(goal: goal)
@@ -844,6 +855,7 @@ struct TodayView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                .tag(index + 1)
             }
 
             carouselPage {
@@ -852,6 +864,7 @@ struct TodayView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .tag(goals.count + 1)
         }
         .tabViewStyle(.page(indexDisplayMode: .automatic))
         .indexViewStyle(.page(backgroundDisplayMode: .always))

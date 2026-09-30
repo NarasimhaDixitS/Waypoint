@@ -27,6 +27,8 @@ struct MainTabView: View {
     /// means it can never end up rendered on top of a list row's own controls, whatever that
     /// row's size or position happens to be.
     @State private var addTaskTrigger = 0
+    /// Bumped whenever the Today tab is selected; see `TodayView.returnToTodayTrigger`.
+    @State private var returnToTodayTrigger = 0
 
     /// Combines both reasons `WeekView` might need a fresh fetch — a different month, or just
     /// revisiting the tab — into one identity so `.id()` rebuilds on either.
@@ -41,6 +43,10 @@ struct MainTabView: View {
     }
 
     private func selectTab(_ newValue: Int) {
+        // Arriving at Today should show today, including in the carousel. It keeps its own page
+        // otherwise, so leaving on goal three and coming back lands you on goal three — the
+        // Today tab not showing today, which is the one thing it exists to do.
+        if newValue == 0 { returnToTodayTrigger += 1 }
         if newValue == 0, !Calendar.current.isDateInToday(dateStore.selectedDate) {
             // `.now` is a new Date value on every call (down to the second), so without this
             // guard, re-tapping Today while already there would still count as a "change" and
@@ -81,7 +87,12 @@ struct MainTabView: View {
     var body: some View {
         ZStack {
             ZStack {
-                NavigationStack { TodayView(addTaskTrigger: addTaskTrigger) }
+                NavigationStack {
+                    TodayView(
+                        addTaskTrigger: addTaskTrigger,
+                        returnToTodayTrigger: returnToTodayTrigger
+                    )
+                }
                     .opacity(selectedTab == 0 ? 1 : 0)
                     .allowsHitTesting(selectedTab == 0)
 

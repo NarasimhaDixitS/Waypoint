@@ -36,9 +36,18 @@ struct WelcomeView: View {
                 // rather than a request that would fail; both go away with the entitlement.
                 SignInWithAppleButton(.signIn) { _ in
                 } onCompletion: { _ in }
+                    // Black on light, white on dark. Both the style and the background behind
+                    // it resolve from the same trait, so they can't disagree — but the failure
+                    // if they ever did is a button that vanishes into the page, so the outline
+                    // below guarantees an edge either way. Apple ships `.whiteOutline` for
+                    // exactly this, which settles whether a border is allowed.
                     .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                     .frame(height: 50)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(ColorTokens.border, lineWidth: 1)
+                    }
                     .allowsHitTesting(false)
                     .overlay {
                         Button(action: onSignIn) {
