@@ -25,6 +25,9 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         ITSAppUsesNonExemptEncryption: false
+        # Must match Generated/Waypoint.entitlements. Read at runtime rather than hardcoded in
+        # Swift, because those two drifted apart once already and nothing said so.
+        WPAppGroupIdentifier: group.com.narasimhadixit.waypoint
         CFBundleURLTypes:
           - CFBundleURLName: com.waypoint.app
             CFBundleURLSchemes:
@@ -63,6 +66,7 @@ targets:
       path: Generated/WidgetInfo.plist
       properties:
         CFBundleDisplayName: Waypoint
+        WPAppGroupIdentifier: group.com.narasimhadixit.waypoint
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

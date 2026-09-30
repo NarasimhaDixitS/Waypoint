@@ -24,9 +24,23 @@ struct PersistenceController {
 
     static let shared = PersistenceController()
 
-    /// Shared with the widget extension, which runs in its own process and cannot see the app's
+/// Shared with the widget extension, which runs in its own process and cannot see the app's
     /// private container at all.
-    static let appGroupID = "group.com.waypoint.app"
+    ///
+    /// Read from Info.plist rather than written here, because the hardcoded version drifted.
+    /// The entitlement was renamed to `group.com.narasimhadixit.waypoint` while this still said
+    /// `group.com.waypoint.app`, and nothing announced it: `containerURL` returns nil for a
+    /// group the app doesn't hold, which is indistinguishable from not having the entitlement
+    /// at all. The store quietly went back to the app's private container and the widget spent
+    /// days reporting that it couldn't reach any data — on a device where the entitlement was
+    /// present and working the whole time.
+    ///
+    /// One value in `project.yml` now feeds the plist for both targets. The entitlement file
+    /// still has to repeat it literally, so `assertUsable` below makes a mismatch loud.
+    static let appGroupID: String = {
+        Bundle.main.object(forInfoDictionaryKey: "WPAppGroupIdentifier") as? String
+            ?? "group.com.narasimhadixit.waypoint"
+    }()
 
     /// Where the store lives. The App Group container once it's reachable, the app's own
     /// Application Support directory otherwise.
@@ -37,8 +51,15 @@ struct PersistenceController {
     /// signing problem into an app that won't open, which is a much worse failure than a widget
     /// that has nothing to show.
     static var storeDirectory: URL {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
-            ?? NSPersistentContainer.defaultDirectoryURL()
+        guard let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) else {
+            // Debug-only, and deliberately noisy. A release build must still fall back quietly —
+            // a signing problem should cost the widget its data, not stop the app opening — but
+            // in development this is nearly always a typo between the plist and the entitlement,
+            // and it has already cost days of looking in the wrong place.
+            assertionFailure("App group \(appGroupID) is unavailable. Does Generated/Waypoint.entitlements list exactly this identifier?")
+            return NSPersistentContainer.defaultDirectoryURL()
+        }
+        return shared
     }
 
     static var defaultStoreURL: URL {

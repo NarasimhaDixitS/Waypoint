@@ -25,5 +25,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<key>WPAppGroupIdentifier</key>
+	<string>group.com.narasimhadixit.waypoint</string>
 </dict>
 </plist>

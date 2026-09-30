@@ -47,5 +47,7 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>WPAppGroupIdentifier</key>
+	<string>group.com.narasimhadixit.waypoint</string>
 </dict>
 </plist>
