@@ -265,24 +265,22 @@ struct WeekView: View {
 
     // MARK: - Banner
 
-    /// Three attempts at a tab in this banner failed, and the reference that settled it has no
-    /// tabs at all: a nav row, a strip of selectable units under it, and one full-width control
-    /// at the foot. The strip is the piece that was missing — it turns the banner from a label
-    /// into an instrument, since the weeks it lists are the same weeks stacked below it.
-/// A folder, with the tabs hanging off the bottom of the panel rather than sitting on it.
+    /// A folder: the panel on top, the tabs across its front edge, and the week the open tab
+    /// opens onto directly beneath them.
     ///
     /// Three earlier attempts at this failed for the same reason, which the shape makes clear:
-    /// the tabs floated with nothing behind them, so the selected one had nothing to emerge
-    /// *from* and read as a sticker on a box. The recessed strip is the missing half. It runs
-    /// the full width, and the selected tab is a hole cut in it showing the panel's own surface
-    /// — same fill, no seam, so the tab isn't on the panel, it is the panel continued.
+    /// they hung the tabs off a banner that had nothing to do with what they selected, so the
+    /// live tab was a sticker on a box. A tab has to be attached to its own content — and here
+    /// that content is the week you're looking at, so the row sits directly on top of it and
+    /// the open tab runs straight down into it.
     ///
-    /// The strip's empty stretch to the right of the tabs is deliberate. Without it there's
-    /// nothing for the live tab to be cut out of, and the whole illusion is that cut.
+    /// The other weeks stay as separate cards below. Only the lead one lives in here, because
+    /// only one of them is what the tab is currently open onto.
     private var banner: some View {
         VStack(spacing: 0) {
             panelContent
             tabStrip
+            leadWeekContent
         }
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -319,20 +317,30 @@ struct WeekView: View {
         .background(bannerFill)
     }
 
-    /// The recessed strip the tabs sit in.
+    /// How far the folder's front edge sits proud of the page behind it.
+    private static let seamHeight: CGFloat = 5
+
+    /// The tab row, and the seam that closes the folder everywhere the open tab doesn't.
+    ///
+    /// A folder's front edge runs unbroken except where a tab is pulled open. So the seam is
+    /// drawn across the whole row and the selected tab paints its own accent straight over it,
+    /// top to bottom — which is what bridges the gap and opens the folder at exactly that spot.
+    /// Page colour rather than a grey, so it reads as a slot cut clean through and needs no
+    /// fifth surface to maintain.
     private var tabStrip: some View {
         HStack(spacing: 0) {
-            folderTab("By week", .byWeek, isLeading: true)
-            folderTab("By goal", .byGoal, isLeading: false)
+            folderTab("By week", .byWeek)
+            folderTab("By goal", .byGoal)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
-        // Darkened accent rather than a neutral, so the banner still reads as one accent object
-        // that happens to have a shadowed recess in it — not as a card with a grey bar stuck on.
-        .background(Color(ColorTokens.mix(UIColor.black, over: UIColor(bannerFill), amount: 0.2)))
+        .background(alignment: .bottom) {
+            ColorTokens.surface0.frame(height: Self.seamHeight)
+        }
+        .background(bannerFill)
     }
 
-    private func folderTab(_ label: String, _ target: Mode, isLeading: Bool) -> some View {
+    private func folderTab(_ label: String, _ target: Mode) -> some View {
         let selected = mode == target
         return Button {
             navEdge = .trailing
@@ -341,23 +349,14 @@ struct WeekView: View {
             Text(label)
                 .wpTypography(.body)
                 .fontWeight(.semibold)
-                .foregroundStyle(selected ? .white : .white.opacity(0.62))
+                .foregroundStyle(selected ? .white : .white.opacity(0.6))
                 .padding(.horizontal, 20)
-                .padding(.vertical, 13)
-                .background(
-                    // Square on top, where it meets the panel — that join is the whole point,
-                    // and any rounding there would draw the seam the fill is hiding. The
-                    // leading corner matches the banner's own 18 so the outer clip doesn't
-                    // shave a second, tighter curve out of it.
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 0,
-                        bottomLeadingRadius: selected && isLeading ? 18 : 14,
-                        bottomTrailingRadius: selected ? 14 : 0,
-                        topTrailingRadius: 0,
-                        style: .continuous
-                    )
-                    .fill(selected ? bannerFill : Color.clear)
-                )
+                .padding(.top, 12)
+                // Keeps the label clear of the seam the tab is spanning.
+                .padding(.bottom, 12 + Self.seamHeight)
+                // Square-edged and full height on purpose. Any rounding here would draw the
+                // very join the shared fill exists to hide.
+                .background(selected ? bannerFill : Color.clear)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -470,6 +469,63 @@ struct WeekView: View {
 
     // MARK: - Cards
 
+    /// The weeks of whichever mode is being browsed, in display order.
+    private var displayedWeeks: [Date] {
+        switch mode {
+        case .byWeek: orderedForDisplay(weeksInMonth)
+        case .byGoal: currentGoal.map { orderedForDisplay(weeks(for: $0)) } ?? []
+        }
+    }
+
+    private func weekNumber(of monday: Date) -> Int {
+        let all = mode == .byWeek ? weeksInMonth : (currentGoal.map { weeks(for: $0) } ?? [])
+        return (all.firstIndex(of: monday) ?? 0) + 1
+    }
+
+    private func tasks(inWeekStarting monday: Date) -> [TaskEntity] {
+        switch mode {
+        case .byWeek: tasks(forWeekStarting: monday, in: Array(gridTasks))
+        case .byGoal: currentGoal.map { tasks(forWeekStarting: monday, in: $0.sortedTasks) } ?? []
+        }
+    }
+
+    private func isWeekExpanded(_ monday: Date) -> Bool {
+        (mode == .byWeek ? expandedWeekInMonth : expandedWeekInGoal) == monday
+    }
+
+    private func toggleWeek(_ monday: Date) {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            if mode == .byWeek {
+                expandedWeekInMonth = (expandedWeekInMonth == monday) ? nil : monday
+            } else {
+                expandedWeekInGoal = (expandedWeekInGoal == monday) ? nil : monday
+            }
+        }
+    }
+
+    /// The week the open tab opens onto — whatever `orderedForDisplay` puts first, which is the
+    /// current one whenever it's in scope. Drawn bare, because the folder is already its card.
+    @ViewBuilder
+    private var leadWeekContent: some View {
+        if let monday = displayedWeeks.first {
+            weekBody(
+                monday: monday,
+                number: weekNumber(of: monday),
+                tasks: tasks(inWeekStarting: monday),
+                isExpanded: isWeekExpanded(monday),
+                onToggle: { toggleWeek(monday) }
+            )
+            .background(ColorTokens.elevatedFill(ColorTokens.surface1, tier: .resting, isDark: colorScheme == .dark))
+        } else {
+            Text(mode == .byWeek ? "No weeks to show" : "Create a goal to see it here")
+                .wpTypography(.body)
+                .foregroundStyle(ColorTokens.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(ColorTokens.elevatedFill(ColorTokens.surface1, tier: .resting, isDark: colorScheme == .dark))
+        }
+    }
+
     @ViewBuilder
     private var cardsList: some View {
         switch mode {
@@ -480,17 +536,13 @@ struct WeekView: View {
                         .wpTypography(.body)
                         .foregroundStyle(ColorTokens.textSecondary)
                 }
-                ForEach(orderedForDisplay(weeksInMonth), id: \.self) { monday in
+                ForEach(Array(displayedWeeks.dropFirst()), id: \.self) { monday in
                     weekCard(
                         monday: monday,
-                        number: (weeksInMonth.firstIndex(of: monday) ?? 0) + 1,
-                        tasks: tasks(forWeekStarting: monday, in: Array(gridTasks)),
-                        isExpanded: expandedWeekInMonth == monday
-                    ) {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            expandedWeekInMonth = (expandedWeekInMonth == monday) ? nil : monday
-                        }
-                    }
+                        number: weekNumber(of: monday),
+                        tasks: tasks(inWeekStarting: monday),
+                        isExpanded: isWeekExpanded(monday)
+                    ) { toggleWeek(monday) }
                 }
             }
         case .byGoal:
@@ -502,17 +554,13 @@ struct WeekView: View {
                             .wpTypography(.body)
                             .foregroundStyle(ColorTokens.textSecondary)
                     }
-                    ForEach(orderedForDisplay(weeks), id: \.self) { monday in
+                    ForEach(Array(displayedWeeks.dropFirst()), id: \.self) { monday in
                         weekCard(
                             monday: monday,
-                            number: (weeks.firstIndex(of: monday) ?? 0) + 1,
-                            tasks: tasks(forWeekStarting: monday, in: goal.sortedTasks),
-                            isExpanded: expandedWeekInGoal == monday
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                expandedWeekInGoal = (expandedWeekInGoal == monday) ? nil : monday
-                            }
-                        }
+                            number: weekNumber(of: monday),
+                            tasks: tasks(inWeekStarting: monday),
+                            isExpanded: isWeekExpanded(monday)
+                        ) { toggleWeek(monday) }
                     }
                 } else {
                     Text("Create a goal to see it here")
@@ -532,6 +580,36 @@ struct WeekView: View {
     /// A bar, not a ring: a ring is for a single focal value. A stack of weeks is a comparison,
     /// and bars line up so two lengths can be compared at sight — arcs don't.
     private func weekCard(
+        monday: Date,
+        number: Int,
+        tasks: [TaskEntity],
+        isExpanded: Bool,
+        onToggle: @escaping () -> Void
+    ) -> some View {
+        weekBody(monday: monday, number: number, tasks: tasks, isExpanded: isExpanded, onToggle: onToggle)
+            // Exactly what `wpCard(shadow: .resting)` does — fill, radius, shadow — spelled out
+            // by hand only because the header and the expanded body carry their own padding, so
+            // the modifier's single padding value doesn't fit.
+            .background(ColorTokens.elevatedFill(ColorTokens.surface1, tier: .resting, isDark: colorScheme == .dark))
+            .overlay(alignment: .leading) {
+                // Flush and full-height rather than an inset floating pill: clipped by the
+                // card's own corner radius below, it reads as the card's edge rather than a
+                // sticker stuck onto it.
+                if monday == Self.mondayOfWeek(containing: clockTick) {
+                    theme.accentSwatch.markColor.frame(width: 4)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: ColorTokens.ShadowTier.resting.color, radius: ColorTokens.ShadowTier.resting.radius, x: 0, y: ColorTokens.ShadowTier.resting.y)
+            .id(monday)
+    }
+
+    /// A week's header and days with no card of its own.
+    ///
+    /// The lead week is drawn inside the folder, which already is a card — giving it a second
+    /// outline there would be a box inside a box, and the folder's whole point is that the tab
+    /// and the week are one surface.
+    private func weekBody(
         monday: Date,
         number: Int,
         tasks: [TaskEntity],
@@ -602,23 +680,6 @@ struct WeekView: View {
                 .padding(.bottom, 16)
             }
         }
-        // Exactly what `wpCard(shadow: .resting)` does — fill, radius, shadow — spelled out by
-        // hand only because the header and the expanded body carry their own padding, so the
-        // modifier's single padding value doesn't fit. `elevatedFill` is a no-op at this tier
-        // and is here so the call stays correct if the tier ever rises, not because it lightens
-        // anything today.
-        .background(ColorTokens.elevatedFill(ColorTokens.surface1, tier: .resting, isDark: colorScheme == .dark))
-        .overlay(alignment: .leading) {
-            // Flush and full-height rather than an inset floating pill: clipped by the card's
-            // own corner radius below, it reads as the card's edge instead of a sticker stuck
-            // onto it.
-            if isCurrentWeek {
-                theme.accentSwatch.markColor.frame(width: 4)
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: ColorTokens.ShadowTier.resting.color, radius: ColorTokens.ShadowTier.resting.radius, x: 0, y: ColorTokens.ShadowTier.resting.y)
-        .id(monday)
     }
 
     /// Inset and faded at both ends rather than a full-bleed rule. A hairline that runs wall to
