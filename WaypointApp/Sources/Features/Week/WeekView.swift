@@ -269,8 +269,30 @@ struct WeekView: View {
     /// tabs at all: a nav row, a strip of selectable units under it, and one full-width control
     /// at the foot. The strip is the piece that was missing — it turns the banner from a label
     /// into an instrument, since the weeks it lists are the same weeks stacked below it.
+/// A folder, with the tabs hanging off the bottom of the panel rather than sitting on it.
+    ///
+    /// Three earlier attempts at this failed for the same reason, which the shape makes clear:
+    /// the tabs floated with nothing behind them, so the selected one had nothing to emerge
+    /// *from* and read as a sticker on a box. The recessed strip is the missing half. It runs
+    /// the full width, and the selected tab is a hole cut in it showing the panel's own surface
+    /// — same fill, no seam, so the tab isn't on the panel, it is the panel continued.
+    ///
+    /// The strip's empty stretch to the right of the tabs is deliberate. Without it there's
+    /// nothing for the live tab to be cut out of, and the whole illusion is that cut.
     private var banner: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 0) {
+            panelContent
+            tabStrip
+        }
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: ColorTokens.ShadowTier.raised.color, radius: ColorTokens.ShadowTier.raised.radius, x: 0, y: ColorTokens.ShadowTier.raised.y)
+    }
+
+    /// The month or goal, with its arrows. Unchanged but for losing its own corners — it and
+    /// the strip below are one surface now, and the outer clip supplies the rounding.
+    private var panelContent: some View {
+        VStack(spacing: 0) {
             HStack(spacing: 6) {
                 navArrow(systemName: "chevron.left", disabled: mode == .byGoal && currentGoalIndex == 0) {
                     mode == .byWeek ? stepMonth(-1) : stepGoal(-1)
@@ -290,33 +312,27 @@ struct WeekView: View {
                 }
             }
             .clipped()
-
-            modeToggle
         }
-        .padding(.vertical, 20)
+        .padding(.vertical, 22)
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity)
         .background(bannerFill)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: ColorTokens.ShadowTier.raised.color, radius: ColorTokens.ShadowTier.raised.radius, x: 0, y: ColorTokens.ShadowTier.raised.y)
     }
 
-    private var bannerFill: Color {
-        ColorTokens.elevatedFill(theme.accentSwatch.color, tier: .raised, isDark: colorScheme == .dark)
-    }
-
-    /// One full-width control at the foot, where the reference puts its primary button.
-    private var modeToggle: some View {
-        HStack(spacing: 4) {
-            modeButton("By week", .byWeek)
-            modeButton("By goal", .byGoal)
+    /// The recessed strip the tabs sit in.
+    private var tabStrip: some View {
+        HStack(spacing: 0) {
+            folderTab("By week", .byWeek, isLeading: true)
+            folderTab("By goal", .byGoal, isLeading: false)
+            Spacer(minLength: 0)
         }
-        .padding(4)
-        .background(Color.white.opacity(0.16))
-        .clipShape(Capsule())
+        .frame(maxWidth: .infinity)
+        // Darkened accent rather than a neutral, so the banner still reads as one accent object
+        // that happens to have a shadowed recess in it — not as a card with a grey bar stuck on.
+        .background(Color(ColorTokens.mix(UIColor.black, over: UIColor(bannerFill), amount: 0.2)))
     }
 
-    private func modeButton(_ label: String, _ target: Mode) -> some View {
+    private func folderTab(_ label: String, _ target: Mode, isLeading: Bool) -> some View {
         let selected = mode == target
         return Button {
             navEdge = .trailing
@@ -325,15 +341,30 @@ struct WeekView: View {
             Text(label)
                 .wpTypography(.body)
                 .fontWeight(.semibold)
-                // Not `textPrimary`: the pill is white in both schemes, but that token inverts
-                // with the scheme, so in dark mode it turned warm off-white on white.
-                .foregroundStyle(selected ? ColorTokens.inkOnLight : .white.opacity(0.85))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(selected ? Color.white : Color.clear)
-                .clipShape(Capsule())
+                .foregroundStyle(selected ? .white : .white.opacity(0.62))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 13)
+                .background(
+                    // Square on top, where it meets the panel — that join is the whole point,
+                    // and any rounding there would draw the seam the fill is hiding. The
+                    // leading corner matches the banner's own 18 so the outer clip doesn't
+                    // shave a second, tighter curve out of it.
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: selected && isLeading ? 18 : 14,
+                        bottomTrailingRadius: selected ? 14 : 0,
+                        topTrailingRadius: 0,
+                        style: .continuous
+                    )
+                    .fill(selected ? bannerFill : Color.clear)
+                )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private var bannerFill: Color {
+        ColorTokens.elevatedFill(theme.accentSwatch.color, tier: .raised, isDark: colorScheme == .dark)
     }
 
     /// Whichever week is open in the mode currently being browsed.
