@@ -1189,7 +1189,7 @@ struct TodayView: View {
         guard Calendar.current.isDateInToday(task.resolvedDate) else { return }
         let goal = task.goal
         let progressBefore = goal?.completionFraction ?? 0
-        task.toggleDone()
+        task.toggleDone(in: context)
         try? context.save()
         // Completing/un-completing a task changes a goal's completionFraction, but that's a
         // *related* object's computed value, not an attribute of the goal itself — Core Data

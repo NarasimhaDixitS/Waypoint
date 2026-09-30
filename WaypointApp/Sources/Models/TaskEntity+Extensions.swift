@@ -120,7 +120,14 @@ extension TaskEntity {
     /// of the schedule for automatic ones. Any time-of-day analysis that mixes them shows a
     /// spike at every task's end time and reads as a genuine pattern, so anything drawing
     /// conclusions from *when* work happened has to filter on this first.
-    func toggleDone(now: Date = .now) {
+    ///
+    /// - Parameter context: when given, un-ticking is logged. The task keeps no memory of
+    ///   having been done — `isDone` flips back and `completedAt` is cleared — so that fact is
+    ///   gone the instant it happens unless it's written down here.
+    func toggleDone(now: Date = .now, in context: NSManagedObjectContext? = nil) {
+        if isDone, let context {
+            TaskEventLog.recordCompletionUndone(task: self, in: context, now: now)
+        }
         isDone.toggle()
         completedAt = isDone ? now : nil
         autoCompleted = false
@@ -141,7 +148,12 @@ extension TaskEntity {
     /// logging has to sit on the mutation, not on any one screen's button — a third caller
     /// added later would otherwise silently skip it.
     func apply(_ draft: TaskDraft, in context: NSManagedObjectContext, now: Date = .now) {
+        // Read before the write. Everything logged below is a *change*, and the task holds only
+        // its current values — once these are overwritten there's no way back to what they were.
         let previousDate = resolvedDate
+        let previousMinutes = Int(durationMinutes)
+        let previousPriority = priorityValue
+
         title = draft.title
         date = Calendar.current.startOfDay(for: draft.date)
         startTime = draft.startTime
@@ -149,6 +161,12 @@ extension TaskEntity {
         priorityValue = draft.priority
         goal = draft.goal
         notes = draft.notes
+
+        // All five sit on the mutation rather than on any button, so a route added later is
+        // instrumented by construction instead of by somebody remembering.
         TaskEventLog.recordDeferralIfNeeded(task: self, from: previousDate, to: draft.date, in: context, now: now)
+        TaskEventLog.recordPullForwardIfNeeded(task: self, from: previousDate, to: draft.date, in: context, now: now)
+        TaskEventLog.recordDurationChangeIfNeeded(task: self, from: previousMinutes, to: draft.durationMinutes, in: context, now: now)
+        TaskEventLog.recordPriorityChangeIfNeeded(task: self, from: previousPriority, to: draft.priority, in: context, now: now)
     }
 }

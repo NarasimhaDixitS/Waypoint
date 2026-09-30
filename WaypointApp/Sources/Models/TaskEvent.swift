@@ -18,6 +18,26 @@ enum TaskEventKind: String {
     /// `abandoned` row per task: deleting a goal with 130 tasks under it is a single decision,
     /// and recording it as 130 separate failures would bury the signal it actually carries.
     case goalAbandoned
+    /// A goal finished end to end.
+    ///
+    /// The missing half of `goalAbandoned`. Without it the app remembered every goal you gave
+    /// up on and forgot every one you saw through — the wrong half to keep, and it left the
+    /// single largest achievement in the app with no trace at all.
+    case goalCompleted
+    /// Work pulled *forward* to an earlier day. The counterpart to `deferred`: recording only
+    /// the slips makes every history a record of failure, when moving something up is the same
+    /// decision made well.
+    case rescheduledEarlier
+    /// The time budgeted for a task changed. `fromValue`/`toValue` are minutes.
+    ///
+    /// Cannot be derived after the fact — the task only ever holds its current duration — and
+    /// it is the one edit that reveals a real pattern: the thing you keep having to double.
+    case durationChanged
+    /// How important a task was called changed. `fromText`/`toText` carry the priority.
+    case priorityChanged
+    /// A task ticked off and then un-ticked. Flags optimistic ticking, and is gone the instant
+    /// it happens since the task keeps no memory of having been done.
+    case completionUndone
 }
 
 enum TaskEventLog {
@@ -28,6 +48,8 @@ enum TaskEventLog {
     /// that can move a task — the quick action, the edit sheet, a cascade resolution — lands
     /// here. Instrumenting the affordance instead of the mutation leaves silent loopholes and
     /// quietly undercounts.
+    ///
+    /// Its opposite, `recordPullForwardIfNeeded`, sits beside it for the same reason.
     @discardableResult
     static func recordDeferralIfNeeded(
         task: TaskEntity,
@@ -87,6 +109,101 @@ enum TaskEventLog {
         event.title = goal.name
         event.fromDate = goal.createdAt
         event.toDate = goal.resolvedTargetDate
+        return event
+    }
+
+/// Work pulled forward to an earlier day.
+    static func recordPullForwardIfNeeded(
+        task: TaskEntity,
+        from oldDate: Date,
+        to newDate: Date,
+        in context: NSManagedObjectContext,
+        now: Date = .now
+    ) -> TaskEventEntity? {
+        let cal = Calendar.current
+        let from = cal.startOfDay(for: oldDate)
+        let to = cal.startOfDay(for: newDate)
+        guard to < from else { return nil }
+        return record(.rescheduledEarlier, task: task, from: from, to: to, in: context, now: now)
+    }
+
+    /// A change to the time budgeted for a task, in minutes.
+    ///
+    /// The task only ever holds its current duration, so this is unrecoverable the moment it
+    /// isn't written down — and it's the edit that reveals the pattern worth knowing: the thing
+    /// you keep having to double.
+    @discardableResult
+    static func recordDurationChangeIfNeeded(
+        task: TaskEntity,
+        from oldMinutes: Int,
+        to newMinutes: Int,
+        in context: NSManagedObjectContext,
+        now: Date = .now
+    ) -> TaskEventEntity? {
+        guard oldMinutes != newMinutes, oldMinutes > 0 else { return nil }
+        let event = record(.durationChanged, task: task, from: nil, to: nil, in: context, now: now)
+        event.fromValue = Int32(oldMinutes)
+        event.toValue = Int32(newMinutes)
+        return event
+    }
+
+    /// A change to how important a task was called.
+    @discardableResult
+    static func recordPriorityChangeIfNeeded(
+        task: TaskEntity,
+        from oldPriority: Priority,
+        to newPriority: Priority,
+        in context: NSManagedObjectContext,
+        now: Date = .now
+    ) -> TaskEventEntity? {
+        guard oldPriority != newPriority else { return nil }
+        let event = record(.priorityChanged, task: task, from: nil, to: nil, in: context, now: now)
+        event.fromText = oldPriority.rawValue
+        event.toText = newPriority.rawValue
+        return event
+    }
+
+    /// A task un-ticked after being marked done.
+    ///
+    /// The task keeps no memory of having been finished — `isDone` flips back and `completedAt`
+    /// is cleared — so this is gone the instant it happens unless it's written here.
+    @discardableResult
+    static func recordCompletionUndone(
+        task: TaskEntity,
+        in context: NSManagedObjectContext,
+        now: Date = .now
+    ) -> TaskEventEntity {
+        record(.completionUndone, task: task, from: task.completedAt, to: nil, in: context, now: now)
+    }
+
+    /// A goal seen through to the end.
+    ///
+    /// Derived rather than hooked to a button. A goal becomes complete when its last task is
+    /// ticked, and that can happen from several screens — but it can also become complete
+    /// because a task was deleted, or un-complete because one was added. Detecting the state
+    /// during a reconcile pass catches every route, including the ones nobody thought of, and
+    /// `occurredAt` takes the moment of the last completion rather than the moment we noticed.
+    @discardableResult
+    static func recordGoalCompletionIfNeeded(
+        goal: GoalEntity,
+        alreadyRecorded: Set<UUID>,
+        in context: NSManagedObjectContext,
+        now: Date = .now
+    ) -> TaskEventEntity? {
+        guard let id = goal.id, !alreadyRecorded.contains(id) else { return nil }
+        let tasks = goal.sortedTasks
+        guard !tasks.isEmpty, tasks.allSatisfy(\.isDone) else { return nil }
+
+        let finishedAt = tasks.compactMap(\.completedAt).max() ?? now
+        let event = TaskEventEntity(context: context)
+        event.id = UUID()
+        event.kind = TaskEventKind.goalCompleted.rawValue
+        event.occurredAt = finishedAt
+        event.goalID = id
+        event.title = goal.name
+        event.fromDate = goal.createdAt
+        event.toDate = finishedAt
+        event.toValue = Int32(tasks.count)
         return event
     }
 

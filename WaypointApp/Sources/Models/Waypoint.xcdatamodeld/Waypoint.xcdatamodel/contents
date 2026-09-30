@@ -19,6 +19,18 @@
         <attribute name="taskID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="taskTitle" optional="YES" attributeType="String"/>
     </entity>
+    <entity name="AppSessionEntity" representedClassName="AppSessionEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="endedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="startedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <entity name="MilestoneEntity" representedClassName="MilestoneEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="achievedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="context" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="kind" optional="YES" attributeType="String"/>
+        <attribute name="value" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+    </entity>
     <entity name="GoalEntity" representedClassName="GoalEntity" syncable="YES" codeGenerationType="class">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
@@ -46,6 +58,8 @@
     </entity>
     <entity name="TaskEventEntity" representedClassName="TaskEventEntity" syncable="YES" codeGenerationType="class">
         <attribute name="fromDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fromText" optional="YES" attributeType="String"/>
+        <attribute name="fromValue" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="goalID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="kind" optional="YES" attributeType="String" defaultValueString="deferred"/>
@@ -54,5 +68,7 @@
         <attribute name="taskID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" optional="YES" attributeType="String"/>
         <attribute name="toDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="toText" optional="YES" attributeType="String"/>
+        <attribute name="toValue" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
     </entity>
 </model>

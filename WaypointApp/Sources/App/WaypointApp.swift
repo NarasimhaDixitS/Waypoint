@@ -70,7 +70,18 @@ struct WaypointApp: App {
             // about to be the only thing the user sees. Cheaper and more reliable than trying
             // to catch every individual edit — WidgetKit coalesces these anyway.
             .onChange(of: scenePhase) { _, phase in
-                if phase != .active { WidgetCenter.shared.reloadAllTimelines() }
+                let context = persistence.container.viewContext
+                if phase == .active {
+                    AppSessionLog.begin(in: context)
+                    // Catches anything that became true while the app wasn't running — a goal
+                    // finished by a deletion, a milestone that turned over at midnight. Both
+                    // happen with nobody present, so neither can hang off a tap.
+                    HistoryReconciler.run(in: context)
+                } else {
+                    AppSessionLog.end(in: context)
+                    WidgetCenter.shared.reloadAllTimelines()
+                }
+                try? context.save()
             }
         }
     }
