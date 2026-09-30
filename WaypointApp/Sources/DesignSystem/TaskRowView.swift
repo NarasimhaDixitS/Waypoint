@@ -102,6 +102,12 @@ struct TaskRowView: View {
                         .animation(.spring(response: 0.32, dampingFraction: 0.45), value: bump)
                     CompletionBurst(trigger: celebrateTrigger, color: theme.accentSwatch.color)
                 }
+                // The circle is 24–32pt, which is what it should *look* like and nowhere near
+                // what a finger needs. Apple's floor is 44pt and this was well under it, so
+                // completing a task meant hitting a target smaller than the fingertip aiming
+                // at it. The mark keeps its size; only the tappable area grows.
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(isCompletionLocked)

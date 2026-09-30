@@ -37,6 +37,17 @@ final class WidgetStoreTests: XCTestCase {
         XCTAssertEqual(snapshot.done, 2)
     }
 
+    /// An unreachable store and an empty day look identical in the data and mean opposite
+    /// things — one is "you have nothing on", the other is "I can't see what you have on".
+    func testAnUnreachableStoreIsDistinguishableFromAnEmptyDay() {
+        let unreachable = DaySnapshot(date: nine, items: [], storeReachable: false)
+        let empty = DaySnapshot(date: nine, items: [])
+
+        XCTAssertFalse(unreachable.storeReachable)
+        XCTAssertTrue(empty.storeReachable)
+        XCTAssertEqual(unreachable.items.count, empty.items.count, "same data, different meaning")
+    }
+
     func testAnEmptyDayDoesNotDivideByZero() {
         let snapshot = DaySnapshot(date: nine, items: [])
         XCTAssertEqual(snapshot.fraction, 0)

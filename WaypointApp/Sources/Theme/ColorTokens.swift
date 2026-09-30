@@ -136,6 +136,14 @@ enum ColorTokens {
         return Color(mix(hex(0xFFFFFF), over: UIColor(base), amount: amount))
     }
 
+    /// Room a scrolling screen has to leave below its content for the floating tab bar.
+    ///
+    /// The bar is 68pt plus a 14pt badge lift plus its own margins, and it sits over the
+    /// content rather than beside it. Screens were each guessing: Settings used 24 and its last
+    /// row ended up unreachable under the bar, while Week and Progress used 140. One value, so
+    /// the next screen added can't guess wrong.
+    static let tabBarClearance: CGFloat = 116
+
     // MARK: - Helpers
 
     static func hex(_ value: UInt32, alpha: CGFloat = 1) -> UIColor {

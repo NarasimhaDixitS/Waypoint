@@ -150,7 +150,7 @@ struct ProgressAnalyticsView: View {
                 burndownCard
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 140)
+            .padding(.bottom, ColorTokens.tabBarClearance)
         }
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum AccentSwatch: String, CaseIterable, Identifiable, Hashable {
-    case teal, blue, orange, pink
+    case graphite, teal, blue, ultramarine, purple, pink, red, orange
 
     var id: String { rawValue }
 
@@ -26,16 +26,49 @@ enum AccentSwatch: String, CaseIterable, Identifiable, Hashable {
     /// the same saturation, walked down to 28% lightness, which lands at 5.55:1: stronger than
     /// blue, orange and pink, and close to the green it replaces. The requested value survives
     /// intact where it is genuinely excellent — see `darkMarkHex`.
-    private var hexValue: UInt32 {
+    /// Fill and dark-mode mark for every accent, in one table.
+    ///
+    /// A table rather than two switch statements because these are *tuning* values: the pair
+    /// has to be read together, and changing one without the other is how an accent ends up
+    /// legible in light mode and invisible in dark. Editing a colour is one line here.
+    ///
+    /// `white` is white text on the fill; `mark` is the dark-mode value measured against the
+    /// dark card (`surface1`, `0x242422`). Normal text wants 4.5:1.
+    ///
+    /// The original four are **untouched** and three of them miss 4.5 under white — blue 3.59,
+    /// orange 3.87, pink 3.93. That's a deliberate hold, not an oversight: deepening them
+    /// changes the look of every screen at once, so it stays a separate decision. Everything
+    /// added since clears the bar on both axes, so the problem at least stops growing.
+    private var palette: (fill: UInt32, mark: UInt32) {
         switch self {
-        case .teal: 0x0F7380
-        case .blue: 0x378ADD
-        case .orange: 0xD85A30
-        case .pink: 0xD4537E
+        //                          fill        white   mark        on dark card
+        case .graphite:    (0x6D7583,          /* 4.64 */ 0x878F9B) /* 4.76 */
+        case .teal:        (0x0F7380,          /* 5.55 */ 0x17B2C6) /* 6.09 */
+        case .blue:        (0x378ADD,          /* 3.59 */ 0x3D8EDE) /* 4.53 */
+        case .ultramarine: (0x5268E5,          /* 4.70 */ 0x7587EA) /* 4.75 */
+        case .purple:      (0x9B55C3,          /* 4.69 */ 0xAF77CF) /* 4.71 */
+        case .pink:        (0xD4537E,          /* 3.93 */ 0xD8648B) /* 4.53 */
+        case .red:         (0xD53B30,          /* 4.67 */ 0xDF6B62) /* 4.75 */
+        case .orange:      (0xD85A30,          /* 3.87 */ 0xDC6943) /* 4.55 */
         }
     }
 
+    private var hexValue: UInt32 { palette.fill }
+
     var color: Color { Color(ColorTokens.hex(hexValue)) }
+
+    var label: String {
+        switch self {
+        case .graphite: "Graphite"
+        case .teal: "Teal"
+        case .blue: "Blue"
+        case .ultramarine: "Ultramarine"
+        case .purple: "Purple"
+        case .pink: "Pink"
+        case .red: "Red"
+        case .orange: "Orange"
+        }
+    }
 
     /// The accent drawn as a *mark* — a ring, a progress bar, a dot, a card edge — rather than
     /// as a fill with white text on it. Identical to `color` in light mode.
@@ -50,15 +83,7 @@ enum AccentSwatch: String, CaseIterable, Identifiable, Hashable {
         ColorTokens.dynamic(light: ColorTokens.hex(hexValue), dark: ColorTokens.hex(darkMarkHex))
     }
 
-    private var darkMarkHex: UInt32 {
-        switch self {
-        // #17B2C6 exactly as asked: 6.09:1 against the dark card, the best mark of the four.
-        case .teal: 0x17B2C6
-        case .blue: 0x3D8EDE
-        case .orange: 0xDC6943
-        case .pink: 0xD8648B
-        }
-    }
+    private var darkMarkHex: UInt32 { palette.mark }
 
     // MARK: - "In progress" — neutral ink, not accent-tied
 

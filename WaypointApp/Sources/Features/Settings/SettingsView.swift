@@ -34,26 +34,38 @@ struct SettingsView: View {
                         .tint(ColorTokens.textSecondary)
                     }
                     divider
-                    row {
+                    // Swatches on their own row rather than trailing the label. Eight of them
+                    // beside a title overflowed the card, and the row would silently get
+                    // tighter every time an accent was added.
+                    VStack(alignment: .leading, spacing: 10) {
                         Text("Accent color").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
-                        Spacer()
-                        HStack(spacing: 8) {
+                        HStack(spacing: 0) {
                             ForEach(AccentSwatch.allCases) { swatch in
                                 Circle()
                                     .fill(swatch.color)
-                                    .frame(width: 20, height: 20)
+                                    .frame(width: 24, height: 24)
                                     .overlay(
-                                        Circle().stroke(ColorTokens.textPrimary, lineWidth: theme.accentSwatch == swatch ? 1.8 : 0)
-                                            .padding(-3)
+                                        Circle().stroke(ColorTokens.textPrimary, lineWidth: theme.accentSwatch == swatch ? 2 : 0)
+                                            .padding(-3.5)
                                     )
-                                    .onTapGesture { theme.accentSwatch = swatch }
+                                    // 44pt target around a 24pt dot — the dot is the mark, the
+                                    // tappable area is what a finger actually needs.
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        withAnimation(.easeInOut(duration: 0.2)) { theme.accentSwatch = swatch }
+                                    }
                                     .accessibilityAddTraits(.isButton)
-                                    .accessibilityLabel("\(swatch.rawValue.capitalized) accent")
+                                    .accessibilityLabel("\(swatch.label) accent")
                                     .accessibilityAddTraits(theme.accentSwatch == swatch ? .isSelected : [])
                             }
                         }
                         .sensoryFeedback(.selection, trigger: theme.accentSwatch)
                     }
+                    // `row`'s own padding, restated: this section is a column now, not a row.
+                    .padding(.horizontal, 14)
+                    .padding(.top, 12)
+                    .padding(.bottom, 6)
                 }
                 .wpCard(padding: 0)
 
@@ -161,7 +173,7 @@ struct SettingsView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 24)
+            .padding(.bottom, ColorTokens.tabBarClearance)
         }
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)

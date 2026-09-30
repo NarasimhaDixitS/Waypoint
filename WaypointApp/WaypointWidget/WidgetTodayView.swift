@@ -46,7 +46,15 @@ struct WidgetTodayView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
 
-            if snapshot.items.isEmpty {
+            if !snapshot.storeReachable {
+                Spacer(minLength: 0)
+                Text("Waypoint can't reach your tasks from here. This build doesn't have the shared storage the widget needs.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer(minLength: 0)
+            } else if snapshot.items.isEmpty {
                 Spacer(minLength: 0)
                 Text("Nothing scheduled today.")
                     .font(.system(size: 13))
@@ -70,7 +78,7 @@ struct WidgetTodayView: View {
             // Large left a dead half-screen under a short list. The strip fills it with the
             // same thing the app's card puts there rather than padding — and on a day with two
             // tasks, a week of context is more use than white space.
-            if family == .systemLarge {
+            if family == .systemLarge, snapshot.storeReachable {
                 Spacer(minLength: 12)
                 rule.padding(.bottom, 10)
                 weekStrip

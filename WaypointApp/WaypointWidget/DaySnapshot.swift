@@ -18,6 +18,9 @@ struct DaySnapshot {
 
     let date: Date
     let items: [Item]
+    /// False when the shared container isn't reachable, which is a different thing from an
+    /// empty day and has to be said differently. See `WidgetStore.todaySnapshot`.
+    var storeReachable: Bool = true
     /// Last seven days, oldest first, each true if anything was finished that day. Same meaning
     /// as the strip on the app's card — a day counts if you finished something on it.
     var week: [Bool] = Array(repeating: false, count: 7)

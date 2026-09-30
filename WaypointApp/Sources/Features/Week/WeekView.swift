@@ -216,7 +216,6 @@ struct WeekView: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollViewReader { page in
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Text("Week")
@@ -225,12 +224,6 @@ struct WeekView: View {
                     .padding(.top, 8)
 
                 banner
-                    .onChange(of: expandedWeek) { _, newValue in
-                        // Tapping a week in the strip has to bring its card into view, or the
-                        // strip silently opens something below the fold and looks inert.
-                        guard let newValue else { return }
-                        withAnimation(.easeInOut(duration: 0.3)) { page.scrollTo(newValue, anchor: .top) }
-                    }
                 cardsList
                     .id(bannerIdentity)
                     .transition(slide)
@@ -242,12 +235,7 @@ struct WeekView: View {
             // silently do nothing — here the animation is owned by the view that transitions.
             .animation(.easeInOut(duration: 0.32), value: bannerIdentity)
             .padding(.horizontal, 20)
-            // Big enough that even the LAST week card, fully expanded, can still scroll clear
-            // of the floating tab bar — a plain 24pt was only ever enough when nothing below
-            // the fold needed room, which breaks the moment the bottom card is the one that's
-            // open.
-            .padding(.bottom, 140)
-        }
+            .padding(.bottom, ColorTokens.tabBarClearance)
         }
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)

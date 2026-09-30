@@ -6,7 +6,24 @@ import CoreData
 /// Read-only and short-lived: the widget process opens the store, takes what it needs and lets
 /// go. It never writes, so it can't conflict with the app holding the same file.
 enum WidgetStore {
+    /// Whether the widget can see the app's data at all.
+    ///
+    /// App Groups need the entitlement in the *running* build, which means a paid Apple
+    /// Developer Program membership — free/personal-team provisioning doesn't carry the
+    /// capability. Without it the app writes to its own private container and this process
+    /// opens a different, empty one, and no amount of the app being used will ever put a task
+    /// in it. Worth saying out loud rather than rendering a confident "nothing scheduled",
+    /// which is a lie: there is data, it just isn't reachable from here.
+    static var storeReachable: Bool {
+        FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: PersistenceController.appGroupID
+        ) != nil
+    }
+
     static func todaySnapshot(now: Date = .now) -> DaySnapshot {
+        guard storeReachable else {
+            return DaySnapshot(date: Calendar.current.startOfDay(for: now), items: [], storeReachable: false)
+        }
         let context = PersistenceController.shared.container.viewContext
         let request = TaskEntity.fetchRequest(on: now, context: context)
         let tasks = (try? context.fetch(request)) ?? []

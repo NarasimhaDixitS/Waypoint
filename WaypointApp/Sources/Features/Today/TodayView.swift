@@ -537,11 +537,7 @@ struct TodayView: View {
                 header
 
                 HStack {
-                    if isViewingToday {
-                        Text(selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                            .wpTypography(.body)
-                            .foregroundStyle(ColorTokens.textSecondary)
-                    } else if abs(daysFromToday) > 2 {
+                    if !isViewingToday, abs(daysFromToday) > 2 {
                         Button {
                             navigate(to: .now)
                         } label: {
@@ -581,16 +577,29 @@ struct TodayView: View {
                 ))
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 100)
+            .padding(.bottom, ColorTokens.tabBarClearance)
         }
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 40)
+        // `simultaneousGesture`, not `gesture`. The latter competes with the scroll view and
+        // with every button in the task rows, and loses — which left only a couple of thin
+        // strips of screen where a swipe actually registered.
+        //
+        // The old 40pt minimum was the lag: SwiftUI won't begin tracking until the finger has
+        // travelled that far, so the day change always arrived late. 12pt starts tracking
+        // almost immediately, and the decision still happens at the end.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 12)
                 .onEnded { value in
                     let horizontal = value.translation.width
-                    guard abs(horizontal) > abs(value.translation.height), abs(horizontal) > 40 else { return }
+                    // Beat vertical by half again, or a diagonal flick while scrolling changes
+                    // the day by accident — which is far more annoying than a missed swipe.
+                    guard abs(horizontal) > abs(value.translation.height) * 1.5 else { return }
+                    // A short quick flick carries little distance but plenty of intent, so the
+                    // projected landing point counts as well as the actual one.
+                    let projected = value.predictedEndTranslation.width
+                    guard abs(horizontal) > 55 || abs(projected) > 110 else { return }
                     let cal = Calendar.current
                     navigate(to: cal.date(byAdding: .day, value: horizontal < 0 ? 1 : -1, to: selectedDate) ?? selectedDate)
                 }
@@ -693,7 +702,7 @@ struct TodayView: View {
                 // can't just be a small offset relying on inherited safe area like it could when
                 // the native TabView provided it automatically. Verified empirically: an
                 // inherited safe area here silently failed to clear the bar at all.
-                .padding(.bottom, 100)
+                .padding(.bottom, ColorTokens.tabBarClearance)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
         }
         }
@@ -743,7 +752,11 @@ struct TodayView: View {
 
     private var header: some View {
         HStack(alignment: .top) {
-            Text(isViewingToday ? "Today" : selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+            // The date, never the word "Today" — the card below already says TODAY, and having
+            // both meant the screen said the same thing twice in two type sizes. The header's
+            // job is *which day am I looking at*, which is the one thing that changes when you
+            // swipe; the card's job is today, which doesn't.
+            Text(selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
                 .wpTypography(.appTitle)
                 .foregroundStyle(ColorTokens.textPrimary)
             Spacer()
