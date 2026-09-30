@@ -317,6 +317,54 @@ enum SampleData {
             event.fromDate = when
         }
 
+        // Work pulled forward. Without these the replanning card counts only slips, which is
+        // both half the picture and the demoralising half.
+        for _ in 0..<7 {
+            let when = day(offset: -Int.random(in: 1...44, using: &rng))
+            let goal = pickGoal(goals, rng: &rng)
+            let event = TaskEventEntity(context: context)
+            event.id = UUID()
+            event.kind = TaskEventKind.rescheduledEarlier.rawValue
+            event.occurredAt = when
+            event.taskID = UUID()
+            event.goalID = goal?.id
+            event.title = pickTitle(for: goal, rng: &rng)
+            event.fromDate = Calendar.current.date(byAdding: .day, value: 3, to: when)
+            event.toDate = when
+        }
+
+        // Two things whose time budget kept climbing, each raised more than once — the shape
+        // the underestimate card exists to show, and one the fixture can't produce by accident
+        // because nothing in it ever edits a task.
+        let creep: [(String, [(Int, Int)])] = [
+            ("Listening practice", [(30, 45), (45, 60), (60, 90)]),
+            ("Deep work — Week tab polish", [(60, 90), (90, 120)])
+        ]
+        for (title, steps) in creep {
+            for (index, step) in steps.enumerated() {
+                let event = TaskEventEntity(context: context)
+                event.id = UUID()
+                event.kind = TaskEventKind.durationChanged.rawValue
+                event.occurredAt = day(offset: -30 + index * 7)
+                event.taskID = UUID()
+                event.title = title
+                event.fromValue = Int32(step.0)
+                event.toValue = Int32(step.1)
+            }
+        }
+
+        // A goal seen through, so the outcome tiles aren't a column of zeros beside a column of
+        // failures — which is exactly the imbalance the `goalCompleted` event was added to fix.
+        let finished = TaskEventEntity(context: context)
+        finished.id = UUID()
+        finished.kind = TaskEventKind.goalCompleted.rawValue
+        finished.occurredAt = day(offset: -12)
+        finished.goalID = UUID()
+        finished.title = "Read 12 books"
+        finished.fromDate = day(offset: -120)
+        finished.toDate = day(offset: -12)
+        finished.toValue = 34
+
         let quit = TaskEventEntity(context: context)
         quit.id = UUID()
         quit.kind = TaskEventKind.goalAbandoned.rawValue

@@ -343,6 +343,77 @@ enum ProgressAnalytics {
         return ratios.count.isMultiple(of: 2) ? (ratios[mid - 1] + ratios[mid]) / 2 : ratios[mid]
     }
 
+    // MARK: - 11. What you keep underestimating
+
+    struct Underestimate: Identifiable {
+        let id: String
+        let title: String
+        let originalMinutes: Int
+        let currentMinutes: Int
+        /// How many separate times the budget was raised.
+        let raises: Int
+        var growth: Double { originalMinutes == 0 ? 0 : Double(currentMinutes) / Double(originalMinutes) }
+    }
+
+    /// Work whose time budget kept going up.
+    ///
+    /// Only answerable because the change is logged: a task holds one duration, the current
+    /// one, so the forty-five minutes you originally thought it would take is gone the moment
+    /// you correct it. Grouped by title for the same reason the deferral board is — the thing
+    /// you keep misjudging is the *thing*, and a task deleted and recreated would otherwise
+    /// scatter across ids.
+    ///
+    /// Increases only. A budget revised *down* is a correction in the other direction and a
+    /// different, less useful story.
+    static func underestimates(_ events: [TaskEventEntity], limit: Int = 5) -> [Underestimate] {
+        let changes = events
+            .filter { $0.kindValue == .durationChanged }
+            .sorted { ($0.occurredAt ?? .distantPast) < ($1.occurredAt ?? .distantPast) }
+        let grouped = Dictionary(grouping: changes) { $0.title ?? "Untitled" }
+        return grouped
+            .compactMap { title, rows -> Underestimate? in
+                guard let first = rows.first, let last = rows.last else { return nil }
+                let original = Int(first.fromValue)
+                let current = Int(last.toValue)
+                guard original > 0, current > original else { return nil }
+                return Underestimate(
+                    id: title,
+                    title: title,
+                    originalMinutes: original,
+                    currentMinutes: current,
+                    raises: rows.filter { $0.toValue > $0.fromValue }.count
+                )
+            }
+            .sorted { $0.currentMinutes - $0.originalMinutes > $1.currentMinutes - $1.originalMinutes }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    // MARK: - 12. Replanning
+
+    /// Work moved to a later day against work pulled forward.
+    ///
+    /// Shown as a pair because only recording the slips makes every history a record of
+    /// failure. Moving something up is the same decision taken well, and a month where both
+    /// numbers are high is a month of active replanning rather than one of avoidance.
+    static func replanBalance(_ events: [TaskEventEntity]) -> (pushed: Int, pulled: Int) {
+        (
+            events.filter { $0.kindValue == .deferred }.count,
+            events.filter { $0.kindValue == .rescheduledEarlier }.count
+        )
+    }
+
+    // MARK: - 13. Goal outcomes
+
+    /// Goals seen through against goals given up on. The app recorded only the second of these
+    /// until recently, which made the whole picture a scoreboard of failure.
+    static func goalOutcomes(_ events: [TaskEventEntity]) -> (finished: Int, abandoned: Int) {
+        (
+            events.filter { $0.kindValue == .goalCompleted }.count,
+            events.filter { $0.kindValue == .goalAbandoned }.count
+        )
+    }
+
     // MARK: - Helpers
 
     static func mondayOfWeek(containing date: Date) -> Date {

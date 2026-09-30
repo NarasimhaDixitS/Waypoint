@@ -78,6 +78,34 @@ struct ProgressAnalyticsView: View {
         }
     }
 
+/// Three questions, not three arbitrary piles.
+    ///
+    /// Ten cards of identical weight in an arbitrary order gave a reader no way to tell which
+    /// two mattered, and whatever sat past the eighth was never reached. These group by the
+    /// question you arrived with — and you arrive with one of them, not all three.
+    enum Section: String, CaseIterable, Identifiable {
+        case patterns, friction, goals
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .patterns: "Patterns"
+            case .friction: "Friction"
+            case .goals: "Goals"
+            }
+        }
+
+        var question: String {
+            switch self {
+            case .patterns: "When and how you work"
+            case .friction: "What gets in the way"
+            case .goals: "Whether you finish"
+            }
+        }
+    }
+
+    @State private var section: Section = .patterns
     @State private var range: Range = .sinceStart
     @State private var didPickInitialRange = false
 
@@ -180,18 +208,28 @@ struct ProgressAnalyticsView: View {
                 }
                 .padding(.top, 8)
 
+                sectionPicker
                 headline
-                weekdayCard
-                effortCard
-                deferralCard
-                slipCard
-                priorityCard
-                goalSplitCard
-                habitCard
-                timeOfDayCard
-                estimateCard
-                burndownCard
+
+                switch section {
+                case .patterns:
+                    weekdayCard
+                    timeOfDayCard
+                    effortCard
+                    goalSplitCard
+                case .friction:
+                    deferralCard
+                    underestimateCard
+                    slipCard
+                    priorityCard
+                    habitCard
+                case .goals:
+                    goalOutcomeTiles
+                    burndownCard
+                    estimateCard
+                }
             }
+            .animation(.easeInOut(duration: 0.22), value: section)
             .padding(.horizontal, 20)
             .padding(.bottom, ColorTokens.tabBarClearance)
         }
@@ -208,6 +246,31 @@ struct ProgressAnalyticsView: View {
         }
     }
 
+private var sectionPicker: some View {
+        HStack(spacing: 4) {
+            ForEach(Section.allCases) { option in
+                let selected = section == option
+                Button {
+                    withAnimation(.easeInOut(duration: 0.22)) { section = option }
+                } label: {
+                    Text(option.label)
+                        .wpTypography(.body)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(selected ? ColorTokens.surface0 : ColorTokens.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(selected ? ColorTokens.textPrimary : Color.clear)
+                        .clipShape(Capsule())
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(ColorTokens.surface1)
+        .clipShape(Capsule())
+    }
+
     // MARK: - Headline
 
     private var headline: some View {
@@ -222,6 +285,19 @@ struct ProgressAnalyticsView: View {
             statTile(value: "\(Int(rate * 100))%", label: "Of work done")
             statTile(value: "\(done)", label: "Tasks done")
             statTile(value: "\(pushed)", label: "Tasks pushed off")
+        }
+    }
+
+/// Goals finished against goals given up on.
+    ///
+    /// A pair of tiles rather than a card — it's two numbers, and a chart of two numbers is a
+    /// chart pretending. They belong side by side because the app recorded only the second of
+    /// them until recently, which made the whole picture a scoreboard of failure.
+    private var goalOutcomeTiles: some View {
+        let outcomes = ProgressAnalytics.goalOutcomes(allEvents)
+        return HStack(spacing: 10) {
+            statTile(value: "\(outcomes.finished)", label: "Goals finished")
+            statTile(value: "\(outcomes.abandoned)", label: "Goals dropped")
         }
     }
 
@@ -367,10 +443,18 @@ struct ProgressAnalyticsView: View {
         let data = ProgressAnalytics.slipDistribution(allEvents)
         let total = data.reduce(0) { $0 + $1.count }
         let long = data.filter { $0.id == "4–7" || $0.id == "Over a week" }.reduce(0) { $0 + $1.count }
-        let caption: String = total == 0
-            ? "How far you push things when you push them."
-            : "\(long) of \(total) deferrals moved work more than three days. Short slips are scheduling; long ones are avoidance."
-        return AnalyticsCard(title: "How far you push things", caption: caption) {
+        let balance = ProgressAnalytics.replanBalance(allEvents)
+        let caption: String = if total == 0 {
+            "How far you move things when you move them."
+        } else if balance.pulled > 0 {
+            "\(long) of \(total) moved work more than three days out. You also pulled \(balance.pulled) forward — replanning runs both ways."
+        } else {
+            "\(long) of \(total) moved work more than three days out. Short moves are scheduling; long ones are avoidance."
+        }
+        // "Replanning", not "pushing". The log records work pulled forward as well now, and a
+        // card that counts only the slips turns every history into a scoreboard of failure —
+        // moving something up is the same decision taken well.
+        return AnalyticsCard(title: "How far you move things", caption: caption) {
             if total == 0 {
                 AnalyticsEmpty(message: "No deferrals recorded.")
             } else {
@@ -385,6 +469,66 @@ struct ProgressAnalyticsView: View {
                     AxisValueLabel().font(WPTypography.micro.font)
                 } }
                 .frame(height: 130)
+                ChartLegend(items: [
+                    ("\(balance.pushed) pushed back", .swatch(accent)),
+                    ("\(balance.pulled) pulled forward", .swatch(ColorTokens.textMuted))
+                ])
+            }
+        }
+    }
+
+    // MARK: - 4b. What you keep underestimating
+
+    private var underestimateCard: some View {
+        let data = ProgressAnalytics.underestimates(allEvents)
+        let caption: String = if let worst = data.first {
+            "\"\(worst.title)\" started at \(worst.originalMinutes) minutes and is now \(worst.currentMinutes). You've raised it \(worst.raises) \(worst.raises == 1 ? "time" : "times")."
+        } else {
+            "Work whose time budget kept going up."
+        }
+        return AnalyticsCard(
+            title: "What you keep underestimating",
+            caption: caption,
+            footnote: "Only visible because the change is recorded — a task holds one duration, the current one, so the first guess is gone the moment you correct it."
+        ) {
+            if data.isEmpty {
+                AnalyticsEmpty(message: "Nothing has had its time budget changed yet.")
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(data) { row in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(row.title)
+                                    .wpTypography(.body)
+                                    .foregroundStyle(ColorTokens.textPrimary)
+                                    .lineLimit(1)
+                                Spacer(minLength: 8)
+                                Text("\(row.originalMinutes)m → \(row.currentMinutes)m")
+                                    .wpTypography(.body)
+                                    .foregroundStyle(ColorTokens.textSecondary)
+                                    .monospacedDigit()
+                            }
+                            // The original estimate stays visible under the current one rather
+                            // than being replaced by it — the gap between the two *is* the point.
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(ColorTokens.border)
+                                    Capsule()
+                                        .fill(ColorTokens.warning.opacity(0.85))
+                                        .frame(width: geo.size.width)
+                                    Capsule()
+                                        .fill(accent)
+                                        .frame(width: geo.size.width / max(row.growth, 1))
+                                }
+                            }
+                            .frame(height: 6)
+                        }
+                    }
+                }
+                ChartLegend(items: [
+                    ("First guess", .swatch(accent)),
+                    ("Where it ended up", .swatch(ColorTokens.warning.opacity(0.85)))
+                ])
             }
         }
     }

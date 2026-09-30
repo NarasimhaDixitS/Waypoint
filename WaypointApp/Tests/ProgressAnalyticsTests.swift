@@ -295,6 +295,59 @@ final class ProgressAnalyticsTests: XCTestCase {
         XCTAssertEqual(written?.ranToCompletion, false)
     }
 
+/// The whole point of logging duration changes: a task holds one duration — the current one —
+    /// so the first guess is unrecoverable unless the change was written down as it happened.
+    func testUnderestimatesTrackTheFirstGuessAgainstWhereItEndedUp() {
+        let e1 = TaskEventEntity(context: context)
+        e1.id = UUID(); e1.kind = TaskEventKind.durationChanged.rawValue
+        e1.title = "Listening practice"; e1.occurredAt = day(2026, 9, 1)
+        e1.fromValue = 30; e1.toValue = 45
+
+        let e2 = TaskEventEntity(context: context)
+        e2.id = UUID(); e2.kind = TaskEventKind.durationChanged.rawValue
+        e2.title = "Listening practice"; e2.occurredAt = day(2026, 9, 10)
+        e2.fromValue = 45; e2.toValue = 90
+
+        let rows = ProgressAnalytics.underestimates(Array(fetchEvents()))
+
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.originalMinutes, 30, "the first guess, not the most recent")
+        XCTAssertEqual(rows.first?.currentMinutes, 90)
+        XCTAssertEqual(rows.first?.raises, 2)
+    }
+
+    /// A budget revised *down* is a correction in the other direction, and a different story.
+    func testABudgetRevisedDownwardIsNotAnUnderestimate() {
+        let e = TaskEventEntity(context: context)
+        e.id = UUID(); e.kind = TaskEventKind.durationChanged.rawValue
+        e.title = "Standup"; e.occurredAt = day(2026, 9, 1)
+        e.fromValue = 60; e.toValue = 15
+
+        XCTAssertTrue(ProgressAnalytics.underestimates(Array(fetchEvents())).isEmpty)
+    }
+
+    /// Counting only the slips makes every history a scoreboard of failure.
+    func testReplanBalanceCountsBothDirections() {
+        event(kind: .deferred, title: "A", from: day(2026, 9, 1), to: day(2026, 9, 3), at: day(2026, 9, 1))
+        event(kind: .rescheduledEarlier, title: "B", from: day(2026, 9, 8), to: day(2026, 9, 5), at: day(2026, 9, 2))
+        event(kind: .rescheduledEarlier, title: "C", from: day(2026, 9, 9), to: day(2026, 9, 6), at: day(2026, 9, 3))
+
+        let balance = ProgressAnalytics.replanBalance(Array(fetchEvents()))
+
+        XCTAssertEqual(balance.pushed, 1)
+        XCTAssertEqual(balance.pulled, 2)
+    }
+
+    func testGoalOutcomesSeparateFinishedFromDropped() {
+        event(kind: .goalCompleted, title: "Marathon", from: day(2026, 8, 1), to: day(2026, 9, 1), at: day(2026, 9, 1))
+        event(kind: .goalAbandoned, title: "Spanish", from: day(2026, 8, 1), to: day(2026, 9, 1), at: day(2026, 9, 2))
+
+        let outcomes = ProgressAnalytics.goalOutcomes(Array(fetchEvents()))
+
+        XCTAssertEqual(outcomes.finished, 1)
+        XCTAssertEqual(outcomes.abandoned, 1)
+    }
+
     // MARK: - Helpers
 
     private func fetchSessions() -> [FocusSessionEntity] {

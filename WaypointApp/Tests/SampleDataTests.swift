@@ -93,9 +93,18 @@ final class SampleDataTests: XCTestCase {
         XCTAssertGreaterThan(span, 45)
     }
 
-    func testTheBehaviourLogHasAllThreeKinds() {
+    /// Every card that reads the log needs a shape to draw. A kind with no rows is a screen
+    /// that can't be looked at, which is the one thing this fixture exists to prevent.
+    func testTheBehaviourLogCoversEveryKindTheAppRecords() {
         let kinds = Set(events.compactMap(\.kindValue))
-        XCTAssertEqual(kinds, [.deferred, .abandoned, .goalAbandoned])
+        XCTAssertEqual(
+            kinds,
+            [.deferred, .abandoned, .goalAbandoned, .goalCompleted, .rescheduledEarlier, .durationChanged]
+        )
+        XCTAssertTrue(
+            events.contains { $0.kindValue == .durationChanged && $0.toValue > $0.fromValue },
+            "the underestimate card needs a budget that actually went up"
+        )
         XCTAssertTrue(
             events.contains { ($0.slipInDays ?? 0) > 1 },
             "deferrals need varying slip lengths to be worth charting"
