@@ -120,9 +120,14 @@ enum ProgressAnalytics {
     static func effortByWeek(_ tasks: [TaskEntity], weeks: Int = 6, now: Date = .now) -> [EffortWeek] {
         let cal = Calendar.current
         let thisMonday = mondayOfWeek(containing: now)
+        // Weeks before the first task aren't zero hours, they're weeks this person wasn't here.
+        // Plotting them draws a long flat run along the baseline that reads as months of doing
+        // nothing, and squashes the part of the chart that has anything in it.
+        let firstWeek = tasks.map(\.resolvedDate).min().map(mondayOfWeek(containing:))
         return (0..<weeks).reversed().compactMap { offset in
             guard let start = cal.date(byAdding: .day, value: -7 * offset, to: thisMonday),
                   let end = cal.date(byAdding: .day, value: 7, to: start) else { return nil }
+            if let firstWeek, start < firstWeek { return nil }
             let inWeek = tasks.filter { $0.resolvedDate >= start && $0.resolvedDate < end }
             return EffortWeek(
                 id: start,

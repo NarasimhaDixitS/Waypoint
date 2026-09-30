@@ -300,10 +300,16 @@ struct ProgressAnalyticsView: View {
                         .symbol(.circle)
                 }
                 .chartXAxis {
-                    AxisMarks(values: data.map(\.weekStart)) { value in
+                    // A label per point is fine at four weeks and illegible at twenty-six —
+                    // twenty-six dates across three hundred points is eleven points each, and
+                    // they print straight over one another. Thinned to roughly five, with the
+                    // spacing chosen so the labels that survive are evenly spread rather than
+                    // whichever ones happened to land first.
+                    AxisMarks(values: Self.axisDates(for: data.map(\.weekStart))) { value in
                         AxisValueLabel {
                             if let date = value.as(Date.self) {
-                                Text(date.formatted(.dateTime.day().month(.abbreviated))).wpTypography(.micro)
+                                Text(date.formatted(.dateTime.day().month(.abbreviated)))
+                                    .wpTypography(.micro)
                             }
                         }
                     }
@@ -620,6 +626,18 @@ struct ProgressAnalyticsView: View {
     }
 
     // MARK: - Bits
+
+    /// At most five labels, evenly spaced, and always including the most recent — the right
+    /// edge is where the eye lands and an axis that stops short of it reads as truncated.
+    private static func axisDates(for dates: [Date]) -> [Date] {
+        guard dates.count > 5 else { return dates }
+        let stride = Int(ceil(Double(dates.count) / 5))
+        // Taken from the end so the newest week always gets a label, then put back in order.
+        return dates.reversed().enumerated()
+            .filter { $0.offset.isMultiple(of: stride) }
+            .map(\.element)
+            .reversed()
+    }
 
     private func hours(_ value: Double) -> String {
         value >= 10 ? "\(Int(value.rounded()))h" : String(format: "%.1fh", value)

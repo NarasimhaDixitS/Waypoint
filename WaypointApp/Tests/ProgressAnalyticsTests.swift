@@ -113,6 +113,30 @@ final class ProgressAnalyticsTests: XCTestCase {
         XCTAssertEqual(week?.completedMinutes, 30)
     }
 
+    /// Weeks before the first task aren't zero hours, they're weeks this person wasn't here.
+    /// Plotting them draws a long flat run along the baseline that reads as months of nothing.
+    func testEffortSkipsWeeksBeforeAnyWorkExisted() {
+        let now = day(2026, 9, 30)
+        task(on: day(2026, 9, 21), minutes: 60)
+
+        let weeks = ProgressAnalytics.effortByWeek(Array(fetchTasks()), weeks: 26, now: now)
+
+        XCTAssertLessThanOrEqual(weeks.count, 3, "26 asked for, but only two weeks of history exist")
+        XCTAssertTrue(
+            weeks.allSatisfy { $0.weekStart >= ProgressAnalytics.mondayOfWeek(containing: day(2026, 9, 21)) },
+            "nothing before the first task should be plotted"
+        )
+    }
+
+    func testEffortStillCoversEveryWeekOnceHistoryIsLongEnough() {
+        let now = day(2026, 9, 30)
+        for back in 0..<5 {
+            task(on: Calendar.current.date(byAdding: .day, value: -7 * back, to: now)!, minutes: 30)
+        }
+        let weeks = ProgressAnalytics.effortByWeek(Array(fetchTasks()), weeks: 4, now: now)
+        XCTAssertEqual(weeks.count, 4)
+    }
+
     // MARK: - Priority
 
     func testPriorityFollowThroughSplitsByPriority() {
