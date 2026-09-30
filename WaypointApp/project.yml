@@ -19,7 +19,7 @@ targets:
       properties:
         UILaunchScreen:
           UIColorName: LaunchBackground
-          UIImageName: LaunchLogo
+          UIImageName: LogoMark
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:

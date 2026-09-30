@@ -37,52 +37,23 @@ struct WelcomeView: View {
     }
 }
 
-/// Bullseye target with a mirror-symmetric "W" monogram, per the design spec's logo description.
+/// The app's mark, from the asset catalogue.
+///
+/// This used to be drawn here in SwiftUI — a white rounded square, two dark rings and a green
+/// dot hardcoded at `0x639922`. Three things were wrong with that: it was the *old* logo, the
+/// green was an accent this app retired, and being code rather than an asset meant replacing
+/// the icon everywhere else left this one untouched and nobody noticed.
+///
+/// One image, shared with the launch screen, so there is now a single thing to change.
 struct WaypointLogoMark: View {
     var size: CGFloat = 46
 
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-            .fill(Color.white)
+        Image("LogoMark")
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
             .frame(width: size, height: size)
-            .overlay(
-                GeometryReader { proxy in
-                    let s = proxy.size.width
-                    ZStack {
-                        Circle()
-                            .stroke(Color(ColorTokens.hex(0x242422)), lineWidth: s * 0.038)
-                            .frame(width: s * 0.58, height: s * 0.58)
-                            .position(x: s * 0.42, y: s * 0.42)
-                        Circle()
-                            .stroke(Color(ColorTokens.hex(0x242422)), lineWidth: s * 0.038)
-                            .frame(width: s * 0.36, height: s * 0.36)
-                            .position(x: s * 0.42, y: s * 0.42)
-                        Circle()
-                            .fill(Color(ColorTokens.hex(0x639922)))
-                            .frame(width: s * 0.15, height: s * 0.15)
-                            .position(x: s * 0.42, y: s * 0.42)
-                        WMonogramShape()
-                            .stroke(Color(ColorTokens.hex(0x242422)), style: StrokeStyle(lineWidth: s * 0.06, lineCap: .round, lineJoin: .round))
-                            .frame(width: s * 0.55, height: s * 0.34)
-                            .position(x: s * 0.72, y: s * 0.42)
-                    }
-                }
-            )
-            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 3)
-    }
-}
-
-private struct WMonogramShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let w = rect.width
-        let h = rect.height
-        path.move(to: CGPoint(x: 0, y: 0))
-        path.addLine(to: CGPoint(x: w * 0.25, y: h))
-        path.addLine(to: CGPoint(x: w * 0.5, y: h * 0.35))
-        path.addLine(to: CGPoint(x: w * 0.75, y: h))
-        path.addLine(to: CGPoint(x: w, y: 0))
-        return path
     }
 }
 
