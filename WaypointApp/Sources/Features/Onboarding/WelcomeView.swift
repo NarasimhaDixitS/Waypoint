@@ -55,6 +55,15 @@ struct WelcomeView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    // Rebuilt whenever the scheme changes.
+                    //
+                    // `SignInWithAppleButton` wraps a UIKit `ASAuthorizationAppleIDButton`,
+                    // which takes its style at init and has no way to change it afterwards. The
+                    // SwiftUI wrapper doesn't recreate the view when the style modifier's value
+                    // changes, so the button keeps whatever it was born with — which is how a
+                    // white button ended up on a light background while the surrounding page,
+                    // drawn from live UIKit traits, correctly rendered light.
+                    .id(colorScheme)
 
                 Text("Your tasks stay on this device. Signing in is how Waypoint knows the work is yours.")
                     .wpTypography(.micro)
