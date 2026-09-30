@@ -114,6 +114,23 @@ final class SampleDataTests: XCTestCase {
         XCTAssertEqual(tasks.map { $0.title ?? "" }.sorted(), firstTitles)
     }
 
+    /// Everything that draws a run of days asks when this person started, and answers it from
+    /// the earliest `createdAt`. A fixture that stamps all of it with the seeding moment claims
+    /// the user started today — which renders its own forty-five days of history as days that
+    /// predate them.
+    func testHistoryIsNotAllStampedWithTheMomentItWasSeeded() {
+        let context = self.context!
+        guard let start = TaskEntity.firstActivityDate(in: context) else {
+            return XCTFail("no tasks were seeded")
+        }
+        let daysBack = Calendar.current.dateComponents([.day], from: start, to: .now).day ?? 0
+        XCTAssertGreaterThan(daysBack, 30, "the fixture should look like weeks of use, not day one")
+        XCTAssertTrue(
+            tasks.allSatisfy { ($0.createdAt ?? .distantPast) <= .now },
+            "nothing can claim to have been created in the future"
+        )
+    }
+
     /// A configured Work/Gym schedule is the user's own setup, not demo content.
     func testExistingCommitmentsAreLeftAlone() {
         let request = NSFetchRequest<NSFetchRequestResult>(entityName: "CommitmentEntity")

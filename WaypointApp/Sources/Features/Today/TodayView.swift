@@ -188,6 +188,12 @@ private struct TodaySummaryCard: View {
     /// one definition across every page of the carousel matters more than a stricter rule here
     /// would — a strip that meant "anything done" on one card and "everything done" on the next
     /// would be unreadable.
+    /// Looked up once per render rather than fetched per dot. Cheap — one row, indexed on a
+    /// sort the store already keeps.
+    private var firstActivity: Date? {
+        TaskEntity.firstActivityDate(in: PersistenceController.shared.container.viewContext)
+    }
+
     private var week: [(date: Date, done: Bool)] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
@@ -249,7 +255,7 @@ private struct TodaySummaryCard: View {
                 Text("Last 7 days")
                     .wpTypography(.cardTitle)
                     .foregroundStyle(.white.opacity(0.75))
-                GoalWeekStrip(days: week)
+                GoalWeekStrip(days: week, activeSince: firstActivity)
             }
             .frame(maxWidth: .infinity)
         }
@@ -763,9 +769,12 @@ struct TodayView: View {
             // both meant the screen said the same thing twice in two type sizes. The header's
             // job is *which day am I looking at*, which is the one thing that changes when you
             // swipe; the card's job is today, which doesn't.
-            Text(selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                .wpTypography(.appTitle)
-                .foregroundStyle(ColorTokens.textPrimary)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if isViewingToday { nowDot }
+                Text(selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                    .wpTypography(.appTitle)
+                    .foregroundStyle(ColorTokens.textPrimary)
+            }
             Spacer()
             Button {
                 theme.appearanceMode = theme.appearanceMode == .dark ? .light : .dark
@@ -778,6 +787,32 @@ struct TodayView: View {
             .accessibilityLabel("Toggle dark mode")
         }
         .padding(.top, 8)
+    }
+
+/// Present only when the date beside it is today.
+    ///
+    /// A glow meaning "this is happening now" is already the app's language — the in-progress
+    /// task row wears one, and so does the ring on the card below. Reusing it at day scale is
+    /// why a bare dot can carry the meaning at all: it isn't a new symbol to learn, it's the
+    /// same one at a different size.
+    ///
+    /// Nothing marks the other days. Their date is the answer, and an offset like "+2 days"
+    /// would say twice what the header already says once — the dot's *absence* is the signal.
+    private var nowDot: some View {
+        ZStack {
+            Circle()
+                .fill(theme.accentSwatch.markColor)
+                .frame(width: 14, height: 14)
+                .blur(radius: 5)
+                .opacity(0.8)
+            Circle()
+                .fill(theme.accentSwatch.markColor)
+                .frame(width: 9, height: 9)
+        }
+        // Held to the glow's full width so the title doesn't shift when the dot appears and
+        // disappears across a day change.
+        .frame(width: 14, height: 14)
+        .accessibilityLabel("Today")
     }
 
     /// Folded into the existing weekday-label row (trailing end) rather than a row of its own,
@@ -915,7 +950,7 @@ struct TodayView: View {
                 Text("Last 7 days")
                     .wpTypography(.cardTitle)
                     .foregroundStyle(.white.opacity(0.75))
-                GoalWeekStrip(days: goal.recentCompletion())
+                GoalWeekStrip(days: goal.recentCompletion(), activeSince: goal.createdAt)
                     .id(goalRefreshTrigger)
             }
             .frame(maxWidth: .infinity)

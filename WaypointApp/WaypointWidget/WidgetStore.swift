@@ -42,7 +42,8 @@ enum WidgetStore {
         return DaySnapshot(
             date: Calendar.current.startOfDay(for: now),
             items: items,
-            week: weekCompletion(context: context, now: now)
+            week: weekCompletion(context: context, now: now),
+            activeSince: TaskEntity.firstActivityDate(in: context)
         )
     }
 

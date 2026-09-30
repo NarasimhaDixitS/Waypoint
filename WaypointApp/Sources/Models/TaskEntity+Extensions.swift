@@ -43,6 +43,23 @@ extension TaskEntity {
         "\(resolvedStartTime.formatted(.dateTime.hour().minute()))–\(endTime.formatted(.dateTime.hour().minute()))"
     }
 
+/// When this person first put anything into Waypoint.
+    ///
+    /// Everything that draws a run of days needs it, because a day before someone started is
+    /// not a day they missed — and a chart that can't tell those apart greets a new user by
+    /// reporting a week of failures that never happened. Derived from the earliest `createdAt`
+    /// rather than stored on first launch, so it's already true for people who installed
+    /// before anyone thought to record it.
+    ///
+    /// `nil` means there's no history at all yet, which callers should treat as "everything is
+    /// still ahead" rather than "everything was missed".
+    static func firstActivityDate(in context: NSManagedObjectContext) -> Date? {
+        let request = NSFetchRequest<TaskEntity>(entityName: "TaskEntity")
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
+        request.fetchLimit = 1
+        return (try? context.fetch(request))?.first?.createdAt
+    }
+
     static func fetchRequest(on day: Date, context: NSManagedObjectContext) -> NSFetchRequest<TaskEntity> {
         let start = Calendar.current.startOfDay(for: day)
         let end = Calendar.current.date(byAdding: .day, value: 1, to: start)!

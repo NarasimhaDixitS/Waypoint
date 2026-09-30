@@ -25,6 +25,7 @@ enum SampleData {
         seedUpcoming(in: context, goals: goals, rng: &rng)
         seedRepeatSeries(in: context, goal: goals[0])
         seedEventHistory(in: context, goals: goals, rng: &rng)
+        backdateCreationStamps(in: context)
 
         do {
             try context.save()
@@ -42,6 +43,27 @@ enum SampleData {
             let request = NSFetchRequest<NSFetchRequestResult>(entityName: entity)
             guard let objects = try? context.fetch(request) as? [NSManagedObject] else { continue }
             objects.forEach(context.delete)
+        }
+    }
+
+/// Makes the fixture claim a plausible history rather than an impossible one.
+    ///
+    /// `TaskEntity.create` stamps `createdAt` with the current moment, which is right for a
+    /// real user — the app won't let anyone schedule work in the past, so the earliest thing
+    /// they created is genuinely when they started. It's wrong for a fixture, where forty-five
+    /// days of history all get stamped with the second the seeder ran.
+    ///
+    /// Anything reading "when did this person start" then concludes *today*, and the last seven
+    /// days render as days that predate them — a week of history drawn as if it never happened.
+    /// Backdating to each task's own day makes the fixture describe someone who has been using
+    /// the app for weeks, which is the whole point of it.
+    private static func backdateCreationStamps(in context: NSManagedObjectContext) {
+        let tasks = (try? context.fetch(TaskEntity.fetchRequest())) ?? []
+        let now = Date.now
+        for task in tasks {
+            // Work already in the past was created no later than the day it was due; work still
+            // ahead was created by now. Either way `createdAt` never lands in the future.
+            task.createdAt = min(task.resolvedDate, now)
         }
     }
 

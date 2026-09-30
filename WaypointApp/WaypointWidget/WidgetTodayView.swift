@@ -98,14 +98,23 @@ struct WidgetTodayView: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.75))
             HStack(spacing: 0) {
+                let dates = snapshot.weekDates()
                 ForEach(Array(zip(snapshot.week, snapshot.weekLetters()).enumerated()), id: \.offset) { index, pair in
+                    // Three states, matching the app: filled is done, hollow is missed, and a
+                    // small dot is a day that predates this person — which is not a day they
+                    // failed, and shouldn't be drawn as one.
+                    let outOfScope = index < dates.count && snapshot.isBeforeStart(dates[index])
                     VStack(spacing: 5) {
                         ZStack {
-                            Circle()
-                                .strokeBorder(.white.opacity(pair.0 ? 1 : 0.4), lineWidth: 1.6)
-                                .frame(width: 15, height: 15)
-                            if pair.0 {
-                                Circle().fill(.white).frame(width: 15, height: 15)
+                            if outOfScope {
+                                Circle().fill(.white.opacity(0.22)).frame(width: 5, height: 5)
+                            } else {
+                                Circle()
+                                    .strokeBorder(.white.opacity(pair.0 ? 1 : 0.4), lineWidth: 1.6)
+                                    .frame(width: 15, height: 15)
+                                if pair.0 {
+                                    Circle().fill(.white).frame(width: 15, height: 15)
+                                }
                             }
                             // Today gets a ring around it, the same mark the app's strip uses.
                             if index == snapshot.week.count - 1 {
@@ -117,7 +126,7 @@ struct WidgetTodayView: View {
                         .frame(height: 21)
                         Text(pair.1)
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.85))
+                            .foregroundStyle(.white.opacity(outOfScope ? 0.4 : 0.85))
                     }
                     .frame(maxWidth: .infinity)
                 }

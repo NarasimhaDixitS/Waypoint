@@ -18,12 +18,26 @@ struct DaySnapshot {
 
     let date: Date
     let items: [Item]
+    /// Last seven days, oldest first, each true if anything was finished that day.
+    var week: [Bool] = Array(repeating: false, count: 7)
+    /// Days before this predate the person entirely, and are drawn as neither done nor missed —
+    /// a day someone wasn't here for is not a day they failed.
+    var activeSince: Date?
     /// False when the shared container isn't reachable, which is a different thing from an
     /// empty day and has to be said differently. See `WidgetStore.todaySnapshot`.
     var storeReachable: Bool = true
-    /// Last seven days, oldest first, each true if anything was finished that day. Same meaning
-    /// as the strip on the app's card — a day counts if you finished something on it.
-    var week: [Bool] = Array(repeating: false, count: 7)
+
+    func isBeforeStart(_ date: Date) -> Bool {
+        guard let activeSince else { return false }
+        let cal = Calendar.current
+        return cal.startOfDay(for: date) < cal.startOfDay(for: activeSince)
+    }
+
+    /// The last seven dates, aligned with `week`.
+    func weekDates(now: Date = .now) -> [Date] {
+        let cal = Calendar.current
+        return (0..<7).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: now) }
+    }
 
     var done: Int { items.filter(\.isDone).count }
     var total: Int { items.count }

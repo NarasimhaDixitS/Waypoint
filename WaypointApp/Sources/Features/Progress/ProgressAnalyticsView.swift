@@ -19,24 +19,39 @@ struct ProgressAnalyticsView: View {
     /// controls: nine charts each with their own period would make the page impossible to read
     /// as a whole, since no two numbers would be comparable.
     enum Range: String, CaseIterable, Identifiable {
-        case fourWeeks, threeMonths, allTime
+        case sinceStart, fourWeeks, threeMonths, allTime
 
         var id: String { rawValue }
 
         var label: String {
             switch self {
+            case .sinceStart: "So far"
             case .fourWeeks: "4 weeks"
             case .threeMonths: "3 months"
             case .allTime: "All time"
             }
         }
 
+        /// How much history a range needs before it's worth offering.
+        ///
+        /// Handing someone on day three a four-week window shows them twenty-five empty days
+        /// and calls it their progress. A range nobody has the data for isn't a choice, it's a
+        /// way to make the app look like a record of failure.
+        var requiredDays: Int {
+            switch self {
+            case .sinceStart: 0
+            case .fourWeeks: 14
+            case .threeMonths: 35
+            case .allTime: 60
+            }
+        }
+
         /// `nil` means no lower bound.
         var days: Int? {
             switch self {
+            case .sinceStart, .allTime: nil
             case .fourWeeks: 28
             case .threeMonths: 90
-            case .allTime: nil
             }
         }
 
@@ -44,19 +59,42 @@ struct ProgressAnalyticsView: View {
         /// of weekly points on a phone is a smear, not a chart.
         var effortWeeks: Int {
             switch self {
+            case .sinceStart: 4
             case .fourWeeks: 4
             case .threeMonths: 12
             case .allTime: 26
             }
         }
 
-        func start(from now: Date = .now) -> Date {
+        func start(from now: Date = .now, firstActivity: Date? = nil) -> Date {
+            if self == .sinceStart {
+                return Calendar.current.startOfDay(for: firstActivity ?? now)
+            }
             guard let days else { return .distantPast }
             return Calendar.current.date(byAdding: .day, value: -days, to: Calendar.current.startOfDay(for: now))!
         }
     }
 
-    @State private var range: Range = .fourWeeks
+    @State private var range: Range = .sinceStart
+    @State private var didPickInitialRange = false
+
+    /// Only the ranges this person has the history to fill.
+    ///
+    /// "So far" is always offered and is the honest default early on: it covers exactly what
+    /// exists, so nothing on the page is padding. The wider ones appear as the data arrives,
+    /// which turns waiting into something that visibly progresses rather than a screen of
+    /// empty charts that never explains itself.
+    private var availableRanges: [Range] {
+        guard let first = firstActivity else { return [.sinceStart] }
+        let days = Calendar.current.dateComponents([.day], from: first, to: .now).day ?? 0
+        let usable = Range.allCases.filter { days >= $0.requiredDays }
+        // `sinceStart` stops being a separate answer once a real window covers the same ground.
+        return usable.count > 1 ? usable.filter { $0 != .sinceStart } : usable
+    }
+
+    private var firstActivity: Date? {
+        TaskEntity.firstActivityDate(in: PersistenceController.shared.container.viewContext)
+    }
 
     /// Tasks scheduled ahead still matter to the current week's effort figures, so the window
     /// runs forward regardless of which range is chosen.
@@ -65,7 +103,9 @@ struct ProgressAnalyticsView: View {
     }
 
     init() {
-        let start = Range.fourWeeks.start()
+        // Widest possible at init; `applyRange` narrows it once the real range is chosen, which
+        // can't happen here because the context isn't reachable from an initialiser.
+        let start = Range.allTime.start()
         _recentTasks = FetchRequest(fetchRequest: TaskEntity.fetchRequest(from: start, to: Self.end()))
         _events = FetchRequest(fetchRequest: TaskEventEntity.fetchRequest(kind: nil, since: start))
         _sessions = FetchRequest(fetchRequest: FocusSessionEntity.fetchRequest(since: start))
@@ -75,7 +115,7 @@ struct ProgressAnalyticsView: View {
     /// predicates are retargeted here rather than the view being rebuilt around a new identity —
     /// rebuilding would throw away scroll position and every chart's entry animation.
     private func applyRange(_ newRange: Range) {
-        let start = newRange.start()
+        let start = newRange.start(firstActivity: firstActivity)
         recentTasks.nsPredicate = NSPredicate(
             format: "date >= %@ AND date < %@", start as NSDate, Self.end() as NSDate
         )
@@ -93,7 +133,7 @@ struct ProgressAnalyticsView: View {
     /// control doing a different kind of thing.
     private var rangeMenu: some View {
         Menu {
-            ForEach(Range.allCases) { option in
+            ForEach(availableRanges) { option in
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) { range = option }
                 } label: {
@@ -155,6 +195,14 @@ struct ProgressAnalyticsView: View {
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .onChange(of: range) { _, newRange in applyRange(newRange) }
+        .onAppear {
+            // The default is the *narrowest* range that has data, not the widest — opening on
+            // "3 months" with nine days of history is exactly the empty screen this avoids.
+            guard !didPickInitialRange else { return }
+            didPickInitialRange = true
+            range = availableRanges.first ?? .sinceStart
+            applyRange(range)
+        }
     }
 
     // MARK: - Headline

@@ -48,6 +48,22 @@ final class WidgetStoreTests: XCTestCase {
         XCTAssertEqual(unreachable.items.count, empty.items.count, "same data, different meaning")
     }
 
+    /// The distinction that stops a new user's first week reading as seven failures.
+    func testDaysBeforeSomeoneStartedAreNotTreatedAsMissed() {
+        let started = nine
+        let snapshot = DaySnapshot(date: nine, items: [], activeSince: started)
+
+        XCTAssertTrue(snapshot.isBeforeStart(started.addingTimeInterval(-86_400)))
+        XCTAssertFalse(snapshot.isBeforeStart(started), "the first day counts")
+        XCTAssertFalse(snapshot.isBeforeStart(started.addingTimeInterval(86_400)))
+    }
+
+    /// With no history at all, nothing is out of scope — there's no start to be before.
+    func testWithNoStartDateEveryDayIsInScope() {
+        let snapshot = DaySnapshot(date: nine, items: [])
+        XCTAssertFalse(snapshot.isBeforeStart(nine.addingTimeInterval(-86_400 * 30)))
+    }
+
     func testAnEmptyDayDoesNotDivideByZero() {
         let snapshot = DaySnapshot(date: nine, items: [])
         XCTAssertEqual(snapshot.fraction, 0)
