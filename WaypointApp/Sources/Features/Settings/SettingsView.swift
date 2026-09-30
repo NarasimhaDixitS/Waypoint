@@ -1,5 +1,4 @@
 import SwiftUI
-import AuthenticationServices
 
 struct SettingsView: View {
     @EnvironmentObject private var theme: ThemeManager
@@ -236,72 +235,41 @@ private var subscriptionCard: some View {
         }
     }
 
-    /// Sign in with Apple, as a placeholder.
+/// The signed-in state only.
     ///
-    /// Apple's own `SignInWithAppleButton` is used rather than a lookalike: its wording, corner
-    /// radius and light/dark behaviour are specified by Apple and a hand-rolled copy is grounds
-    /// for review rejection. It renders without the entitlement — only the *request* needs one —
-    /// so this is the real button wired to a stubbed result.
+    /// There's no sign-in button here any more: the welcome screen gates the whole app, so by
+    /// the time anyone reaches Settings they're signed in by definition. Signing out drops
+    /// straight back to that gate, which is why this doesn't need the other half.
     @ViewBuilder
     private var accountCard: some View {
-        if account.isSignedIn {
-            VStack(spacing: 0) {
-                row {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(account.displayName ?? "Signed in")
-                            .wpTypography(.cardTitle)
-                            .foregroundStyle(ColorTokens.textPrimary)
-                        if let email = account.email {
-                            Text(email)
-                                .wpTypography(.body)
-                                .foregroundStyle(ColorTokens.textSecondary)
-                        }
+        VStack(spacing: 0) {
+            row {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(account.displayName ?? "Signed in")
+                        .wpTypography(.cardTitle)
+                        .foregroundStyle(ColorTokens.textPrimary)
+                    if let email = account.email {
+                        Text(email)
+                            .wpTypography(.body)
+                            .foregroundStyle(ColorTokens.textSecondary)
                     }
+                }
+                Spacer()
+            }
+            divider
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) { account.signOut() }
+            } label: {
+                row {
+                    Text("Sign out")
+                        .wpTypography(.cardTitle)
+                        .foregroundStyle(ColorTokens.warning)
                     Spacer()
                 }
-                divider
-                Button { account.signOut() } label: {
-                    row {
-                        Text("Sign out")
-                            .wpTypography(.cardTitle)
-                            .foregroundStyle(ColorTokens.warning)
-                        Spacer()
-                    }
-                }
-                .buttonStyle(.plain)
             }
-            .wpCard(padding: 0)
-        } else {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Your account")
-                    .wpTypography(.cardTitle)
-                    .foregroundStyle(ColorTokens.textPrimary)
-                // Honest about what it does today. Promising sync or backup here would be a
-                // claim the app can't currently keep.
-                Text("Waypoint works fully without an account — everything lives on this device. Signing in is only needed once Waypoint runs somewhere other than your iPhone.")
-                    .wpTypography(.body)
-                    .foregroundStyle(ColorTokens.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                SignInWithAppleButton(.signIn) { _ in
-                    // Placeholder: a real request needs the Apple Developer Program entitlement.
-                } onCompletion: { _ in }
-                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                    .frame(height: 46)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .allowsHitTesting(false)
-                    .overlay {
-                        // Swallows the tap so the stub runs instead of a request that would
-                        // fail. Goes away with the entitlement.
-                        Button { account.signIn() } label: {
-                            Color.clear.contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .wpCard(padding: 16)
+            .buttonStyle(.plain)
         }
+        .wpCard(padding: 0)
     }
 
     private func row<Content: View>(@ViewBuilder content: () -> Content) -> some View {
