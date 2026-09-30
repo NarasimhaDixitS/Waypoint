@@ -96,9 +96,21 @@ struct TaskRowView: View {
                 // down and rebuilt along with it, losing the burst's own animation state
                 // mid-flight. A stable sibling slot survives that transition.
                 ZStack {
+                    // Not dimmed when locked, though it used to be.
+                    //
+                    // Completion is locked on every task of a past day, so the dim applied to
+                    // the whole screen at once — and a signal that marks everything marks
+                    // nothing. What it cost was the two things a past day is actually for:
+                    // what you finished, and what you missed. A done tick faded to 40% stops
+                    // reading as a record and starts reading as a rendering fault, which is
+                    // exactly how it was reported.
+                    //
+                    // The row is still `.disabled`, so a tap does nothing, and the
+                    // accessibility label still explains why. The day being past is context the
+                    // screen already carries — the "+" button is gone and the empty state says
+                    // so outright.
                     statusIcon
                         .scaleEffect(bump ? 1.18 : 1)
-                        .opacity(isCompletionLocked ? 0.4 : 1)
                         .animation(.spring(response: 0.32, dampingFraction: 0.45), value: bump)
                     CompletionBurst(trigger: celebrateTrigger, color: theme.accentSwatch.color)
                 }
