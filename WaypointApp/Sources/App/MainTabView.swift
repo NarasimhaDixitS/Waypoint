@@ -176,6 +176,7 @@ struct MainTabView: View {
             .padding(.horizontal, 20)
         }
         .animation(.easeInOut(duration: 0.22), value: searchActive)
+        .wpTopFade()
         .environmentObject(dateStore)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
         // waypoint://today — the widget. It opens the app on today rather than wherever the
