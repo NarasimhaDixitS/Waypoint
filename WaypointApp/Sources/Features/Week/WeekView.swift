@@ -269,19 +269,12 @@ struct WeekView: View {
     /// tabs at all: a nav row, a strip of selectable units under it, and one full-width control
     /// at the foot. The strip is the piece that was missing — it turns the banner from a label
     /// into an instrument, since the weeks it lists are the same weeks stacked below it.
-/// Arrows pulled into a stepper, the text left-aligned beside them, and a ring on the right.
-    ///
-    /// The banner read as empty in both directions at once, and neither was really about
-    /// padding. Horizontally, the arrows were flung to opposite edges with the month floating
-    /// between them, so the widest part of the card held the least; vertically, a gap sat under
-    /// the summary because nothing occupied the right-hand side to give the row any height.
-    ///
-    /// A ring fixes both, and it's the same ring the Today card already uses — the banner
-    /// people said they liked. Nothing new to learn, and the two tabs finally open on the same
-    /// shape rather than two different ideas of what a banner is.
     private var banner: some View {
-        VStack(spacing: 16) {
-            HStack(alignment: .center, spacing: 12) {
+        VStack(spacing: 18) {
+            HStack(spacing: 6) {
+                navArrow(systemName: "chevron.left", disabled: mode == .byGoal && currentGoalIndex == 0) {
+                    mode == .byWeek ? stepMonth(-1) : stepGoal(-1)
+                }
                 Group {
                     if mode == .byWeek {
                         monthBannerCenter
@@ -289,17 +282,18 @@ struct WeekView: View {
                         goalBannerCenter
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
                 .id(bannerIdentity)
                 .transition(slide)
-
-                monthRing
+                navArrow(systemName: "chevron.right", disabled: mode == .byGoal && currentGoalIndex >= sortedGoals.count - 1) {
+                    mode == .byWeek ? stepMonth(1) : stepGoal(1)
+                }
             }
             .clipped()
 
             modeToggle
         }
-        .padding(.vertical, 18)
+        .padding(.vertical, 20)
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity)
         .background(bannerFill)
@@ -374,86 +368,34 @@ struct WeekView: View {
 
     private var monthBannerCenter: some View {
         let summary = monthSummary
-        return VStack(alignment: .leading, spacing: 3) {
-            stepper {
-                Text(browsedMonth.formatted(.dateTime.month(.wide)))
-                    .wpTypography(.screenTitle)
-                    .foregroundStyle(.white)
-            }
+        return VStack(spacing: 2) {
+            Text(browsedMonth.formatted(.dateTime.month(.wide)))
+                .wpTypography(.screenTitle)
+                .foregroundStyle(.white)
             Text("\(browsedMonth.formatted(.dateTime.year())) · \(summary.done) of \(summary.total) tasks done")
                 .wpTypography(.body)
                 .foregroundStyle(.white.opacity(0.75))
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
         }
-    }
-
-    /// Arrows either side of whatever they step through, as one object.
-    ///
-    /// They used to sit at the card's outer edges with the label floating in between, which put
-    /// the two smallest elements on screen as far apart as the layout allowed and left the
-    /// widest part of the banner holding nothing.
-    private func stepper<Label: View>(@ViewBuilder _ label: () -> Label) -> some View {
-        HStack(spacing: 4) {
-            navArrow(systemName: "chevron.left", disabled: mode == .byGoal && currentGoalIndex == 0) {
-                mode == .byWeek ? stepMonth(-1) : stepGoal(-1)
-            }
-            label()
-            navArrow(systemName: "chevron.right", disabled: mode == .byGoal && currentGoalIndex >= sortedGoals.count - 1) {
-                mode == .byWeek ? stepMonth(1) : stepGoal(1)
-            }
-        }
-        // The arrows lead the row, so the label has to start where the eye does. Pulling back
-        // the first arrow's own tap padding keeps the text column aligned with the toggle below.
-        .padding(.leading, -10)
-    }
-
-    /// The month at a glance, and the anchor the right-hand side was missing.
-    private var monthRing: some View {
-        let summary = mode == .byWeek ? monthSummary : goalSummary
-        let fraction = summary.total == 0 ? 0 : Double(summary.done) / Double(summary.total)
-        return ProgressRing(
-            progress: fraction,
-            lineWidth: 6,
-            color: .white,
-            trackColor: .white.opacity(0.3),
-            labelFont: .system(size: 15, weight: .bold),
-            labelColor: .white
-        )
-        .frame(width: 58, height: 58)
-        // The aura is a blur and paints past the circle, so it needs room or the card's own
-        // edge clips the glow flat.
-        .padding(.trailing, 2)
-    }
-
-    private var goalSummary: (done: Int, total: Int) {
-        guard let goal = currentGoal else { return (0, 0) }
-        return (goal.doneTaskCount, goal.sortedTasks.count)
     }
 
     private var goalBannerCenter: some View {
         Group {
             if let goal = currentGoal {
-                VStack(alignment: .leading, spacing: 3) {
-                    stepper {
-                        Text(goal.name ?? "Goal")
-                            .wpTypography(.screenTitle)
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                    }
-                    Text("Day \(goal.currentDayNumber) of \(goal.totalDayCount) · \(goal.doneTaskCount) of \(goal.sortedTasks.count) done")
+                VStack(spacing: 2) {
+                    Text(goal.name ?? "Goal")
+                        .wpTypography(.screenTitle)
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Text("Day \(goal.currentDayNumber) of \(goal.totalDayCount) · \(goal.doneTaskCount) of \(goal.sortedTasks.count) tasks done")
                         .wpTypography(.body)
                         .foregroundStyle(.white.opacity(0.75))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.85)
                 }
             } else {
-                stepper {
-                    Text("No goals yet")
-                        .wpTypography(.screenTitle)
-                        .foregroundStyle(.white.opacity(0.85))
-                }
+                Text("No goals yet")
+                    .wpTypography(.body)
+                    .foregroundStyle(.white.opacity(0.85))
             }
         }
     }
