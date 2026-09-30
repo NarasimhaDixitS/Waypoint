@@ -12,6 +12,7 @@ import UIKit
 struct WeekView: View {
     @EnvironmentObject private var theme: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.managedObjectContext) private var context
 
     /// First-of-month anchor for "By week" mode — the parent owns and animates this so the
     /// browsed month persists across tab switches, same pattern as Today's `selectedDate`.
@@ -213,6 +214,57 @@ struct WeekView: View {
         return (inMonth.filter(\.isDone).count, inMonth.count)
     }
 
+/// One cell of the month grid.
+    enum DayShape {
+        /// Everything scheduled that day got done.
+        case complete
+        /// Some of it did.
+        case partial
+        /// Work was scheduled, the day has passed, none of it happened.
+        case missed
+        /// Nothing to say: no work scheduled, still to come, or before this person started.
+        /// Drawn as a placeholder rather than an empty ring — an empty ring is what "missed"
+        /// looks like, and a month someone wasn't here for should not read as a month of
+        /// failures.
+        case none
+    }
+
+    /// The browsed month as a run of days, for the banner grid.
+    private func monthShape(now: Date = .now) -> [(date: Date, shape: DayShape)] {
+        let cal = Calendar.current
+        guard let interval = cal.dateInterval(of: .month, for: browsedMonth) else { return [] }
+        let today = cal.startOfDay(for: now)
+        let start = firstActivity.map { cal.startOfDay(for: $0) }
+        let byDay = Dictionary(grouping: gridTasks) { cal.startOfDay(for: $0.resolvedDate) }
+
+        var out: [(Date, DayShape)] = []
+        var cursor = interval.start
+        while cursor < interval.end {
+            let day = cal.startOfDay(for: cursor)
+            let tasks = byDay[day] ?? []
+            let done = tasks.filter(\.isDone).count
+            let shape: DayShape
+            if let start, day < start {
+                shape = .none          // before they were here at all
+            } else if tasks.isEmpty {
+                shape = .none          // nothing was ever asked of this day
+            } else if done == tasks.count {
+                shape = .complete
+            } else if done > 0 {
+                shape = .partial
+            } else {
+                shape = day <= today ? .missed : .none   // a future day hasn't been missed yet
+            }
+            out.append((day, shape))
+            cursor = cal.date(byAdding: .day, value: 1, to: cursor) ?? interval.end
+        }
+        return out
+    }
+
+    private var firstActivity: Date? {
+        TaskEntity.firstActivityDate(in: context)
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -291,6 +343,8 @@ struct WeekView: View {
             }
             .clipped()
 
+            if mode == .byWeek { monthGrid }
+
             modeToggle
         }
         .padding(.vertical, 20)
@@ -299,6 +353,71 @@ struct WeekView: View {
         .background(bannerFill)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .shadow(color: ColorTokens.ShadowTier.raised.color, radius: ColorTokens.ShadowTier.raised.radius, x: 0, y: ColorTokens.ShadowTier.raised.y)
+    }
+
+/// The month as a field of dots — the one thing the list of weeks below structurally cannot
+    /// show, which is the whole shape at once, gaps included.
+    ///
+    /// Silent by design: no numbers, no labels beyond the weekday letters. It isn't for reading
+    /// a particular day off, it's for seeing where the month is solid and where it isn't.
+    private var monthGrid: some View {
+        let days = monthShape()
+        // Padded to a Monday start so columns line up under their weekday letter.
+        let lead = days.first.map { (Calendar.current.component(.weekday, from: $0.date) + 5) % 7 } ?? 0
+        return VStack(spacing: 7) {
+            HStack(spacing: 0) {
+                ForEach(Array(Self.weekdayAbbrev.enumerated()), id: \.offset) { _, name in
+                    Text(String(name.prefix(1)))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.55))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            ForEach(0..<numberOfWeekRows(lead: lead, count: days.count), id: \.self) { row in
+                HStack(spacing: 0) {
+                    ForEach(0..<7, id: \.self) { column in
+                        let index = row * 7 + column - lead
+                        Group {
+                            if index >= 0, index < days.count {
+                                dayCell(days[index])
+                            } else {
+                                Color.clear.frame(width: 9, height: 9)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private func numberOfWeekRows(lead: Int, count: Int) -> Int {
+        max(1, Int(ceil(Double(lead + count) / 7)))
+    }
+
+    @ViewBuilder
+    private func dayCell(_ day: (date: Date, shape: DayShape)) -> some View {
+        let isToday = Calendar.current.isDateInToday(day.date)
+        ZStack {
+            switch day.shape {
+            case .complete:
+                Circle().fill(.white).frame(width: 9, height: 9)
+            case .partial:
+                // Half-filled rather than a dimmer dot: "some of it" is a different kind of
+                // answer from "less of it", and opacity alone would read as a faded complete.
+                Circle().fill(.white.opacity(0.28)).frame(width: 9, height: 9)
+                Circle().trim(from: 0, to: 0.5).fill(.white).frame(width: 9, height: 9)
+            case .missed:
+                Circle().strokeBorder(.white.opacity(0.5), lineWidth: 1.4).frame(width: 9, height: 9)
+            case .none:
+                Circle().fill(.white.opacity(0.16)).frame(width: 4, height: 4)
+            }
+            if isToday {
+                Circle().strokeBorder(.white.opacity(0.75), lineWidth: 1.4).frame(width: 16, height: 16)
+            }
+        }
+        .frame(height: 16)
     }
 
     private var bannerFill: Color {

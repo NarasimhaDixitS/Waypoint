@@ -40,9 +40,12 @@ struct ProgressAnalyticsView: View {
         var requiredDays: Int {
             switch self {
             case .sinceStart: 0
-            case .fourWeeks: 14
-            case .threeMonths: 35
-            case .allTime: 60
+            // One week is enough to make any of these worth offering. The first pass demanded
+            // two weeks, five weeks and two months, which meant someone with a month of real
+            // history was still shown a single option and no way to look at it another way —
+            // the gating existed to stop empty screens, not to withhold perspectives from
+            // people who have the data for them.
+            case .fourWeeks, .threeMonths, .allTime: 7
             }
         }
 
