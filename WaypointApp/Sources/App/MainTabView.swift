@@ -7,7 +7,24 @@ struct MainTabView: View {
     @StateObject private var dateStore = DateNavigationStore()
     @EnvironmentObject private var subscription: SubscriptionManager
     @State private var showingPaywall = false
-    @State private var selectedTab = 0
+    @State private var selectedTab = MainTabView.launchTab
+
+    /// Lets a build be launched straight onto a given tab: `-wpTab 1`.
+    ///
+    /// Debug only, and purely a development affordance — every screen but Today is otherwise
+    /// three taps from a cold launch, which makes looking at one from the outside slower than
+    /// it should be, and "I couldn't see it" has been the cause of more than one bad call here.
+    /// Release builds always open on Today.
+    private static var launchTab: Int {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        guard let flag = args.firstIndex(of: "-wpTab"), flag + 1 < args.count,
+              let tab = Int(args[flag + 1]), (0...3).contains(tab) else { return 0 }
+        return tab
+        #else
+        return 0
+        #endif
+    }
     /// The first-of-month anchor for whichever month is currently browsed in the Week tab —
     /// persists across tab switches (browsing to next month, checking Today, coming back to
     /// Week keeps you on next month), separate from `weekRefreshTrigger` below.
@@ -179,13 +196,25 @@ struct MainTabView: View {
         .wpTopFade()
         .environmentObject(dateStore)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
-        // waypoint://today — the widget. It opens the app on today rather than wherever the
-        // user last was, which is the whole of what a glanceable card should promise.
+        // waypoint://today, ://week, ://progress, ://settings — one route per tab.
+        //
+        // The widget only ever asks for `today`, which it does so the app opens on today rather
+        // than wherever the user last was. The rest exist because a tab is a reasonable thing
+        // for a Shortcut or a future widget to link to, and because a screen nothing can open
+        // directly is a screen nobody can look at without tapping their way there.
         .onOpenURL { url in
             guard url.scheme == "waypoint" else { return }
+            let tab: Int? = switch url.host {
+            case "today": 0
+            case "week": 1
+            case "progress": 2
+            case "settings": 3
+            default: nil
+            }
+            guard let tab else { return }
             withAnimation(.easeInOut(duration: 0.25)) {
-                dateStore.selectedDate = .now
-                selectedTab = 0
+                if tab == 0 { dateStore.selectedDate = .now }
+                selectTab(tab)
             }
         }
         // A trial ends by the clock moving, and nothing fires an event when it does. Without
