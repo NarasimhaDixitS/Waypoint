@@ -546,8 +546,12 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
 
-                HStack {
-                    if !isViewingToday, abs(daysFromToday) > 2 {
+                // Only drawn when there's something to put in it. It used to exist purely to
+                // hold the sort control, so every ordinary view of Today spent a row on one
+                // small pill; now it appears only when you're far enough from today to want
+                // a way back.
+                if !isViewingToday, abs(daysFromToday) > 2 {
+                    HStack {
                         Button {
                             navigate(to: .now)
                         } label: {
@@ -560,11 +564,10 @@ struct TodayView: View {
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
+                        Spacer()
                     }
-                    Spacer()
-                    sortMenuButton
+                    .padding(.top, -8)
                 }
-                .padding(.top, -8)
 
                 goalSection
 
@@ -776,17 +779,26 @@ struct TodayView: View {
                     .foregroundStyle(ColorTokens.textPrimary)
             }
             Spacer()
+            // A matched pair. Both are icon-only controls whose glyph *is* the state — clock
+            // or flag, sun or moon — so they belong to each other and read as one cluster
+            // rather than a pill and a button that happen to share a row.
+            sortMenuButton
             Button {
                 theme.appearanceMode = theme.appearanceMode == .dark ? .light : .dark
             } label: {
                 Image(systemName: theme.appearanceMode == .dark ? "moon.fill" : "sun.max.fill")
                     .foregroundStyle(ColorTokens.textSecondary)
-                    .frame(width: 30, height: 30)
+                    // 44pt target around a 17pt glyph, the same rule the completion circle
+                    // follows. The mark stays its size; the finger gets what it needs.
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Toggle dark mode")
         }
-        .padding(.top, 8)
+        // The buttons are 44pt tall and the title isn't, so the row centres on them rather
+        // than hanging everything off the top edge.
+        .padding(.top, 2)
     }
 
 /// Present only when the date beside it is today.
@@ -837,21 +849,20 @@ struct TodayView: View {
                 }
             }
         } label: {
-            HStack(spacing: 5) {
-                // Direct Image, not Label — `.contentTransition` needs to target the symbol
-                // itself to morph it; applied to a compound Label it has no visible effect.
-                Image(systemName: sortMode.icon)
-                    .contentTransition(.symbolEffect(.replace))
-                Text("Sort: \(sortMode.label)")
-                    .contentTransition(.opacity)
-            }
-            .wpTypography(.micro)
-            .foregroundStyle(ColorTokens.textSecondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(ColorTokens.surface1)
-            .clipShape(Capsule())
+            // The glyph carries the state: a clock for time, a flag for priority. Those aren't
+            // generic sort arrows, they name the mode — so dropping "Sort: Time" doesn't hide
+            // what it's set to, it says the same thing symbolically. The only word actually
+            // lost is "Sort", which the icon was already saying.
+            //
+            // Direct Image, not Label — `.contentTransition` has to target the symbol itself
+            // to morph it; on a compound Label it has no visible effect.
+            Image(systemName: sortMode.icon)
+                .contentTransition(.symbolEffect(.replace))
+                .foregroundStyle(ColorTokens.textSecondary)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
+        .accessibilityLabel("Sort by \(sortMode.label)")
     }
 
     private static let goalBannerHeight: CGFloat = 264
