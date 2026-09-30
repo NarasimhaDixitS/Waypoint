@@ -43,21 +43,33 @@ extension TaskEntity {
         "\(resolvedStartTime.formatted(.dateTime.hour().minute()))–\(endTime.formatted(.dateTime.hour().minute()))"
     }
 
-/// When this person first put anything into Waypoint.
+/// When this person's history starts.
     ///
     /// Everything that draws a run of days needs it, because a day before someone started is
     /// not a day they missed — and a chart that can't tell those apart greets a new user by
-    /// reporting a week of failures that never happened. Derived from the earliest `createdAt`
-    /// rather than stored on first launch, so it's already true for people who installed
-    /// before anyone thought to record it.
+    /// reporting a week of failures that never happened.
+    ///
+    /// The earliest of *either* stamp, not just `createdAt`. Normally the two agree, since the
+    /// app won't let work be scheduled in the past. But a store can hold rows written in bulk
+    /// with a single creation stamp — the demo fixture did exactly that — and then `createdAt`
+    /// says "started today" over six weeks of visible history. Taking the minimum keeps the
+    /// answer right however the data arrived, rather than depending on every writer having been
+    /// careful.
     ///
     /// `nil` means there's no history at all yet, which callers should treat as "everything is
     /// still ahead" rather than "everything was missed".
     static func firstActivityDate(in context: NSManagedObjectContext) -> Date? {
-        let request = NSFetchRequest<TaskEntity>(entityName: "TaskEntity")
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        request.fetchLimit = 1
-        return (try? context.fetch(request))?.first?.createdAt
+        func earliest(by key: String, read: (TaskEntity) -> Date?) -> Date? {
+            let request = NSFetchRequest<TaskEntity>(entityName: "TaskEntity")
+            request.sortDescriptors = [NSSortDescriptor(key: key, ascending: true)]
+            request.fetchLimit = 1
+            return (try? context.fetch(request))?.first.flatMap(read)
+        }
+        let stamps = [
+            earliest(by: "createdAt") { $0.createdAt },
+            earliest(by: "date") { $0.date }
+        ]
+        return stamps.compactMap { $0 }.min()
     }
 
     static func fetchRequest(on day: Date, context: NSManagedObjectContext) -> NSFetchRequest<TaskEntity> {

@@ -125,6 +125,10 @@ final class SampleDataTests: XCTestCase {
         }
         let daysBack = Calendar.current.dateComponents([.day], from: start, to: .now).day ?? 0
         XCTAssertGreaterThan(daysBack, 30, "the fixture should look like weeks of use, not day one")
+        XCTAssertLessThanOrEqual(
+            start, tasks.map(\.resolvedDate).min() ?? .now,
+            "history starts no later than the earliest work in it"
+        )
         XCTAssertTrue(
             tasks.allSatisfy { ($0.createdAt ?? .distantPast) <= .now },
             "nothing can claim to have been created in the future"
