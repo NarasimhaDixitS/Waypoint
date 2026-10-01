@@ -10,10 +10,16 @@ import SwiftUI
 final class SubscriptionManager: ObservableObject {
     static let shared = SubscriptionManager()
 
-    @Published private(set) var status: SubscriptionStatus = .expired
+    @Published private(set) var status: SubscriptionStatus = .free
 
+    /// The trial start deliberately isn't here — see `TrialRecord`. `UserDefaults` is deleted
+    /// with the app, so storing it there handed out a fresh trial on every reinstall.
+    ///
+    /// The purchase keys can stay: an actual subscription is tied to the Apple ID, and
+    /// "Restore purchases" brings it back on a new install or a new phone without the app
+    /// having to remember anything. Only the trial — which Apple knows nothing about — needs
+    /// somewhere durable of its own.
     private enum Keys {
-        static let trialStartedAt = "subscription.trialStartedAt"
         static let plan = "subscription.plan"
         static let renewsAt = "subscription.renewsAt"
     }
@@ -24,11 +30,18 @@ final class SubscriptionManager: ObservableObject {
     /// event when that happens. Anything showing entitlement has to ask again, not remember.
     func refresh(now: Date = .now) {
         let defaults = UserDefaults.standard
-        if defaults.object(forKey: Keys.trialStartedAt) == nil {
-            defaults.set(now, forKey: Keys.trialStartedAt)
+        let trialStartedAt = TrialRecord.startOrBegin(now: now)
+        #if DEBUG
+        // `-wpFree` forces the lapsed state, same family as `-wpTab`. The Settings toggle for
+        // this writes to UserDefaults and needs a tap; a launch argument can be used from a
+        // script, which is the difference between looking at the free tier and not.
+        if ProcessInfo.processInfo.arguments.contains("-wpFree") {
+            status = .free
+            return
         }
+        #endif
         status = SubscriptionPolicy.resolve(
-            trialStartedAt: defaults.object(forKey: Keys.trialStartedAt) as? Date,
+            trialStartedAt: trialStartedAt,
             plan: (defaults.string(forKey: Keys.plan)).flatMap(SubscriptionPlan.init(rawValue:)),
             renewsAt: defaults.object(forKey: Keys.renewsAt) as? Date,
             now: now
@@ -55,9 +68,8 @@ final class SubscriptionManager: ObservableObject {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: Keys.plan)
         defaults.removeObject(forKey: Keys.renewsAt)
-        defaults.set(
-            Calendar.current.date(byAdding: .day, value: -(SubscriptionPolicy.trialDays + 1), to: .now),
-            forKey: Keys.trialStartedAt
+        TrialRecord.setStart(
+            Calendar.current.date(byAdding: .day, value: -(SubscriptionPolicy.trialDays + 1), to: .now) ?? .now
         )
         refresh()
     }
@@ -66,7 +78,7 @@ final class SubscriptionManager: ObservableObject {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: Keys.plan)
         defaults.removeObject(forKey: Keys.renewsAt)
-        defaults.set(Date.now, forKey: Keys.trialStartedAt)
+        TrialRecord.setStart(.now)
         refresh()
     }
 }

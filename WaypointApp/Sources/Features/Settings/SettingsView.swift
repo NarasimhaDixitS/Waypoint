@@ -21,17 +21,45 @@ struct SettingsView: View {
                 subscriptionCard
 
                 VStack(spacing: 0) {
+                    // Both of these are gone in paper rather than disabled. The first attempt
+                    // greyed them out on the reasoning that a control which vanishes makes
+                    // people wonder what they broke — but that only holds when the absence is
+                    // unexplained. The Display row says "no light or dark" and "paper uses ink"
+                    // right where they used to be, so keeping two dead controls around is just
+                    // clutter standing in for an explanation that's already there.
+                    if theme.palette != .paper {
+                        row {
+                            Text("Appearance").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                            Spacer(minLength: 8)
+                            Picker("", selection: $theme.appearanceMode) {
+                                Text("System").tag(AppearanceMode.system)
+                                Text("Light").tag(AppearanceMode.light)
+                                Text("Dark").tag(AppearanceMode.dark)
+                            }
+                            .pickerStyle(.menu)
+                            .tint(ColorTokens.textSecondary)
+                        }
+                        divider
+                    }
+                    // Its own row, directly under Appearance, because it is the second half of
+                    // the same question. Light/dark is *when* you're reading; this is *how*.
                     row {
-                        Text("Appearance").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
-                        Spacer()
-                        Picker("", selection: $theme.appearanceMode) {
-                            Text("System").tag(AppearanceMode.system)
-                            Text("Light").tag(AppearanceMode.light)
-                            Text("Dark").tag(AppearanceMode.dark)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Display").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                            Text(theme.palette.detail)
+                                .wpTypography(.body)
+                                .foregroundStyle(ColorTokens.textSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        Picker("", selection: $theme.palette) {
+                            ForEach(Palette.allCases) { option in
+                                Text(option.label).tag(option)
+                            }
                         }
                         .pickerStyle(.menu)
                         .tint(ColorTokens.textSecondary)
                     }
+                    if theme.palette != .paper {
                     divider
                     // Swatches on their own row rather than trailing the label. Eight of them
                     // beside a title overflowed the card, and the row would silently get
@@ -65,6 +93,7 @@ struct SettingsView: View {
                     .padding(.horizontal, 14)
                     .padding(.top, 12)
                     .padding(.bottom, 6)
+                    }
                 }
                 .wpCard(padding: 0)
 
@@ -113,7 +142,17 @@ struct SettingsView: View {
                     }
                     divider
                     row {
-                        Text("Notifications").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                        // A master switch, not the thing that turns reminders on. It used to be
+                        // both — flipping it reminded you about every task on today's list — and
+                        // the label said "Notifications" either way. Reminders are now armed per
+                        // task; this only decides whether any of them, plus the day summary and
+                        // streak nudge, are allowed to arrive at all.
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Notifications").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                            Text("Reminders are set per task")
+                                .wpTypography(.micro)
+                                .foregroundStyle(ColorTokens.textSecondary)
+                        }
                         Spacer()
                         Toggle("", isOn: $theme.notificationsEnabled)
                             .labelsHidden()
@@ -129,8 +168,11 @@ struct SettingsView: View {
                     row {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Subscription state").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
-                            // Waiting seven days is not a testing strategy.
-                            Text("Jump the trial so the lapsed state can be seen")
+                            // Waiting two weeks is not a testing strategy. All three states are
+                            // reachable from here because all three have to be *looked* at —
+                            // the free tier blurs whole screens, and nothing about that can be
+                            // judged from reading the gate that produces it.
+                            Text("Currently: \(subscriptionStateName). Switch to any state.")
                                 .wpTypography(.body)
                                 .foregroundStyle(ColorTokens.textSecondary)
                         }
@@ -139,17 +181,10 @@ struct SettingsView: View {
                     .wpCard(padding: 0)
 
                     HStack(spacing: 10) {
-                        Button("Expire now") { subscription.expireNow() }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .wpCard(padding: 0)
-                        Button("Reset trial") { subscription.resetTrial() }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .wpCard(padding: 0)
+                        stateButton("Trial", isCurrent: subscription.status.isTrial) { subscription.resetTrial() }
+                        stateButton("Free tier", isCurrent: !subscription.status.hasFullAccess) { subscription.expireNow() }
+                        stateButton("Subscribed", isCurrent: subscription.status.isSubscribed) { subscription.purchase(.annual) }
                     }
-                    .wpTypography(.body)
-                    .foregroundStyle(ColorTokens.textPrimary)
 
                     Button {
                         showingDemoConfirm = true
@@ -220,8 +255,32 @@ private var subscriptionCard: some View {
         switch subscription.status {
         case .trial: "Free trial"
         case .subscribed(let plan, _): "Waypoint \(plan.title)"
-        case .expired: "Trial ended"
+        case .free: "Trial ended"
         }
+    }
+
+    private var subscriptionStateName: String {
+        switch subscription.status {
+        case .trial(let daysLeft): "trial, \(daysLeft)d left"
+        case .subscribed: "subscribed"
+        case .free: "free tier"
+        }
+    }
+
+    /// The current state is marked rather than merely available. Three buttons that all look
+    /// identical make it very easy to test the state you were already in and conclude the gate
+    /// works, which is the one mistake this panel exists to prevent.
+    private func stateButton(_ label: String, isCurrent: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .wpTypography(.body)
+                .foregroundStyle(isCurrent ? ColorTokens.surface0 : ColorTokens.textPrimary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(isCurrent ? ColorTokens.textPrimary : ColorTokens.surface1)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private var subscriptionDetail: String {
@@ -230,8 +289,8 @@ private var subscriptionCard: some View {
             daysLeft == 1 ? "Last day — tap to subscribe" : "\(daysLeft) days left — tap to subscribe"
         case .subscribed(_, let renewsAt):
             "Renews \(renewsAt.formatted(.dateTime.day().month(.abbreviated).year()))"
-        case .expired:
-            "Subscribe to add new tasks. Everything you've made stays readable."
+        case .free:
+            "Today and your history stay free. Subscribe to plan ahead, see the week and track progress."
         }
     }
 

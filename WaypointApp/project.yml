@@ -61,6 +61,10 @@ targets:
       - path: Sources/Persistence
       - path: Sources/Theme/AccentSwatch.swift
       - path: Sources/Theme/ColorTokens.swift
+      # The tokens read `Palette.current`, so the widget needs it too — and gets the paper
+      # palette for free as a result. A bright widget beside a paper app is the thing that
+      # makes both look unfinished, so following along isn't optional.
+      - path: Sources/Theme/Palette.swift
       - path: Resources
     info:
       path: Generated/WidgetInfo.plist

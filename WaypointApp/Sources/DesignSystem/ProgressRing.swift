@@ -23,12 +23,16 @@ struct ProgressRing: View {
             // same trim so the ring reads as lit from within rather than a flat stroke.
             // Scaled off `lineWidth` so it settles down on its own at the small sizes this
             // same component is used at (e.g. the Week tab's compact rings).
-            Circle()
-                .trim(from: 0, to: animatedProgress)
-                .stroke(color, style: StrokeStyle(lineWidth: lineWidth * 2.2, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .blur(radius: lineWidth * 0.85)
-                .opacity(0.55)
+            // Dropped entirely in paper mode. A halo is light being emitted, which is the one
+            // thing paper never does — and it's a more telling cue than any of the colours.
+            if Palette.current.usesDepth {
+                Circle()
+                    .trim(from: 0, to: animatedProgress)
+                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth * 2.2, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .blur(radius: lineWidth * 0.85)
+                    .opacity(0.55)
+            }
 
             Circle()
                 .trim(from: 0, to: animatedProgress)

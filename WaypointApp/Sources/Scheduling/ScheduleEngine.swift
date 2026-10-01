@@ -198,12 +198,32 @@ enum ScheduleEngine {
         return .hardBump(candidates: collidingTasks, blockedBy: blockedBy)
     }
 
-    /// Finds the earliest free moment on a day and how much room follows it before the next
-    /// task or sleep, so a new task's time/duration can default to something already open
-    /// instead of an arbitrary next-round-hour guess that might already be taken. `notBefore`
-    /// keeps "today" from suggesting a slot earlier than right now — pass `.distantPast` for
-    /// a future day, where the whole day is fair game from its start.
-    static func earliestOpenSlot(on day: Date, notBefore: Date = .distantPast, context: NSManagedObjectContext) -> (start: Date, availableMinutes: Int)? {
+    /// A stretch of day with nothing in it.
+    struct OpenSlot: Identifiable, Equatable {
+        var id: Date { start }
+        let start: Date
+        let availableMinutes: Int
+    }
+
+    /// Every gap in a day, in order, each with the room that follows it.
+    ///
+    /// The single-slot version this generalises could only ever answer "where would this go by
+    /// default". Offering someone a *choice* of times when their first pick collides needs the
+    /// whole list — and a choice of real times is a far better answer to a clash than asking
+    /// them to sacrifice something, because most of the time the day isn't actually full, it's
+    /// just full at two o'clock.
+    ///
+    /// - Parameters:
+    ///   - minimumMinutes: gaps shorter than this aren't offered. A slot that can't hold the
+    ///     task is not an option, and listing it only makes the sheet look full of answers.
+    ///   - notBefore: keeps today from suggesting a time that has already passed. Pass
+    ///     `.distantPast` for a future day, where the whole day is fair game.
+    static func openSlots(
+        on day: Date,
+        minimumMinutes: Int = 1,
+        notBefore: Date = .distantPast,
+        context: NSManagedObjectContext
+    ) -> [OpenSlot] {
         let request = TaskEntity.fetchRequest(on: day, context: context)
         let dayTasks = (try? context.fetch(request)) ?? []
         let sleep = sleepWalls(on: day)
@@ -212,24 +232,33 @@ enum ScheduleEngine {
         let tonightSleep = sleep.first { cal.isDate($0.start, inSameDayAs: day) }
         let morningSleepTail = sleep.first { !cal.isDate($0.start, inSameDayAs: day) }
         let dayFloor = max(morningSleepTail?.end ?? cal.startOfDay(for: day), notBefore)
-        let sleepBoundary = tonightSleep?.start ?? .distantFuture
+        let sleepBoundary = tonightSleep?.start ?? cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: day))!
 
         let occupied = dayTasks.map { ($0.resolvedStartTime, $0.endTime) }.sorted { $0.0 < $1.0 }
 
+        var slots: [OpenSlot] = []
         var cursor = dayFloor
         for (occStart, occEnd) in occupied {
+            // Overlapping tasks already in the store would otherwise walk the cursor backwards
+            // and invent a gap that isn't there.
             if occStart > cursor {
-                let availableMinutes = Int(occStart.timeIntervalSince(cursor) / 60)
-                if availableMinutes > 0 {
-                    return (cursor, availableMinutes)
-                }
+                let minutes = Int(occStart.timeIntervalSince(cursor) / 60)
+                if minutes >= minimumMinutes { slots.append(OpenSlot(start: cursor, availableMinutes: minutes)) }
             }
             cursor = max(cursor, occEnd)
         }
+        if cursor < sleepBoundary {
+            let minutes = Int(sleepBoundary.timeIntervalSince(cursor) / 60)
+            if minutes >= minimumMinutes { slots.append(OpenSlot(start: cursor, availableMinutes: minutes)) }
+        }
+        return slots
+    }
 
-        guard cursor < sleepBoundary else { return nil }
-        let availableMinutes = Int(sleepBoundary.timeIntervalSince(cursor) / 60)
-        return availableMinutes > 0 ? (cursor, availableMinutes) : nil
+    /// Finds the earliest free moment on a day and how much room follows it, so a new task's
+    /// time/duration can default to something already open instead of an arbitrary
+    /// next-round-hour guess that might already be taken.
+    static func earliestOpenSlot(on day: Date, notBefore: Date = .distantPast, context: NSManagedObjectContext) -> (start: Date, availableMinutes: Int)? {
+        openSlots(on: day, notBefore: notBefore, context: context).first.map { ($0.start, $0.availableMinutes) }
     }
 
     /// Whether a task with this exact window would collide with anything on that day —

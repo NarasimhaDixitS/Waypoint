@@ -110,6 +110,11 @@ enum ProgressAnalytics {
         let weekStart: Date
         let plannedMinutes: Int
         let completedMinutes: Int
+        /// The week currently being lived, whose completed figure is a running total rather than
+        /// a result. On a Tuesday it is two days of work against seven days of plan, so drawn
+        /// like every other week it reads as a collapse — and it reads that way six days out of
+        /// seven, which makes the newest and most-looked-at bar the least trustworthy one.
+        var isPartial: Bool = false
         var plannedHours: Double { Double(plannedMinutes) / 60 }
         var completedHours: Double { Double(completedMinutes) / 60 }
     }
@@ -133,7 +138,8 @@ enum ProgressAnalytics {
                 id: start,
                 weekStart: start,
                 plannedMinutes: inWeek.reduce(0) { $0 + Int($1.durationMinutes) },
-                completedMinutes: inWeek.filter(\.isDone).reduce(0) { $0 + Int($1.durationMinutes) }
+                completedMinutes: inWeek.filter(\.isDone).reduce(0) { $0 + Int($1.durationMinutes) },
+                isPartial: start == thisMonday
             )
         }
     }
@@ -287,6 +293,8 @@ enum ProgressAnalytics {
         let title: String
         let plannedMinutes: Int
         let actualMinutes: Int
+        /// How many separate tasks carrying this title went into the two figures above.
+        var occurrences: Int = 1
         /// >1 means it took longer than planned.
         var ratio: Double { plannedMinutes == 0 ? 0 : Double(actualMinutes) / Double(plannedMinutes) }
         var overrunMinutes: Int { actualMinutes - plannedMinutes }
@@ -317,15 +325,32 @@ enum ProgressAnalytics {
             tasks.compactMap { task -> (UUID, TaskEntity)? in task.id.map { ($0, task) } },
             uniquingKeysWith: { first, _ in first }
         )
-        return actualByTask.compactMap { id, seconds -> Estimate? in
-            let planned = plannedByTask[id].map { Int($0.durationMinutes) } ?? 0
-            guard planned > 0 else { return nil }
+        // Grouped by title, not by task. The same piece of work comes round again and again —
+        // every occurrence of a repeating task shares one title — and six rows all called "Long
+        // run" are one fact about how long a long run takes, not six. Per task they also collide
+        // on the way out: the chart puts one bar per title on its vertical axis, so same-named
+        // rows would be drawn on top of each other.
+        var grouped: [String: (planned: Int, actual: Int, count: Int)] = [:]
+        for (id, seconds) in actualByTask {
+            guard let planned = plannedByTask[id].map({ Int($0.durationMinutes) }), planned > 0 else { continue }
             let title = plannedByTask[id]?.title ?? titleByTask[id] ?? "Untitled"
-            return Estimate(
-                id: id.uuidString,
+            var row = grouped[title] ?? (planned: 0, actual: 0, count: 0)
+            row.planned += planned
+            row.actual += Int((Double(seconds) / 60).rounded())
+            row.count += 1
+            grouped[title] = row
+        }
+
+        return grouped.map { title, row in
+            // Averaged per occurrence rather than totalled, so both numbers stay in the unit the
+            // estimate was made in. "You book 45 minutes and it takes 70" is something you can
+            // act on next time; "you booked nine hours and spent fourteen" is not.
+            Estimate(
+                id: title,
                 title: title,
-                plannedMinutes: planned,
-                actualMinutes: Int((Double(seconds) / 60).rounded())
+                plannedMinutes: Int((Double(row.planned) / Double(row.count)).rounded()),
+                actualMinutes: Int((Double(row.actual) / Double(row.count)).rounded()),
+                occurrences: row.count
             )
         }
         .sorted { abs($0.overrunMinutes) > abs($1.overrunMinutes) }

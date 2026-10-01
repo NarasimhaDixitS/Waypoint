@@ -21,6 +21,21 @@ enum Priority: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    /// How far ahead a reminder fires when the user hasn't pinned a time themselves.
+    ///
+    /// Priority is a poor rule for *whether* to interrupt someone — a low-priority dentist
+    /// appointment needs a nudge and a high-priority hour at your own desk doesn't — but it is a
+    /// decent proxy for *how much warning* is useful, because the work people mark important is
+    /// usually the work that takes getting to. It only ever supplies a default; the task's own
+    /// `reminderLeadMinutes` overrides it the moment anyone touches the control.
+    var defaultReminderLeadMinutes: Int {
+        switch self {
+        case .high: 15
+        case .medium: 10
+        case .low: 5
+        }
+    }
+
     /// References `ColorTokens` rather than hardcoding hex values, so a future palette change
     /// (like the warning/priorityMedium shift made to avoid colliding with accent swatches)
     /// only has to happen in one place.

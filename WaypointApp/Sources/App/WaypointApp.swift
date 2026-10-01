@@ -10,6 +10,29 @@ struct WaypointApp: App {
     @State private var showingRecoveryNotice = false
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Reloads the demo fixture on launch: `-wpReseed`.
+    ///
+    /// Debug only, and a development affordance in the same family as `-wpTab`. The fixture is
+    /// otherwise reachable only through a button in Settings, so every change to it had to be
+    /// checked by asking whoever has the simulator to go and tap that — which is exactly the gap
+    /// that led to shipping cards nobody had seen drawn.
+    ///
+    /// In `init`, deliberately, rather than on the first `.active` scene phase. A screen's
+    /// `@FetchRequest` predicates are set from its `.onAppear`, which lands *before* that phase
+    /// change: the Progress tab narrowed itself to four weeks and then had the whole store
+    /// replaced underneath it, so it drew all-time figures under a "4 weeks" label. A flag whose
+    /// whole purpose is looking at the numbers has to not change the numbers.
+    private func reseedIfRequested() {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("-wpReseed") else { return }
+        SampleData.loadDemo(into: persistence.container.viewContext)
+        #endif
+    }
+
+    init() {
+        reseedIfRequested()
+    }
+
     private var recoveryMessage: String {
         switch persistence.recovery {
         case .setAside:
@@ -54,7 +77,22 @@ struct WaypointApp: App {
                     }
             }
             .tint(theme.accentSwatch.color)
-            .preferredColorScheme(theme.appearanceMode.colorScheme)
+            // Rebuilds the whole tree when the palette changes. `ColorTokens` is read as a
+            // static from twenty-nine files, and a view that reads a token without observing
+            // `ThemeManager` has nothing to tell it the answer just changed — it would keep its
+            // old colours until something unrelated made it redraw. Auditing all twenty-nine
+            // for that is a worse bet than one forced rebuild on a setting nobody flips twice
+            // a minute.
+            //
+            // **Before `preferredColorScheme`, not after.** `.id` re-creates the identity of
+            // everything above it, and a colour scheme preference declared inside that gets
+            // re-created along with it rather than reaching the window — so the app ignored
+            // light/dark entirely and sat in whatever the system said. Ordering, not logic.
+            .id(theme.palette)
+            // Paper pins the scheme. It draws one way whatever light/dark says, and the status
+            // bar and keyboard are the two surfaces the palette can't paint itself — left to
+            // the system they'd come back dark over an off-white page.
+            .preferredColorScheme(theme.palette.forcedColorScheme ?? theme.appearanceMode.colorScheme)
             // The store failing to load used to kill the app on its launch screen. It now opens
             // regardless, so the one thing left to get right is telling the user the truth: their
             // data still exists, this build just couldn't read it.
@@ -77,6 +115,12 @@ struct WaypointApp: App {
                     // finished by a deletion, a milestone that turned over at midnight. Both
                     // happen with nobody present, so neither can hang off a tap.
                     HistoryReconciler.run(in: context)
+                    // Reminders were rebuilt only from Today's and a goal's `onAppear`, and
+                    // nothing wakes the app in the background to do it — so a day nobody opened
+                    // one of those two screens was a day with no reminders at all. Hanging it on
+                    // the scene phase makes every launch and every return from background
+                    // rebuild the window, whichever screen you land on.
+                    NotificationManager.refreshTaskReminders(in: context, enabled: theme.notificationsEnabled)
                 } else {
                     AppSessionLog.end(in: context)
                     WidgetCenter.shared.reloadAllTimelines()

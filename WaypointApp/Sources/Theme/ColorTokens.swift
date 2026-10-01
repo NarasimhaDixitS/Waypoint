@@ -43,16 +43,40 @@ enum ColorTokens {
 
     // MARK: - Palette
 
-    static let surface0 = dynamic(light: hex(0xF5F5F3), dark: hex(0x1C1C1A))
-    static let surface1 = dynamic(light: hex(0xFFFFFF), dark: hex(0x242422))
-    static let textPrimary = dynamic(light: hex(0x2C2C2A), dark: hex(0xF1EFE8))
-    static let textSecondary = dynamic(light: hex(0x53524E), dark: hex(0xB4B2A9))
+    /// Every token carries both palettes, on one line, so the pair can be read together.
+    ///
+    /// Computed rather than stored: `Palette.current` changes while the app is running, and a
+    /// `static let` would freeze whichever palette happened to be active at first access. The
+    /// cost is a switch per read, which is nothing next to drawing the view that asked.
+    ///
+    /// Ratios below are measured, not estimated — paper card is `0xF6F1E6`, paper page is
+    /// `0xEDE6D8`, paper night card is `0x201C16`.
+    private static func token(
+        standard: (light: UInt32, dark: UInt32),
+        paper: (light: UInt32, dark: UInt32)
+    ) -> Color {
+        let pair = Palette.current == .paper ? paper : standard
+        return dynamic(light: hex(pair.light), dark: hex(pair.dark))
+    }
+
+    /// Paper grounds are warm and never pure: no `0xFFFFFF` to glare, no `0x000000` to halo.
+    static var surface0: Color { token(standard: (0xF5F5F3, 0x1C1C1A), paper: (0xEFEDE6, 0xEFEDE6)) }
+    static var surface1: Color { token(standard: (0xFFFFFF, 0x242422), paper: (0xF9F7F2, 0xF9F7F2)) }
+    /// Paper: 10.97:1 on card, 9.95:1 on page — against standard light's 13.99:1. Softer by
+    /// about a quarter, and still miles clear of 4.5:1.
+    static var textPrimary: Color { token(standard: (0x2C2C2A, 0xF1EFE8), paper: (0x1A1A17, 0x1A1A17)) }
+    /// Paper: 6.46:1 on card, 7.43:1 on night card.
+    static var textSecondary: Color { token(standard: (0x53524E, 0xB4B2A9), paper: (0x46453F, 0x46453F)) }
     /// Was a single flat `0x888780` shared by both schemes, which measured **3.61:1** on a white
     /// card and **4.31:1** on a dark one — under the 4.5:1 normal text needs, in both. It carries
     /// start times, day summaries and secondary counts, so a good deal of the app's small text
     /// was failing. Now scheme-aware and pulled to 5.11:1 light / 5.43:1 dark, which also puts
     /// real daylight between it and `textSecondary` instead of the two nearly touching.
-    static let textMuted = dynamic(light: hex(0x6F6E69), dark: hex(0x9A998F))
+    ///
+    /// Paper: 5.20:1 on card and 4.72:1 on the page — the tightest value in the whole paper set,
+    /// and the one that decided how far the ground could be warmed. It was the floor in standard
+    /// mode too, for the same reason: it carries the small text, so it sets the limit.
+    static var textMuted: Color { token(standard: (0x6F6E69, 0x9A998F), paper: (0x6B6A62, 0x6B6A62)) }
 
     /// Ink for a surface that is white in **both** schemes — a selected pill on an accent
     /// banner, a filled chip. `textPrimary` cannot be used there: it inverts with the scheme, so
@@ -60,7 +84,7 @@ enum ColorTokens {
     /// underneath it. Fixed dark charcoal, 13.99:1 on white, and deliberately scheme-blind
     /// because the thing it sits on is too.
     static let inkOnLight = Color(hex(0x2C2C2A))
-    static let border = dynamic(light: hex(0xE5E3DB), dark: hex(0x3A3A37))
+    static var border: Color { token(standard: (0xE5E3DB, 0x3A3A37), paper: (0xCCC9BE, 0xCCC9BE)) }
 
     /// Green is a *moment*, not a label. It was once the full dress for every completed task
     /// — tinted row, green ink, solid green disc — which put the loudest treatment in the app
@@ -69,32 +93,54 @@ enum ColorTokens {
     /// and green survives only where it marks an event or a fact rather than a state: the
     /// day-complete celebration, and static "included"/"on" markers. Its companion `textSuccess`
     /// and `successTint` shades were retired with the tinted done-row they existed for.
-    static let success = Color(hex(0x5B8A63))
+    static var success: Color { token(standard: (0x5B8A63, 0x5B8A63), paper: (0x1A1A17, 0x1A1A17)) }
 
     /// "In progress" role token — fixed semantic color, independent of the user's accent swatch.
-    static let inProgress = dynamic(light: hex(0x378ADD), dark: hex(0x85B7EB))
-    static let textInProgress = dynamic(light: hex(0x185FA5), dark: hex(0xB5D4F4))
-    static let inProgressTint = dynamic(
-        light: mix(hex(0x378ADD), over: hex(0xFFFFFF), amount: 0.24),
-        dark: mix(hex(0x85B7EB), over: hex(0x242422), amount: 0.24)
-    )
+    static var inProgress: Color { token(standard: (0x378ADD, 0x85B7EB), paper: (0x1A1A17, 0x1A1A17)) }
+    /// Paper: 5.99:1 on card, 7.66:1 on night card.
+    static var textInProgress: Color { token(standard: (0x185FA5, 0xB5D4F4), paper: (0x1A1A17, 0x1A1A17)) }
+    static var inProgressTint: Color {
+        Palette.current == .paper
+            ? Color(mix(hex(0x1A1A17), over: hex(0xF9F7F2), amount: 0.08))
+            : dynamic(
+                light: mix(hex(0x378ADD), over: hex(0xFFFFFF), amount: 0.24),
+                dark: mix(hex(0x85B7EB), over: hex(0x242422), amount: 0.24)
+            )
+    }
 
     /// "Needs attention" role token — schedule conflicts, warnings. Deliberately shifted
     /// red-ward (was #D85A30) so it's no longer the exact same hex as the Orange accent swatch
     /// — once the accent shows up on the tab bar and search icon too, an Orange-accented user
     /// would otherwise see their own UI chrome and an overdue task badge in literally identical
     /// color, purely by coincidence.
-    static let warning = Color(hex(0xD83E30))
-    static let textWarning = dynamic(light: hex(0xB02A1E), dark: hex(0xF09383))
-    static let warningTint = dynamic(
-        light: mix(hex(0xD83E30), over: hex(0xFFFFFF), amount: 0.24),
-        dark: mix(hex(0xD83E30), over: hex(0x242422), amount: 0.24)
-    )
+    ///
+    /// Paper has no red. A warning there is carried by *tone* instead.
+    ///
+    /// This was the ink itself at first, which flattened eight different "this one is the odd
+    /// one out" distinctions across the charts into nothing — the weakest weekday, the longest
+    /// slips, the overrunning estimates all became the same black as everything beside them.
+    /// Monochrome means one hue, not one value; a second tone is still monochrome and is how a
+    /// printed chart has always picked a bar out.
+    ///
+    /// 6.95:1 on the paper card, so it works as a graphic *and* as text.
+    static var warning: Color { token(standard: (0xD83E30, 0xD83E30), paper: (0x5A5952, 0x5A5952)) }
+    /// Full ink in paper, unlike `warning` above — this one is *text*, and an overdue task
+    /// reading fainter than an ordinary one would say the opposite of what it means. Weight
+    /// carries it: the strongest value on the page, where the row around it is muted.
+    static var textWarning: Color { token(standard: (0xB02A1E, 0xF09383), paper: (0x1A1A17, 0x1A1A17)) }
+    static var warningTint: Color {
+        Palette.current == .paper
+            ? Color(mix(hex(0x1A1A17), over: hex(0xF9F7F2), amount: 0.10))
+            : dynamic(
+                light: mix(hex(0xD83E30), over: hex(0xFFFFFF), amount: 0.24),
+                dark: mix(hex(0xD83E30), over: hex(0x242422), amount: 0.24)
+            )
+    }
 
     /// "Medium priority" role token — same reasoning as `warning` above: was a duplicate of the
     /// Pink accent swatch's exact hex (#D4537E), shifted toward magenta so it's a distinct rose
     /// rather than an accidental match to an accent option.
-    static let priorityMedium = Color(hex(0xD4539E))
+    static var priorityMedium: Color { token(standard: (0xD4539E, 0xD4539E), paper: (0x6B6A62, 0x6B6A62)) }
 
     // The "scheduled for later" purple was retired along with the green done-row: an upcoming
     // task is depicted by receding (muted ink, dashed marker) rather than by a third hue
@@ -112,12 +158,27 @@ enum ColorTokens {
     /// below for the other half of the fix (surfaces get lighter, not just shadowed, as they
     /// rise in dark mode).
     private static let shadowTint = hex(0x5C6369)
-    static let shadowResting = dynamic(light: shadowTint.withAlphaComponent(0.10), dark: hex(0x000000, alpha: 0.55))
-    static let shadowRaised = dynamic(light: shadowTint.withAlphaComponent(0.13), dark: hex(0x000000, alpha: 0.65))
-    static let shadowFloating = dynamic(light: shadowTint.withAlphaComponent(0.16), dark: hex(0x000000, alpha: 0.75))
+
+    /// Paper has no shadows at all — all eighteen call sites in the app resolve through these
+    /// three tokens, so clearing them here is the whole of it. Paper is matte, and a drop shadow
+    /// is the single loudest "this is a lit screen" cue in the interface. Cards still read as
+    /// separate because they keep their own fill against a slightly darker ground.
+    private static func shadow(_ standard: Color) -> Color {
+        Palette.current == .paper ? .clear : standard
+    }
+
+    static var shadowResting: Color {
+        shadow(dynamic(light: shadowTint.withAlphaComponent(0.10), dark: hex(0x000000, alpha: 0.55)))
+    }
+    static var shadowRaised: Color {
+        shadow(dynamic(light: shadowTint.withAlphaComponent(0.13), dark: hex(0x000000, alpha: 0.65)))
+    }
+    static var shadowFloating: Color {
+        shadow(dynamic(light: shadowTint.withAlphaComponent(0.16), dark: hex(0x000000, alpha: 0.75)))
+    }
 
     /// Kept for any call site still referencing the old single-tier name directly.
-    static let cardShadow = shadowResting
+    static var cardShadow: Color { shadowResting }
 
     /// The other half of making elevation actually read in dark mode: blend a touch of white
     /// into a fill color as it rises, the same "surfaces get lighter at higher elevation"

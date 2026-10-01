@@ -30,6 +30,17 @@ enum CompletionMode: String, CaseIterable, Hashable {
 final class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
 
+    /// Mirrored into `Palette.current` on every change, because `ColorTokens` reads it from
+    /// there — and into the app group, because the widget can't see this process's defaults.
+    @Published var palette: Palette = Palette.current {
+        didSet {
+            Palette.current = palette
+            UserDefaults.standard.set(palette.rawValue, forKey: Palette.storageKey)
+            Palette.sharedDefaults?.set(palette.rawValue, forKey: Palette.storageKey)
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+    }
+
     @Published var appearanceMode: AppearanceMode {
         didSet { UserDefaults.standard.set(appearanceMode.rawValue, forKey: Keys.appearance) }
     }

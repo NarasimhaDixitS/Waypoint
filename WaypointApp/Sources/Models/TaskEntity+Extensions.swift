@@ -95,7 +95,9 @@ extension TaskEntity {
         priority: Priority,
         goal: GoalEntity? = nil,
         notes: String? = nil,
-        seriesID: UUID? = nil
+        seriesID: UUID? = nil,
+        reminderEnabled: Bool = false,
+        reminderLeadMinutes: Int32 = TaskEntity.reminderLeadFollowsPriority
     ) -> TaskEntity {
         let task = TaskEntity(context: context)
         task.id = UUID()
@@ -109,6 +111,8 @@ extension TaskEntity {
         task.goal = goal
         task.notes = notes
         task.seriesID = seriesID
+        task.reminderEnabled = reminderEnabled
+        task.reminderLeadMinutes = reminderLeadMinutes
         return task
     }
 
@@ -143,6 +147,32 @@ extension TaskEntity {
     /// Completions whose timestamp is a real observation of when work stopped.
     var hasObservedCompletionTime: Bool { isDone && !autoCompleted && completedAt != nil }
 
+    // MARK: - Reminders
+
+    /// `reminderLeadMinutes` stores a sentinel rather than a number when nobody has chosen one.
+    ///
+    /// `-1` means "whatever my priority says", and any value from zero up is a figure the user
+    /// pinned themselves. The distinction has to be stored, because zero is a legitimate choice
+    /// — "tell me as it starts" — so it can't double as the unset value. Keeping the sentinel
+    /// also means re-marking a task from low to high moves its reminder with it, which is what
+    /// someone changing a priority expects, while still never overriding a time they set.
+    static let reminderLeadFollowsPriority: Int32 = -1
+
+    var resolvedReminderLeadMinutes: Int {
+        reminderLeadMinutes < 0 ? priorityValue.defaultReminderLeadMinutes : Int(reminderLeadMinutes)
+    }
+
+    /// When this task's reminder should fire, or `nil` if it shouldn't.
+    ///
+    /// Done work is excluded here rather than at the call site: a task finished early still has
+    /// a start time in the future, and a notification congratulating you on work you've already
+    /// done is the fastest way to teach someone to ignore the next one.
+    func reminderFireDate(now: Date = .now) -> Date? {
+        guard reminderEnabled, !isDone else { return nil }
+        let fire = resolvedStartTime.addingTimeInterval(-Double(resolvedReminderLeadMinutes) * 60)
+        return fire > now ? fire : nil
+    }
+
     /// The single place an existing task takes on an edit. Lived as a verbatim copy in both
     /// `TodayView` and `GoalDetailView` before this; it's in the model now because deferral
     /// logging has to sit on the mutation, not on any one screen's button — a third caller
@@ -161,6 +191,9 @@ extension TaskEntity {
         priorityValue = draft.priority
         goal = draft.goal
         notes = draft.notes
+        reminderEnabled = draft.reminderEnabled
+        reminderLeadMinutes = Int32(draft.reminderLeadMinutes)
+        if draft.reminderAppliesToSeries { applyReminderToFutureSeries() }
 
         // All five sit on the mutation rather than on any button, so a route added later is
         // instrumented by construction instead of by somebody remembering.
@@ -168,5 +201,24 @@ extension TaskEntity {
         TaskEventLog.recordPullForwardIfNeeded(task: self, from: previousDate, to: draft.date, in: context, now: now)
         TaskEventLog.recordDurationChangeIfNeeded(task: self, from: previousMinutes, to: draft.durationMinutes, in: context, now: now)
         TaskEventLog.recordPriorityChangeIfNeeded(task: self, from: previousPriority, to: draft.priority, in: context, now: now)
+    }
+
+    /// Copies this task's reminder setting onto the rest of its series, from this occurrence
+    /// forward.
+    ///
+    /// Forward only, matching what deleting a series member already does. Past occurrences are
+    /// history: changing whether something *would have* reminded you is meaningless, and the
+    /// rows are what the Progress tab reads, so rewriting them edits the record rather than the
+    /// plan.
+    private func applyReminderToFutureSeries() {
+        guard let seriesID, let context = managedObjectContext else { return }
+        let request = NSFetchRequest<TaskEntity>(entityName: "TaskEntity")
+        request.predicate = NSPredicate(
+            format: "seriesID == %@ AND date >= %@", seriesID as CVarArg, resolvedDate as NSDate
+        )
+        for sibling in (try? context.fetch(request)) ?? [] where sibling != self {
+            sibling.reminderEnabled = reminderEnabled
+            sibling.reminderLeadMinutes = reminderLeadMinutes
+        }
     }
 }

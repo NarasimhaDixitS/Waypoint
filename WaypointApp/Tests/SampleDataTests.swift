@@ -27,6 +27,14 @@ final class SampleDataTests: XCTestCase {
         (try? context.fetch(TaskEventEntity.fetchRequest())) ?? []
     }
 
+    private var sessions: [FocusSessionEntity] {
+        (try? context.fetch(FocusSessionEntity.fetchRequest())) ?? []
+    }
+
+    private var estimates: [ProgressAnalytics.Estimate] {
+        ProgressAnalytics.estimateAccuracy(sessions: sessions, tasks: tasks, limit: .max)
+    }
+
     func testProducesASubstantialAmountOfWork() {
         XCTAssertGreaterThan(tasks.count, 100)
     }
@@ -99,7 +107,10 @@ final class SampleDataTests: XCTestCase {
         let kinds = Set(events.compactMap(\.kindValue))
         XCTAssertEqual(
             kinds,
-            [.deferred, .abandoned, .goalAbandoned, .goalCompleted, .rescheduledEarlier, .durationChanged]
+            [
+                .deferred, .abandoned, .goalAbandoned, .goalCompleted,
+                .rescheduledEarlier, .durationChanged, .priorityChanged, .completionUndone
+            ]
         )
         XCTAssertTrue(
             events.contains { $0.kindValue == .durationChanged && $0.toValue > $0.fromValue },
@@ -142,6 +153,97 @@ final class SampleDataTests: XCTestCase {
             tasks.allSatisfy { ($0.createdAt ?? .distantPast) <= .now },
             "nothing can claim to have been created in the future"
         )
+    }
+
+    // MARK: - Measured work
+
+    /// The estimate card is the one analysis that can't be computed from tasks alone: a booked
+    /// duration is a guess and a tick doesn't check it. With no sessions it drew its empty state
+    /// however much history sat behind it, which is what this fixture existed to prevent.
+    func testTimedWorkIsSeededSoTheEstimateCardHasSomethingToDraw() {
+        XCTAssertGreaterThan(sessions.count, 20, "a handful of sessions makes for a chart of noise")
+        XCTAssertTrue(
+            sessions.allSatisfy { $0.taskID != nil && $0.plannedSeconds > 0 },
+            "a session with no task or no booking can't be scored against an estimate"
+        )
+        XCTAssertFalse(estimates.isEmpty)
+    }
+
+    /// Both directions, because the card colours overruns differently from under-runs and a
+    /// fixture that only ever ran long would leave half of its own legend unexplained.
+    func testMeasuredWorkRunsBothLongAndShortOfItsEstimate() {
+        XCTAssertTrue(estimates.contains { $0.ratio > 1.2 }, "nothing overran badly enough to notice")
+        XCTAssertTrue(estimates.contains { $0.ratio < 0.85 }, "nothing came in under its booking")
+    }
+
+    /// One bar per title on the vertical axis, so two rows sharing a title are drawn on top of
+    /// each other. Repeated titles are the norm — every occurrence of a repeating task shares
+    /// one — so this is the fixture proving the grouping, not a quirk of the fixture.
+    func testNoTwoEstimateRowsShareATitle() {
+        let titles = estimates.map(\.title)
+        XCTAssertEqual(Set(titles).count, titles.count)
+        XCTAssertTrue(estimates.contains { $0.occurrences > 1 }, "nothing was measured more than once")
+    }
+
+    /// Sessions point at task ids. Leaving them behind on a reload would orphan every one of
+    /// them, which reads on screen as the empty estimate card again.
+    func testReloadingReplacesTimedWorkRatherThanOrphaningIt() {
+        let before = sessions.count
+        SampleData.loadDemo(into: context)
+        XCTAssertEqual(sessions.count, before)
+        XCTAssertFalse(estimates.isEmpty, "every session now points at a task that no longer exists")
+    }
+
+    // MARK: - Friction
+
+    /// The habit card names the series slipping most, which needs more than one series and needs
+    /// them kept at different rates.
+    func testTwoHabitsAreSeededAndOneIsKeptWorseThanTheOther() {
+        let habits = ProgressAnalytics.seriesAdherence(tasks)
+        XCTAssertGreaterThanOrEqual(habits.count, 2)
+        XCTAssertGreaterThan(
+            Set(habits.map { Int($0.fraction * 100) }).count, 1,
+            "identical adherence gives the card no habit to single out"
+        )
+        XCTAssertTrue(habits.contains { $0.fraction < 1 }, "a habit kept perfectly has nothing to show")
+    }
+
+    /// Something pushed off again and again and then actually done — the leaderboard's top row,
+    /// and a shape random scatter won't produce: sixteen deferrals over four titles lands at
+    /// three or four apiece.
+    func testSomethingIsPutOffRepeatedlyAndThenFinished() {
+        guard let worst = ProgressAnalytics.deferralLeaderboard(events).first else {
+            return XCTFail("nothing was deferred")
+        }
+        XCTAssertGreaterThanOrEqual(worst.times, 5)
+        XCTAssertTrue(
+            tasks.contains { $0.title == worst.title && $0.isDone },
+            "\(worst.title) was pushed \(worst.times) times and never done, so the story has no ending"
+        )
+    }
+
+    /// Goals finished against goals given up on. The app recorded only the second of those for a
+    /// long time, which made the pair read as a scoreboard of failure.
+    func testGoalOutcomesAreSeededInBothDirections() {
+        let outcomes = ProgressAnalytics.goalOutcomes(events)
+        XCTAssertGreaterThan(outcomes.finished, 0)
+        XCTAssertGreaterThan(outcomes.abandoned, 0)
+
+        // And both inside the window the page opens on. Seeded further back, the tiles draw a
+        // count beside a zero on first look, whatever the whole log says.
+        let fourWeeksAgo = Calendar.current.date(byAdding: .day, value: -28, to: .now)!
+        let recent = ProgressAnalytics.goalOutcomes(events.filter { ($0.occurredAt ?? .distantPast) >= fourWeeksAgo })
+        XCTAssertGreaterThan(recent.finished, 0)
+        XCTAssertGreaterThan(recent.abandoned, 0)
+    }
+
+    /// A completed goal still sitting in the carousel, part-done and with its target date ahead
+    /// of it, means the log and the screen contradict each other.
+    func testNoFinishedGoalInTheLogIsStillLiveAndUnfinished() {
+        let live = Set(goals.filter { $0.completionFraction < 1 }.compactMap(\.name))
+        for event in events where event.kindValue == .goalCompleted {
+            XCTAssertFalse(live.contains(event.title ?? ""), "\(event.title ?? "") is both finished and in progress")
+        }
     }
 
     /// A configured Work/Gym schedule is the user's own setup, not demo content.

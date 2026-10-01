@@ -60,7 +60,10 @@ struct TaskProgressWave: View {
         fillPath.addLine(to: CGPoint(x: 0, y: size.height))
         fillPath.addLine(to: CGPoint(x: 0, y: 0))
         fillPath.closeSubpath()
-        ctx.fill(fillPath, with: .color(line.opacity(0.22)))
+        // Lighter in paper. 22% of a mid-tone ink reads as a wash; 22% of near-black reads as a
+        // slab of toner across half the row, and the elapsed portion is meant to be something
+        // you read *through*, not a block that hides the task underneath it.
+        ctx.fill(fillPath, with: .color(line.opacity(Palette.current == .paper ? 0.09 : 0.22)))
 
         var edgePath = Path()
         edgePath.addLines(points)
@@ -75,6 +78,7 @@ struct TaskProgressWave: View {
         // layer is the only thing that gives a continuous falloff. It's dark ink over a light
         // card in light mode, so there it lands as a soft depth cue rather than a true glow;
         // in dark mode, where `line` is a warm off-white, it genuinely emits.
+        if Palette.current.usesDepth {
         ctx.drawLayer { layer in
             layer.addFilter(.blur(radius: 3.5))
             layer.stroke(
@@ -82,6 +86,7 @@ struct TaskProgressWave: View {
                 with: .color(line.opacity(0.45)),
                 style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
             )
+        }
         }
 
         ctx.stroke(edgePath, with: .color(line), style: StrokeStyle(lineWidth: 2, lineJoin: .round))

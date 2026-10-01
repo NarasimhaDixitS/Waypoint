@@ -33,6 +33,7 @@ struct NewTaskView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject private var theme: ThemeManager
+    @EnvironmentObject private var subscription: SubscriptionManager
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \GoalEntity.createdAt, ascending: false)])
     private var allGoals: FetchedResults<GoalEntity>
@@ -55,7 +56,12 @@ struct NewTaskView: View {
     @State private var priority: Priority
     @State private var selectedGoal: GoalEntity?
     @State private var notes: String
+    @State private var reminderEnabled: Bool
+    /// `-1` means "follow my priority" — the sentinel is never shown, only its effect.
+    @State private var reminderLeadMinutes: Int
+    @State private var reminderAppliesToSeries = false
     @State private var showingGoalCreate = false
+    @State private var showingGoalPaywall = false
     @State private var showingGoalPicker = false
     /// Edit mode only — the notepad layout shows the date as a plain tappable text piece
     /// alongside time/duration rather than a boxed `DatePicker`.
@@ -117,7 +123,34 @@ struct NewTaskView: View {
         _priority = State(initialValue: existingTask?.priorityValue ?? .medium)
         _selectedGoal = State(initialValue: existingTask?.goal ?? goal)
         _notes = State(initialValue: existingTask?.notes ?? "")
+        _reminderEnabled = State(initialValue: existingTask?.reminderEnabled ?? false)
+        _reminderLeadMinutes = State(
+            initialValue: Int(existingTask?.reminderLeadMinutes ?? TaskEntity.reminderLeadFollowsPriority)
+        )
     }
+
+    /// Offered leads. `0` is a real choice — "tell me as it starts" — which is why the unset
+    /// state is a negative sentinel rather than zero.
+    private static let leadChoices = [0, 5, 10, 15, 30, 60]
+
+    /// Short enough for a chip. The full phrasing lives in the line underneath the row, so the
+    /// chip doesn't have to carry "before" seven times over.
+    static func chipLabel(_ minutes: Int) -> String {
+        switch minutes {
+        case 0: "At start"
+        case 60: "1h"
+        default: "\(minutes)m"
+        }
+    }
+
+    /// What the reminder will actually do, which is the priority's default until someone pins a
+    /// time. Reading through the sentinel here rather than resolving it at save time is what
+    /// lets re-marking a task high move its reminder with it.
+    private var effectiveLead: Int {
+        reminderLeadMinutes < 0 ? priority.defaultReminderLeadMinutes : reminderLeadMinutes
+    }
+
+    private var isSeriesMember: Bool { existingTask?.seriesID != nil }
 
     /// Display order for the priority segmented control — deliberately low → medium → high,
     /// distinct from `Priority`'s own declaration order (high, medium, low), which is sorted
@@ -347,6 +380,102 @@ struct NewTaskView: View {
         .sensoryFeedback(.selection, trigger: priority)
     }
 
+    /// Off by default, and the only way a task ever gets a reminder.
+    ///
+    /// Deliberately not driven by priority. Priority says how much something matters; a reminder
+    /// answers whether you'll be somewhere else when it starts, and those come apart constantly
+    /// — a low-priority dentist appointment is un-missable, a high-priority hour at your own
+    /// desk needs no warning. Arming every important task automatically also puts the volume
+    /// straight back, and a notification you've learned to dismiss unread protects nothing.
+    ///
+    /// One row of chips rather than a switch above a menu. The switch version cost two taps to
+    /// do the only thing anyone wants — turn it on, pick a time — and spent three full-width
+    /// wells doing it, on a sheet that already had six of them stacked identically. Picking a
+    /// lead *is* arming it here, "Off" is simply the first chip, and the whole state is readable
+    /// without opening anything.
+    @ViewBuilder
+    private var reminderSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Reminder")
+                .wpTypography(.micro)
+                .foregroundStyle(ColorTokens.textSecondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    leadChip("Off", selected: !reminderEnabled) {
+                        reminderEnabled = false
+                    }
+                    ForEach(Self.leadChoices, id: \.self) { minutes in
+                        leadChip(
+                            Self.chipLabel(minutes),
+                            selected: reminderEnabled && effectiveLead == minutes
+                        ) {
+                            reminderEnabled = true
+                            reminderLeadMinutes = minutes
+                        }
+                    }
+                }
+                .padding(4)
+            }
+            .background(ColorTokens.surface0)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            if reminderEnabled {
+                Text(NotificationManager.leadDescription(minutes: effectiveLead))
+                    .wpTypography(.micro)
+                    .foregroundStyle(ColorTokens.textSecondary)
+
+                if isSeriesMember {
+                    // The same question deleting a series member already asks, in the same
+                    // words. Shown inline rather than as a confirmation sheet so the choice is
+                    // visible while it's being made instead of ambushing the save button.
+                    HStack(spacing: 4) {
+                        scopePill("Just this one", selected: !reminderAppliesToSeries) {
+                            reminderAppliesToSeries = false
+                        }
+                        scopePill("This and future", selected: reminderAppliesToSeries) {
+                            reminderAppliesToSeries = true
+                        }
+                    }
+                    .padding(4)
+                    .background(ColorTokens.surface0)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: reminderEnabled)
+    }
+
+    private func leadChip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Text(label)
+            .wpTypography(.body)
+            .foregroundStyle(selected ? ColorTokens.textPrimary : ColorTokens.textSecondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .background(
+                Capsule()
+                    .fill(selected ? ColorTokens.surface1 : Color.clear)
+                    .shadow(color: selected ? ColorTokens.shadowResting : .clear, radius: 4, x: 0, y: 2)
+            )
+            .contentShape(Capsule())
+            .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { action() } }
+    }
+
+    private func scopePill(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Text(label)
+            .wpTypography(.body)
+            .foregroundStyle(selected ? ColorTokens.textPrimary : ColorTokens.textSecondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(selected ? ColorTokens.surface1 : Color.clear)
+                    .shadow(color: selected ? ColorTokens.shadowResting : .clear, radius: 4, x: 0, y: 2)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { action() } }
+    }
+
     /// Split out of `body` — folding this back inline pushes the surrounding `ScrollView`'s
     /// single expression past what the type-checker can solve in reasonable time.
     @ViewBuilder
@@ -459,43 +588,22 @@ struct NewTaskView: View {
     /// Centered title with a plain "•••" overflow glyph (edit mode only, mirrors `header`'s
     /// close glyph on the other side) and a plain "X" to dismiss — replaces the system nav
     /// bar entirely, since this view is no longer a `NavigationStack`.
+    /// Title and close, nothing else.
+    ///
+    /// This used to carry a `⋯` in the top-*left* holding Duplicate, Repeat and Delete. Three
+    /// things were wrong with that and they're worth separating. An unlabelled glyph can't
+    /// advertise what's behind it, and delete isn't an extra on an edit screen, it's a primary
+    /// verb — people used this app without discovering it. The top-left corner is also the
+    /// hardest reach on a large phone and the place iOS puts *Back*, so the position suggested
+    /// the wrong thing. And it put a destructive action in the same short list as two
+    /// constructive ones, a slip apart. The actions now live at the end of the form, which is
+    /// where Calendar, Contacts and Reminders all put them, and where the thumb already is.
     private var header: some View {
         ZStack {
             Text(existingTask == nil ? "New Task" : "Edit Task")
                 .wpTypography(.cardTitle)
                 .foregroundStyle(ColorTokens.textPrimary)
             HStack {
-                if existingTask != nil {
-                    Menu {
-                        if let onDuplicate, let existingTask {
-                            Button {
-                                // Not dismissing here on purpose: duplicating might need to
-                                // hand off to a bump sheet if tomorrow collides, and the
-                                // parent owns that decision — see `saveTask`.
-                                onDuplicate(TaskReplicator.draftForTomorrow(existingTask))
-                            } label: {
-                                Label("Duplicate to tomorrow", systemImage: "plus.square.on.square")
-                            }
-                        }
-                        Button {
-                            showingRepeatSheet = true
-                        } label: {
-                            Label("Repeat on other days", systemImage: "repeat")
-                        }
-                        if onDelete != nil {
-                            Button(role: .destructive) {
-                                showingDeleteConfirm = true
-                            } label: {
-                                Label("Delete task", systemImage: "trash")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(ColorTokens.textSecondary)
-                            .frame(width: 32, height: 32)
-                    }
-                }
                 Spacer()
                 Button {
                     dismiss()
@@ -511,6 +619,56 @@ struct NewTaskView: View {
         .padding(.horizontal, 20)
         .padding(.top, 18)
         .padding(.bottom, 6)
+    }
+
+    /// Duplicate and Repeat, then Delete well clear of them.
+    ///
+    /// The gap between the two groups is load-bearing rather than decorative: the whole reason
+    /// the old menu was wrong is that it sat an irreversible action one row from two safe ones.
+    @ViewBuilder
+    private var actionSection: some View {
+        VStack(spacing: 18) {
+            HStack(spacing: 10) {
+                if let onDuplicate, let existingTask {
+                    secondaryAction("Duplicate", icon: "plus.square.on.square") {
+                        // Not dismissing here on purpose: duplicating might need to hand off to
+                        // a bump sheet if tomorrow collides, and the parent owns that decision.
+                        onDuplicate(TaskReplicator.draftForTomorrow(existingTask))
+                    }
+                }
+                secondaryAction("Repeat", icon: "repeat") { showingRepeatSheet = true }
+            }
+
+            if onDelete != nil {
+                Button { showingDeleteConfirm = true } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "trash")
+                        Text("Delete task").wpTypography(.cardTitle)
+                    }
+                    .foregroundStyle(ColorTokens.warning)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(ColorTokens.warning.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func secondaryAction(_ label: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                Text(label).wpTypography(.body)
+            }
+            .foregroundStyle(ColorTokens.textPrimary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(ColorTokens.surface0)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     /// Two pill buttons replacing the old top-corner Cancel/Save — matches the reference's
@@ -571,7 +729,10 @@ struct NewTaskView: View {
             notes: notes.isEmpty ? nil : notes,
             goal: selectedGoal,
             repeatWeekdays: repeatDays,
-            repeatWeeks: repeatWeeks
+            repeatWeeks: repeatWeeks,
+            reminderEnabled: reminderEnabled,
+            reminderLeadMinutes: reminderLeadMinutes,
+            reminderAppliesToSeries: reminderAppliesToSeries
         )
         // No dismiss() here — onSave may need to hand off to a follow-up sheet (ad-hoc bump
         // / cascade confirm) instead of just closing, and only the parent knows which. It's
@@ -595,9 +756,14 @@ struct NewTaskView: View {
 
                     timeDurationRow
                     priorityRow
+                    reminderSection
 
                     if existingTask == nil {
                         repeatSection
+                    } else {
+                        actionSection
+                            .padding(.top, 8)
+                            .padding(.bottom, 8)
                     }
                 }
                 .padding(20)
@@ -633,6 +799,7 @@ struct NewTaskView: View {
         .sheet(isPresented: $showingDateSheet) {
                 DatePickerSheet(date: $selectedDay, notBefore: earliestSelectableDay)
             }
+            .sheet(isPresented: $showingGoalPaywall) { PaywallView() }
             .sheet(isPresented: $showingGoalCreate) {
                 GoalCreateView(
                     onCreated: { newGoal in selectedGoal = newGoal }
@@ -647,6 +814,13 @@ struct NewTaskView: View {
             .sheet(isPresented: $showingGoalPicker, onDismiss: {
                 guard pendingGoalCreateRequest else { return }
                 pendingGoalCreateRequest = false
+                // Same limit as the carousel's "new goal" card. Gated here rather than inside
+                // `GoalCreateView` so there are no routes that bypass it — a second entry point
+                // that forgot the rule is exactly how a paywall ends up giving the product away.
+                guard subscription.status.canCreateGoal(existingCount: allGoals.count) else {
+                    showingGoalPaywall = true
+                    return
+                }
                 showingGoalCreate = true
             }) {
                 GoalPickerSheet(

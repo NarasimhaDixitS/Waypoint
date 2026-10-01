@@ -137,6 +137,21 @@ final class ProgressAnalyticsTests: XCTestCase {
         XCTAssertEqual(weeks.count, 4)
     }
 
+    /// The newest bucket is the week being lived, so its completed figure is a running total
+    /// rather than a result — on a Tuesday, two days of work against seven days of plan. Drawn
+    /// like a finished week it reads as a collapse, and it reads that way six days in seven.
+    func testOnlyTheWeekInProgressIsMarkedPartial() {
+        let now = day(2026, 9, 30)
+        for back in 0..<4 {
+            task(on: Calendar.current.date(byAdding: .day, value: -7 * back, to: now)!, minutes: 30)
+        }
+
+        let weeks = ProgressAnalytics.effortByWeek(Array(fetchTasks()), weeks: 4, now: now)
+
+        XCTAssertEqual(weeks.last?.isPartial, true)
+        XCTAssertTrue(weeks.dropLast().allSatisfy { !$0.isPartial }, "a finished week is a result, not a running total")
+    }
+
     // MARK: - Priority
 
     func testPriorityFollowThroughSplitsByPriority() {

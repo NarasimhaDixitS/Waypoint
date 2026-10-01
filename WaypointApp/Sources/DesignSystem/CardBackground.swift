@@ -15,6 +15,16 @@ struct CardBackground: ViewModifier {
             .padding(padding)
             .background(ColorTokens.elevatedFill(fill, tier: shadow, isDark: colorScheme == .dark))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            // Outline instead of lift. Paper has no shadow and barely any fill difference
+            // between a card and the page it sits on, so with neither, a card stops being a
+            // card — the edge is the only thing left to say "separate object". It isn't a
+            // substitute for the shadow either; the outline *is* the look.
+            .overlay {
+                if Palette.current.usesOutlines {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(ColorTokens.border, lineWidth: 1)
+                }
+            }
             .shadow(color: shadow.color, radius: shadow.radius, x: 0, y: shadow.y)
     }
 }

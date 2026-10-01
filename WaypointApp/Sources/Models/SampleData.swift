@@ -23,8 +23,9 @@ enum SampleData {
         seedStreak(in: context, goal: goals[0])
         seedToday(in: context, goals: goals)
         seedUpcoming(in: context, goals: goals, rng: &rng)
-        seedRepeatSeries(in: context, goal: goals[0])
+        seedRepeatSeries(in: context, goals: goals)
         seedEventHistory(in: context, goals: goals, rng: &rng)
+        seedFocusSessions(in: context, rng: &rng)
         backdateCreationStamps(in: context)
 
         do {
@@ -37,9 +38,16 @@ enum SampleData {
     // MARK: - Clearing
 
     private static func clearContent(in context: NSManagedObjectContext) {
-        // Deleting the goals cascades to their tasks; the ungoaled ones and the event log have
+        // Deleting the goals cascades to their tasks; the ungoaled ones and the side tables have
         // to be swept separately.
-        for entity in ["TaskEntity", "GoalEntity", "TaskEventEntity"] {
+        //
+        // Focus sessions and milestones are in here because both are *derived from* the content
+        // being replaced. Left behind, the sessions would point at task ids that no longer exist
+        // — which reads as an empty estimate card, the exact thing this seed is meant to fill —
+        // and the milestones would be awards for a history that has been deleted, which also
+        // stops them ever being awarded again. `AppSessionEntity` is deliberately not swept: an
+        // app-open log is a record of the real person at the keyboard, not demo content.
+        for entity in ["TaskEntity", "GoalEntity", "TaskEventEntity", "FocusSessionEntity", "MilestoneEntity"] {
             let request = NSFetchRequest<NSFetchRequestResult>(entityName: entity)
             guard let objects = try? context.fetch(request) as? [NSManagedObject] else { continue }
             objects.forEach(context.delete)
@@ -253,27 +261,47 @@ enum SampleData {
         }
     }
 
-    /// One real repeat series, so "delete this and future occurrences" has something to act on.
-    private static func seedRepeatSeries(in context: NSManagedObjectContext, goal: GoalEntity) {
-        let seriesID = UUID()
+    /// Two repeat series, not one.
+    ///
+    /// One is enough for "delete this and future occurrences" to have something to act on, which
+    /// is why it was one. The habit card compares series *against each other* and names the one
+    /// slipping most — with a single row there's nothing to compare, so it falls back to a
+    /// caption that just restates its own title. The second series is deliberately the
+    /// worse-kept of the two for the same reason: if every habit runs at the same rate there is
+    /// no "slipping most" to name.
+    private static func seedRepeatSeries(in context: NSManagedObjectContext, goals: [GoalEntity]) {
+        // `days` are Monday-relative (0 = Mon), matching the shift below. `missEvery` is how
+        // often a past occurrence goes unticked.
+        let specs: [(title: String, goal: GoalEntity?, hour: Int, days: [Int], minutes: Int, missEvery: Int)] = [
+            ("Interval session", goals[0], 18, [2, 5], 50, 6),
+            ("Vocab drill — 20 min", goals[3], 21, [0, 3], 20, 3),
+        ]
         let cal = Calendar.current
-        for offset in stride(from: -21, through: 28, by: 1) {
-            let date = day(offset: offset)
-            let weekday = (cal.component(.weekday, from: date) + 5) % 7
-            guard weekday == 2 || weekday == 5 else { continue } // Wed and Sat
-            let task = TaskEntity.create(
-                in: context,
-                title: "Interval session",
-                date: date,
-                startTime: at(hour: 18, on: date),
-                durationMinutes: 50,
-                priority: .high,
-                goal: goal,
-                seriesID: seriesID
-            )
-            if offset < 0 {
+        for spec in specs {
+            let seriesID = UUID()
+            var occurrence = 0
+            for offset in stride(from: -45, through: 28, by: 1) {
+                let date = day(offset: offset)
+                let weekday = (cal.component(.weekday, from: date) + 5) % 7
+                guard spec.days.contains(weekday) else { continue }
+                let task = TaskEntity.create(
+                    in: context,
+                    title: spec.title,
+                    date: date,
+                    startTime: at(hour: spec.hour, on: date),
+                    durationMinutes: spec.minutes,
+                    priority: .high,
+                    goal: spec.goal,
+                    seriesID: seriesID
+                )
+                occurrence += 1
+                // Deterministic spread and deterministic misses rather than an rng this function
+                // doesn't carry — the fixture has to stay byte-identical across loads, which is
+                // what makes it useful for comparing a design change against the run before it.
+                guard offset < 0, !occurrence.isMultiple(of: spec.missEvery) else { continue }
                 task.isDone = true
-                task.completedAt = at(hour: 19, on: date).addingTimeInterval(Double((abs(offset) * 23) % 80) * 60)
+                task.completedAt = at(hour: spec.hour + 1, on: date)
+                    .addingTimeInterval(Double((abs(offset) * 23) % 80) * 60)
             }
         }
     }
@@ -338,6 +366,7 @@ enum SampleData {
         // because nothing in it ever edits a task.
         let creep: [(String, [(Int, Int)])] = [
             ("Listening practice", [(30, 45), (45, 60), (60, 90)]),
+            ("Polish the Week tab", [(45, 60), (60, 90)]),
             ("Deep work — Week tab polish", [(60, 90), (90, 120)])
         ]
         for (title, steps) in creep {
@@ -353,26 +382,197 @@ enum SampleData {
             }
         }
 
-        // A goal seen through, so the outcome tiles aren't a column of zeros beside a column of
-        // failures — which is exactly the imbalance the `goalCompleted` event was added to fix.
-        let finished = TaskEventEntity(context: context)
-        finished.id = UUID()
-        finished.kind = TaskEventKind.goalCompleted.rawValue
-        finished.occurredAt = day(offset: -12)
-        finished.goalID = UUID()
-        finished.title = "Read 12 books"
-        finished.fromDate = day(offset: -120)
-        finished.toDate = day(offset: -12)
-        finished.toValue = 34
+        // Goals seen through, and goals given up on. Without the first kind the outcome tiles are
+        // a zero beside a failure count, which is the imbalance `goalCompleted` was added to fix.
+        //
+        // Every name here is a goal that no longer exists, which is the normal case and the whole
+        // reason the event carries its own copy of the title. It also has to be true of the
+        // finished ones specifically: the earlier fixture credited "Read 12 books", a goal still
+        // sitting in the carousel twenty-five per cent done with its target date ahead of it, so
+        // the log and the screen flatly contradicted each other.
+        let finished: [(String, Int, Int, Int)] = [
+            ("Couch to 5k", -120, -12, 34),
+            ("Rebuild the website", -95, -41, 19),
+        ]
+        for (name, started, ended, tasks) in finished {
+            let event = TaskEventEntity(context: context)
+            event.id = UUID()
+            event.kind = TaskEventKind.goalCompleted.rawValue
+            event.occurredAt = day(offset: ended)
+            event.goalID = UUID()
+            event.title = name
+            event.fromDate = day(offset: started)
+            event.toDate = day(offset: ended)
+            event.toValue = Int32(tasks)
+        }
 
-        let quit = TaskEventEntity(context: context)
-        quit.id = UUID()
-        quit.kind = TaskEventKind.goalAbandoned.rawValue
-        quit.occurredAt = day(offset: -30)
-        quit.goalID = UUID()
-        quit.title = "Wake at 5am"
-        quit.fromDate = day(offset: -58)
-        quit.toDate = day(offset: 30)
+        // One of each kind inside the last four weeks, which is the window the page opens on.
+        // Both abandonments used to sit further back than that, so the default view drew the
+        // finished tile beside a zero — the exact "column of failures" shape inverted, and just
+        // as misleading about what the app has recorded.
+        let dropped: [(String, Int, Int, Int)] = [
+            ("Wake at 5am", -50, -22, 30),
+            ("Learn the guitar", -102, -47, -8),
+        ]
+        for (name, started, quit, target) in dropped {
+            let event = TaskEventEntity(context: context)
+            event.id = UUID()
+            event.kind = TaskEventKind.goalAbandoned.rawValue
+            event.occurredAt = day(offset: quit)
+            event.goalID = UUID()
+            event.title = name
+            event.fromDate = day(offset: started)
+            event.toDate = day(offset: target)
+        }
+
+        seedAvoidanceStreak(in: context)
+        seedEditHistory(in: context)
+    }
+
+    /// One thing put off over and over, and then actually done.
+    ///
+    /// The deferral leaderboard's top row is the most-read thing on the Friction tab, and a
+    /// fixture whose worst offender was pushed twice makes it look like nothing much happens
+    /// here. Random scatter won't produce this on purpose: sixteen deferrals spread over four
+    /// titles and forty days lands at three or four apiece.
+    ///
+    /// The completed task belongs with the events rather than in `seedHistory` because the two
+    /// are one story — six pushes and then a tick is the shape `finallyDidIt` exists to find,
+    /// and it only reads as that story if both halves carry the same title.
+    private static func seedAvoidanceStreak(in context: NSManagedObjectContext) {
+        let title = "Book the dentist"
+        for step in 0..<6 {
+            let when = day(offset: -34 + step * 5)
+            let event = TaskEventEntity(context: context)
+            event.id = UUID()
+            event.kind = TaskEventKind.deferred.rawValue
+            event.occurredAt = when
+            event.taskID = UUID()
+            event.title = title
+            event.fromDate = when
+            event.toDate = Calendar.current.date(byAdding: .day, value: 5, to: when)
+        }
+
+        let date = day(offset: -3)
+        let settled = TaskEntity.create(
+            in: context, title: title, date: date,
+            startTime: at(hour: 11, on: date), durationMinutes: 15,
+            priority: .low, notes: "A month late, but booked."
+        )
+        settled.isDone = true
+        settled.completedAt = at(hour: 11, on: date).addingTimeInterval(720)
+    }
+
+    /// Edits and un-ticks — the two kinds of record the app writes that nothing else in this
+    /// fixture can produce, because nothing here ever changes a task after creating it.
+    ///
+    /// Neither has a card of its own yet. They're seeded anyway: an empty table is
+    /// indistinguishable from a broken writer, and the next thing built on this log should be
+    /// built against rows that look like real ones.
+    private static func seedEditHistory(in context: NSManagedObjectContext) {
+        let reprioritised: [(String, Priority, Priority, Int)] = [
+            ("Triage crash reports", .medium, .high, -18),
+            ("Screenshot pass for the store", .low, .high, -9),
+            ("Pick the next book", .medium, .low, -25),
+            ("Pay the electricity bill", .low, .high, -6),
+        ]
+        for (title, from, to, offset) in reprioritised {
+            let event = TaskEventEntity(context: context)
+            event.id = UUID()
+            event.kind = TaskEventKind.priorityChanged.rawValue
+            event.occurredAt = day(offset: offset)
+            event.taskID = UUID()
+            event.title = title
+            event.fromText = from.rawValue
+            event.toText = to.rawValue
+        }
+
+        // `fromDate` is the completion being withdrawn, which is the only thing about it worth
+        // keeping — the task itself forgets it was ever done.
+        let undone: [(String, Int)] = [("Meal prep", -21), ("Review PR backlog", -13)]
+        for (title, offset) in undone {
+            let event = TaskEventEntity(context: context)
+            event.id = UUID()
+            event.kind = TaskEventKind.completionUndone.rawValue
+            event.occurredAt = day(offset: offset).addingTimeInterval(20 * 3600)
+            event.taskID = UUID()
+            event.title = title
+            event.fromDate = day(offset: offset).addingTimeInterval(15 * 3600)
+        }
+    }
+
+    // MARK: - Focus sessions
+
+    /// How long each of these actually takes, as a multiple of what was booked for it.
+    ///
+    /// Attached to titles rather than drawn at random, because the estimate card's job is to say
+    /// *what* you misjudge. Random ratios produce six rows of noise with a different six every
+    /// reload; a table produces "listening practice always runs nearly double" — a sentence, and
+    /// one that stays put between screenshots.
+    ///
+    /// Two of these names are the same two whose booked duration keeps climbing in the behaviour
+    /// log, which is the point: the estimate rising and the work still overrunning is one story
+    /// told by two cards, and it only holds together if both cards name the same task.
+    private static let paceByTitle: [String: Double] = [
+        "Listening practice": 1.85,
+        "Triage crash reports": 1.7,
+        "Polish the Week tab": 1.55,
+        "Long run": 1.34,
+        "Write up notes": 1.22,
+        "Foam roll and stretch": 0.55,
+        "Write release notes": 0.62,
+        "Inbox to zero": 0.71,
+    ]
+
+    /// Timed work, which nothing in the fixture had before this.
+    ///
+    /// Two things needed it and neither could fake it: the estimate card is the one analysis in
+    /// the app that can't be computed from tasks alone — a `durationMinutes` is a guess and an
+    /// `isDone` doesn't check it — so with no sessions it drew its empty state no matter how much
+    /// history sat behind it. The pace milestone has the same dependency.
+    ///
+    /// Sessions hang off tasks that already exist, by id, so this has to run after everything
+    /// that creates one. Fetching rather than threading the tasks through: the context hasn't
+    /// been saved yet, and a fetch on a main-queue context includes pending inserts.
+    private static func seedFocusSessions(in context: NSManagedObjectContext, rng: inout SeededGenerator) {
+        let request = TaskEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "isDone == YES AND date < %@", day(offset: 0) as NSDate)
+        // Sorted so the subset picked below is the same one every load — a fetch's order isn't
+        // promised, and an rng consumed in a different order is a different fixture.
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "date", ascending: true),
+            NSSortDescriptor(key: "startTime", ascending: true),
+            NSSortDescriptor(key: "title", ascending: true)
+        ]
+        let finished = (try? context.fetch(request)) ?? []
+
+        for task in finished {
+            let named = paceByTitle[task.title ?? ""]
+            // Everything the table names gets timed; about half of the rest does. Somebody who
+            // ran the timer on every single task would be a stranger to every real user of this
+            // app, and a fixture where the measured set *is* the finished set can't show the
+            // difference between "this estimate was wrong" and "nobody checked".
+            guard named != nil || Double.random(in: 0...1, using: &rng) < 0.45 else { continue }
+            // A narrow band around 1 for everything unnamed. Most estimates are roughly right,
+            // and a fixture where every task is a disaster leaves the chart with no baseline to
+            // read the disasters against.
+            let ratio = named ?? Double.random(in: 0.86...1.19, using: &rng)
+            let planned = Int(task.durationMinutes) * 60
+            let actual = max(60, Int((Double(planned) * ratio).rounded()))
+            let started = task.resolvedStartTime
+            FocusSessionLog.record(
+                taskID: task.id,
+                taskTitle: task.title,
+                startedAt: started,
+                endedAt: started.addingTimeInterval(Double(actual)),
+                plannedSeconds: planned,
+                actualSeconds: actual,
+                // Overrunning means the timer was still going when the booked time ran out, so
+                // it was stopped by hand rather than reaching its own end.
+                ranToCompletion: ratio <= 1,
+                in: context
+            )
+        }
     }
 
     // MARK: - Helpers

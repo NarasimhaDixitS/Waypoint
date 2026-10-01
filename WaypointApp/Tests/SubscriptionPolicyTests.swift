@@ -20,10 +20,17 @@ final class SubscriptionPolicyTests: XCTestCase {
 
     /// Days left rounds up: six hours from the end is "1 day left", never "0". Zero means over,
     /// and showing it while the app still works reads as a bug.
+    /// Derived from `trialDays` rather than written as a date. These tests guard the *boundary*,
+    /// and a literal date means changing the trial length silently moves them off the thing they
+    /// were watching — which is exactly what happened at seven days to fourteen.
+    private var trialEnds: Date {
+        Calendar.current.date(byAdding: .day, value: SubscriptionPolicy.trialDays, to: trialStart)!
+    }
+
     func testTheLastHoursStillReadAsOneDay() {
         let status = SubscriptionPolicy.resolve(
             trialStartedAt: trialStart, plan: nil, renewsAt: nil,
-            now: date(2026, 9, 8, hour: 3)
+            now: trialEnds.addingTimeInterval(-6 * 3600)
         )
         XCTAssertEqual(status, .trial(daysLeft: 1))
     }
@@ -31,25 +38,25 @@ final class SubscriptionPolicyTests: XCTestCase {
     func testTheTrialIsStillLiveOneSecondBeforeItEnds() {
         let status = SubscriptionPolicy.resolve(
             trialStartedAt: trialStart, plan: nil, renewsAt: nil,
-            now: date(2026, 9, 8).addingTimeInterval(-1)
+            now: trialEnds.addingTimeInterval(-1)
         )
         XCTAssertEqual(status, .trial(daysLeft: 1))
-        XCTAssertTrue(status.canCreate)
+        XCTAssertTrue(status.hasFullAccess)
     }
 
     func testTheTrialIsOverExactlyOnTheBoundary() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: nil, renewsAt: nil, now: date(2026, 9, 8)
+            trialStartedAt: trialStart, plan: nil, renewsAt: nil, now: trialEnds
         )
-        XCTAssertEqual(status, .expired)
-        XCTAssertFalse(status.canCreate)
+        XCTAssertEqual(status, .free)
+        XCTAssertFalse(status.hasFullAccess)
     }
 
     /// The whole point of the gate: what's already there stays usable.
     func testALapsedUserCannotCreateButIsNeverLockedOut() {
-        XCTAssertFalse(SubscriptionStatus.expired.canCreate)
-        XCTAssertTrue(SubscriptionStatus.trial(daysLeft: 3).canCreate)
-        XCTAssertTrue(SubscriptionStatus.subscribed(plan: .annual, renewsAt: .now).canCreate)
+        XCTAssertFalse(SubscriptionStatus.free.hasFullAccess)
+        XCTAssertTrue(SubscriptionStatus.trial(daysLeft: 3).hasFullAccess)
+        XCTAssertTrue(SubscriptionStatus.subscribed(plan: .annual, renewsAt: .now).hasFullAccess)
     }
 
     func testAnActiveSubscriptionOutranksAnExpiredTrial() {
@@ -68,7 +75,7 @@ final class SubscriptionPolicyTests: XCTestCase {
             trialStartedAt: trialStart, plan: .monthly, renewsAt: date(2026, 10, 1),
             now: date(2026, 11, 1)
         )
-        XCTAssertEqual(status, .expired)
+        XCTAssertEqual(status, .free)
     }
 
     /// No trial stamped yet means it hasn't started, not that it's over. Defaulting to expired
@@ -80,11 +87,116 @@ final class SubscriptionPolicyTests: XCTestCase {
         XCTAssertEqual(status, .trial(daysLeft: SubscriptionPolicy.trialDays))
     }
 
-    /// Annual is ten months of monthly, so "2 months free" is a fact rather than a sales line.
-    func testAnnualPricingMatchesTheSavingItClaims() {
-        XCTAssertEqual(SubscriptionPlan.annual.savingNote, "2 months free")
+    func testOnlyTheAnnualPlanClaimsASaving() {
         XCTAssertNil(SubscriptionPlan.monthly.savingNote)
-        XCTAssertEqual(SubscriptionPlan.monthly.mockPrice, "$4.99")
-        XCTAssertEqual(SubscriptionPlan.annual.mockPrice, "$29.99")
+        XCTAssertNotNil(SubscriptionPlan.annual.savingNote)
+    }
+
+    // MARK: - Free tier
+
+    private func day(_ y: Int, _ m: Int, _ d: Int) -> Date {
+        Calendar.current.date(from: DateComponents(year: y, month: m, day: d, hour: 9))!
+    }
+
+    /// The line the whole tier rests on: look back for free, pay to plan forward.
+    func testFreeTierCanLookBackAndAtTodayButNotForward() {
+        let now = day(2026, 10, 1)
+        let free = SubscriptionStatus.free
+
+        XCTAssertTrue(free.canViewDay(day(2026, 9, 24), now: now), "finished work belongs to whoever did it")
+        XCTAssertTrue(free.canViewDay(now, now: now))
+        XCTAssertFalse(free.canViewDay(day(2026, 10, 2), now: now), "planning ahead is the thing being sold")
+    }
+
+    /// Readable is not editable. A past day stays legible so nobody's history is held hostage,
+    /// but it can't be rewritten.
+    func testFreeTierCanOnlyEditToday() {
+        let now = day(2026, 10, 1)
+        let free = SubscriptionStatus.free
+
+        XCTAssertTrue(free.canEditDay(now, now: now))
+        XCTAssertFalse(free.canEditDay(day(2026, 9, 30), now: now))
+        XCTAssertFalse(free.canEditDay(day(2026, 10, 2), now: now))
+    }
+
+    /// Paying removes every one of these limits, and that has to be checked explicitly — a gate
+    /// that accidentally applies to a subscriber is worse than one that leaks.
+    func testPayingLiftsEveryDayLimit() {
+        let now = day(2026, 10, 1)
+        for status in [SubscriptionStatus.trial(daysLeft: 3),
+                       .subscribed(plan: .annual, renewsAt: day(2027, 10, 1))] {
+            XCTAssertTrue(status.canViewDay(day(2026, 12, 25), now: now))
+            XCTAssertTrue(status.canEditDay(day(2026, 12, 25), now: now))
+            XCTAssertTrue(status.canUseWeekTab)
+            XCTAssertTrue(status.canUseProgress)
+            XCTAssertTrue(status.canCreateGoal(existingCount: 99))
+        }
+    }
+
+    /// The bug this was found by: on the free tier an overdue task from yesterday could still be
+    /// pushed to today, through the reschedule button an overdue row carries. The rule below was
+    /// already right — what was wrong is that a row has three ways into its editor (tapping it,
+    /// that button, and the goal page's list) and only one of them asked.
+    ///
+    /// Keyed on the task's own date rather than the day being browsed: those usually agree, and
+    /// only one of them is the real question.
+    func testYesterdaysOverdueWorkCannotBeRescheduledOnTheFreeTier() {
+        let now = day(2026, 10, 1)
+        let yesterday = day(2026, 9, 30)
+
+        XCTAssertFalse(SubscriptionStatus.free.canEditDay(yesterday, now: now))
+        XCTAssertTrue(SubscriptionStatus.free.canViewDay(yesterday, now: now), "but it must still be visible")
+        XCTAssertTrue(SubscriptionStatus.free.canEditDay(now, now: now), "and today must stay fully editable")
+    }
+
+    func testFreeTierLosesTheWeekAndProgressTabs() {
+        XCTAssertFalse(SubscriptionStatus.free.canUseWeekTab)
+        XCTAssertFalse(SubscriptionStatus.free.canUseProgress)
+    }
+
+    /// The limit is on creating, never on having. Somebody who made four goals during the trial
+    /// keeps four — choosing three of someone's goals to take away is the hostage problem in a
+    /// different coat.
+    func testFreeTierBlocksASecondGoalButNeverRemovesExistingOnes() {
+        XCTAssertTrue(SubscriptionStatus.free.canCreateGoal(existingCount: 0))
+        XCTAssertFalse(SubscriptionStatus.free.canCreateGoal(existingCount: 1))
+        XCTAssertFalse(SubscriptionStatus.free.canCreateGoal(existingCount: 4))
+    }
+
+    /// Two weeks, not one. A planner is judged over a week of real use, and a trial ending
+    /// before the second Monday never gets that chance.
+    func testTrialRunsForFourteenDays() {
+        XCTAssertEqual(SubscriptionPolicy.trialDays, 14)
+        let started = day(2026, 10, 1)
+        let onLastDay = SubscriptionPolicy.resolve(
+            trialStartedAt: started, plan: nil, renewsAt: nil, now: day(2026, 10, 14)
+        )
+        let afterwards = SubscriptionPolicy.resolve(
+            trialStartedAt: started, plan: nil, renewsAt: nil, now: day(2026, 10, 16)
+        )
+        XCTAssertEqual(onLastDay, .trial(daysLeft: 1))
+        XCTAssertEqual(afterwards, .free)
+    }
+
+    /// The crossed-out price has to be one that is actually charged later, or it is deceptive
+    /// pricing — against Apple's rules and, in the UK and EU, against the law.
+    func testTheStruckThroughPriceIsHigherThanTheIntroPrice() {
+        for plan in SubscriptionPlan.allCases {
+            let standard = Double(plan.mockPrice.dropFirst())!
+            let intro = Double(plan.mockIntroPrice.dropFirst())!
+            XCTAssertGreaterThan(standard, intro, "\(plan.title) shows a discount that isn't one")
+        }
+    }
+
+    /// The badge steers towards annual without making a number up. What has to stay true is the
+    /// substance underneath it: a yearly plan that costs more than paying monthly is not a plan.
+    func testTheAnnualPlanIsActuallyTheBetterValue() {
+        let monthly = Double(SubscriptionPlan.monthly.mockPrice.dropFirst())!
+        let annual = Double(SubscriptionPlan.annual.mockPrice.dropFirst())!
+        XCTAssertLessThan(annual, monthly * 12)
+
+        let introMonthly = Double(SubscriptionPlan.monthly.mockIntroPrice.dropFirst())!
+        let introAnnual = Double(SubscriptionPlan.annual.mockIntroPrice.dropFirst())!
+        XCTAssertLessThan(introAnnual, introMonthly * 12, "and the same has to hold at the intro price")
     }
 }

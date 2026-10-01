@@ -21,7 +21,7 @@ struct PaywallView: View {
                         Text(headline)
                             .wpTypography(.appTitle)
                             .foregroundStyle(ColorTokens.textPrimary)
-                        Text("Your tasks, goals and history stay on this device and stay readable. A subscription is what lets you add new work.")
+                        Text("Today stays yours, free, forever — and so does everything you've already done. A subscription is what opens the week ahead, your progress, and more than one goal.")
                             .wpTypography(.body)
                             .foregroundStyle(ColorTokens.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -38,7 +38,7 @@ struct PaywallView: View {
                         subscription.purchase(selected)
                         dismiss()
                     } label: {
-                        Text("Subscribe — \(selected.mockPrice) \(selected.cadence)")
+                        Text("Subscribe — \(selected.mockIntroPrice) \(selected.cadence)")
                             .wpTypography(.cardTitle)
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -83,7 +83,7 @@ struct PaywallView: View {
         case .trial(let daysLeft):
             daysLeft == 1 ? "Last day of your trial" : "\(daysLeft) days left in your trial"
         case .subscribed: "You're subscribed"
-        case .expired: "Your trial has ended"
+        case .free: "Your trial has ended"
         }
     }
 
@@ -100,8 +100,16 @@ struct PaywallView: View {
                     Text(plan.title)
                         .wpTypography(.cardTitle)
                         .foregroundStyle(ColorTokens.textPrimary)
-                    Text("\(plan.mockPrice) \(plan.cadence)")
+                    Text("\(plan.mockIntroPrice) \(plan.cadence)")
                         .wpTypography(.body)
+                        .foregroundStyle(ColorTokens.textPrimary)
+                    // The standard price has to appear somewhere before the buy button — Apple
+                    // requires an introductory offer to state what follows it, and it is one of
+                    // the more common reasons a paywall gets rejected. Stated plainly and
+                    // quietly rather than struck through in the headline: the point is that
+                    // nobody is surprised in month four, not that they flinch in month one.
+                    Text("Introductory offer \(plan.introDuration), then \(plan.mockPrice) \(plan.cadence)")
+                        .wpTypography(.micro)
                         .foregroundStyle(ColorTokens.textSecondary)
                 }
                 Spacer()

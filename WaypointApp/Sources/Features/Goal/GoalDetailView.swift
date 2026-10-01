@@ -50,6 +50,8 @@ struct GoalDetailView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var theme: ThemeManager
+    @EnvironmentObject private var subscription: SubscriptionManager
+    @State private var showingPaywall = false
     @State private var activeSheet: ActiveSheet?
     /// See TodayView's identical property for why direct-swap between two non-nil
     /// sheets isn't safe and this queue exists.
@@ -109,7 +111,7 @@ struct GoalDetailView: View {
                         VStack(spacing: 8) {
                             ForEach(goal.upcomingTasks.prefix(10)) { task in
                                 Button {
-                                    presentSheet(.editTask(task))
+                                    requestEdit(task)
                                 } label: {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 2) {
@@ -169,6 +171,7 @@ struct GoalDetailView: View {
         } message: {
             Text(repeatCreationSummary ?? "")
         }
+        .sheet(isPresented: $showingPaywall) { PaywallView() }
         .sheet(item: $activeSheet, onDismiss: handleSheetDismissed) { sheet in
             switch sheet {
             case .editTask(let task):
@@ -186,21 +189,15 @@ struct GoalDetailView: View {
                     onDuplicate: { draft in handleNewDraft(draft) }
                 )
             case .newDraftBump(let info):
-                AdhocBumpView(
-                    headline: "Needs a slot",
-                    message: newDraftMessage(for: info),
-                    collidingTasks: info.collidingTasks,
-                    onBumpExisting: { existing in
-                        bumpToTomorrow(existing)
+                TaskClashView(
+                    subjectTitle: info.draft.title,
+                    subjectRange: draftRangeLabel(info.draft),
+                    conflicts: info.collidingTasks,
+                    slots: openSlots(fitting: info.draft),
+                    onPickSlot: { start in persist(appended(info.draft, at: start)) },
+                    onBumpConflicts: { tasks in
+                        tasks.forEach(bumpToTomorrow)
                         persist(info.draft)
-                    },
-                    secondaryLabel: "Move \u{201C}\(info.draft.title)\u{201D} to tomorrow instead",
-                    onSecondaryAction: {
-                        persist(bumped(info.draft))
-                    },
-                    appendStart: info.appendStart,
-                    onAppendToEnd: info.appendStart.map { start in
-                        { persist(appended(info.draft, at: start)) }
                     }
                 )
             case .cascadeConfirm(let info):
@@ -210,16 +207,19 @@ struct GoalDetailView: View {
                     onCancel: {}
                 )
             case .editBump(let info):
-                AdhocBumpView(
-                    headline: "Can't fit that change",
-                    message: "Extending \"\(info.edit.task.title ?? "this task")\" runs into \(info.blockedBy). Pick a task to move to tomorrow, or keep the original time.",
-                    collidingTasks: info.candidates,
-                    onBumpExisting: { candidate in
-                        bumpToTomorrow(candidate)
+                TaskClashView(
+                    subjectTitle: info.edit.task.title ?? "This task",
+                    subjectRange: draftRangeLabel(info.edit.draft),
+                    conflicts: info.candidates,
+                    // No alternative times offered on an edit. The person just chose this one
+                    // deliberately, in a picker, so handing back a row of other times answers a
+                    // question nobody asked — the only useful moves are clear the way, or don't.
+                    slots: [],
+                    onPickSlot: { _ in },
+                    onBumpConflicts: { tasks in
+                        tasks.forEach(bumpToTomorrow)
                         applyEdit(info.edit.draft, to: info.edit.task)
-                    },
-                    secondaryLabel: "Keep the original time",
-                    onSecondaryAction: {}
+                    }
                 )
             }
         }
@@ -272,6 +272,30 @@ struct GoalDetailView: View {
         var copy = draft
         copy.startTime = start
         return copy
+    }
+
+    /// The same chokepoint Today uses, for the same reason: a goal's task list is a third route
+    /// into the editor, and gating the other two left this one open.
+    private func requestEdit(_ task: TaskEntity) {
+        guard subscription.status.canEditDay(task.resolvedDate) else {
+            showingPaywall = true
+            return
+        }
+        presentSheet(.editTask(task))
+    }
+
+    private func draftRangeLabel(_ draft: TaskDraft) -> String {
+        "\(draft.startTime.formatted(.dateTime.hour().minute()))–\(draft.endTime.formatted(.dateTime.hour().minute()))"
+    }
+
+    private func openSlots(fitting draft: TaskDraft) -> [ScheduleEngine.OpenSlot] {
+        let notBefore = Calendar.current.isDateInToday(draft.date) ? Date.now : .distantPast
+        return Array(
+            ScheduleEngine.openSlots(
+                on: draft.date, minimumMinutes: draft.durationMinutes,
+                notBefore: notBefore, context: context
+            ).prefix(4)
+        )
     }
 
     private func newDraftMessage(for info: NewTaskBumpInfo) -> String {
@@ -364,12 +388,9 @@ struct GoalDetailView: View {
     }
 
     /// Same wholesale rebuild Today does. This screen can edit a task scheduled for today, so
-    /// it has to refresh the same set rather than patch one notification — it just has to fetch
-    /// today's tasks itself, having no list of them on screen.
+    /// it has to refresh the same set rather than patch one notification.
     private func rescheduleReminder(for task: TaskEntity) {
-        let request = TaskEntity.fetchRequest(on: .now, context: context)
-        let todays = (try? context.fetch(request)) ?? []
-        NotificationManager.refreshTaskReminders(tasks: todays, enabled: theme.notificationsEnabled)
+        NotificationManager.refreshTaskReminders(in: context, enabled: theme.notificationsEnabled)
     }
 
     /// The same analyses the Progress tab runs, narrowed to one goal. A goal's own page is where

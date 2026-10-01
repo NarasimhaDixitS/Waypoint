@@ -282,6 +282,8 @@ private struct DayTimelineView: View {
     /// hidden here so the row disappears immediately, before the delete actually finalizes.
     let hiddenTaskIDs: Set<NSManagedObjectID>
     let sortMode: TaskSortMode
+    /// False on a past day for a free user: the rows still read, they just can't be opened.
+    let isEditable: Bool
     var onToggle: (TaskEntity) -> Void
     var onEditTask: (TaskEntity) -> Void
     var onStartFocus: (TaskEntity) -> Void
@@ -296,6 +298,7 @@ private struct DayTimelineView: View {
         commitments: FetchedResults<CommitmentEntity>,
         hiddenTaskIDs: Set<NSManagedObjectID>,
         sortMode: TaskSortMode,
+        isEditable: Bool,
         onToggle: @escaping (TaskEntity) -> Void,
         onEditTask: @escaping (TaskEntity) -> Void,
         onStartFocus: @escaping (TaskEntity) -> Void,
@@ -307,6 +310,7 @@ private struct DayTimelineView: View {
         self.commitments = commitments
         self.hiddenTaskIDs = hiddenTaskIDs
         self.sortMode = sortMode
+        self.isEditable = isEditable
         self.onToggle = onToggle
         self.onEditTask = onEditTask
         self.onStartFocus = onStartFocus
@@ -421,6 +425,13 @@ private struct DayTimelineView: View {
     private func row(for item: TimelineItem) -> some View {
         switch item {
         case .task(let task):
+            // No swipe actions on this row, deliberately. The container already carries a
+            // horizontal drag for changing the day, and a second one here would be on the same
+            // axis over the same pixels — both are `simultaneousGesture`, so both fire, and
+            // deleting a task also moved you to tomorrow. Separating them by distance doesn't
+            // work either: the day commits at 55pt, so any row threshold worth reaching clears
+            // it too. Delete and Duplicate live at the end of the editor instead, where they're
+            // labelled and can't be hit by accident.
             TaskRowView(
                 task: task,
                 onToggle: { onToggle(task) },
@@ -429,7 +440,10 @@ private struct DayTimelineView: View {
                 isCompletionLocked: !Calendar.current.isDateInToday(task.resolvedDate),
                 isNext: task.objectID == nextTaskID
             )
-            .onTapGesture { onEditTask(task) }
+            // No tap target at all rather than a tap that opens an editor and then refuses
+            // to save — a control that responds and then declines is worse than one that
+            // visibly isn't there.
+            .onTapGesture { if isEditable { onEditTask(task) } }
         case .block(let commitment, let start, let end):
             ScheduleBlockRow(commitment: commitment, start: start, end: end)
         case .header(let title):
@@ -464,6 +478,12 @@ struct TodayView: View {
     /// browsed, only on today.
     @FetchRequest(fetchRequest: TaskEntity.fetchRequest(on: .now, context: PersistenceController.shared.container.viewContext))
     private var realTodayTasks: FetchedResults<TaskEntity>
+
+    @EnvironmentObject private var subscription: SubscriptionManager
+    /// Only for the goal limit — the day lock carries its own, inside `lockedBehindPaywall`.
+    /// Shown whenever a free-tier limit is reached from this screen — the goal count, or an
+    /// edit to a day that isn't today.
+    @State private var showingGoalPaywall = false
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CommitmentEntity.createdAt, ascending: true)])
     private var commitments: FetchedResults<CommitmentEntity>
@@ -571,19 +591,8 @@ struct TodayView: View {
 
                 goalSection
 
-                DayTimelineView(
-                    day: selectedDate,
-                    isViewingToday: isViewingToday,
-                    now: clockTick,
-                    commitments: commitments,
-                    hiddenTaskIDs: hiddenTaskIDs,
-                    sortMode: sortMode,
-                    onToggle: { task in toggleTask(task) },
-                    onEditTask: { task in presentSheet(.editTask(task)) },
-                    onStartFocus: { task in presentSheet(.pomodoro(task)) },
-                    onReschedule: { task in presentSheet(.editTask(task)) }
-                )
-                .id(selectedDate)
+                timeline
+                    .id(selectedDate)
                 .transition(.asymmetric(
                     insertion: .move(edge: dayTransitionEdge).combined(with: .opacity),
                     removal: .move(edge: dayTransitionEdge == .trailing ? .leading : .trailing).combined(with: .opacity)
@@ -617,6 +626,7 @@ struct TodayView: View {
                     navigate(to: cal.date(byAdding: .day, value: horizontal < 0 ? 1 : -1, to: selectedDate) ?? selectedDate)
                 }
         )
+        .sheet(isPresented: $showingGoalPaywall) { PaywallView() }
         .sheet(item: $activeSheet, onDismiss: handleSheetDismissed) { sheet in
             switch sheet {
             case .addTask:
@@ -637,21 +647,15 @@ struct TodayView: View {
             case .goalCreate:
                 GoalCreateView(onCreated: { _ in })
             case .adhocBump(let info):
-                AdhocBumpView(
-                    headline: "New task needs a slot",
-                    message: newDraftMessage(for: info),
-                    collidingTasks: info.collidingTasks,
-                    onBumpExisting: { existing in
-                        bumpToTomorrow(existing)
+                TaskClashView(
+                    subjectTitle: info.draft.title,
+                    subjectRange: draftRangeLabel(info.draft),
+                    conflicts: info.collidingTasks,
+                    slots: openSlots(fitting: info.draft),
+                    onPickSlot: { start in persist(appended(info.draft, at: start)) },
+                    onBumpConflicts: { tasks in
+                        tasks.forEach(bumpToTomorrow)
                         persist(info.draft)
-                    },
-                    secondaryLabel: "Move \u{201C}\(info.draft.title)\u{201D} to tomorrow instead",
-                    onSecondaryAction: {
-                        persist(bumped(info.draft))
-                    },
-                    appendStart: info.appendStart,
-                    onAppendToEnd: info.appendStart.map { start in
-                        { persist(appended(info.draft, at: start)) }
                     }
                 )
             case .cascadeConfirm(let info):
@@ -661,16 +665,19 @@ struct TodayView: View {
                     onCancel: {}
                 )
             case .editBump(let info):
-                AdhocBumpView(
-                    headline: "Can't fit that change",
-                    message: "Extending \"\(info.edit.task.title ?? "this task")\" runs into \(info.blockedBy). Pick a task to move to tomorrow, or keep the original time.",
-                    collidingTasks: info.candidates,
-                    onBumpExisting: { candidate in
-                        bumpToTomorrow(candidate)
+                TaskClashView(
+                    subjectTitle: info.edit.task.title ?? "This task",
+                    subjectRange: draftRangeLabel(info.edit.draft),
+                    conflicts: info.candidates,
+                    // No alternative times offered on an edit. The person just chose this one
+                    // deliberately, in a picker, so handing back a row of other times answers a
+                    // question nobody asked — the only useful moves are clear the way, or don't.
+                    slots: [],
+                    onPickSlot: { _ in },
+                    onBumpConflicts: { tasks in
+                        tasks.forEach(bumpToTomorrow)
                         applyEdit(info.edit.draft, to: info.edit.task)
-                    },
-                    secondaryLabel: "Keep the original time",
-                    onSecondaryAction: {}
+                    }
                 )
             case .completion(let info):
                 CompletionView(
@@ -691,21 +698,49 @@ struct TodayView: View {
         } message: {
             Text(repeatCreationSummary ?? "")
         }
-        // Today's set has to be rebuilt when the app comes back, not only when something is
-        // edited: reminders are scheduled a day at a time, so an app left closed overnight
-        // wakes with yesterday's queue — which is empty — and nothing for the day ahead.
+        // Rebuilt when the app comes back, not only when something is edited: the queue is
+        // materialised from a rolling window, so an app left closed wakes holding a window that
+        // has partly elapsed.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            NotificationManager.refreshTaskReminders(tasks: Array(realTodayTasks), enabled: theme.notificationsEnabled)
+            NotificationManager.refreshTaskReminders(in: context, enabled: theme.notificationsEnabled)
         }
         .onReceive(clockTimer) { tick in
             let dayChanged = !Calendar.current.isDate(tick, inSameDayAs: clockTick)
             withAnimation(.easeInOut(duration: 0.3)) { clockTick = tick }
             if dayChanged {
-                NotificationManager.refreshTaskReminders(tasks: Array(realTodayTasks), enabled: theme.notificationsEnabled)
+                NotificationManager.refreshTaskReminders(in: context, enabled: theme.notificationsEnabled)
             }
             runAutoComplete()
         }
         .onChange(of: addTaskTrigger) { _, _ in presentSheet(.addTask) }
+        .onAppear {
+            // Opens the task editor on launch: `-wpNewTask`. Debug only, same family as
+            // `-wpTab` and `-wpSection`. The editor is behind a tap, the simulator here is
+            // driven by hand, and the alternative is shipping changes to it unseen.
+            #if DEBUG
+            let args = ProcessInfo.processInfo.arguments
+            if args.contains("-wpNewTask") {
+                presentSheet(.addTask)
+            } else if args.contains("-wpEditTask"), let first = realTodayTasks.first {
+                presentSheet(.editTask(first))
+            } else if args.contains("-wpClash"), let victim = realTodayTasks.first {
+                // `-wpClash` stages a collision against today's first task. Reaching this sheet
+                // otherwise means typing a task that happens to overlap another one, which is a
+                // lot of taps to review one screen.
+                let draft = TaskDraft(title: "Call the bank", date: victim.resolvedDate,
+                                      startTime: victim.resolvedStartTime.addingTimeInterval(600),
+                                      durationMinutes: 30, priority: .high)
+                // Deferred a beat: a sheet asked for during the first layout pass is dropped,
+                // and the symptom is a screen that simply never appears.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    presentSheet(.adhocBump(NewTaskBumpInfo(
+                        draft: draft, collidingTasks: [victim],
+                        blockedBy: victim.title ?? "", appendStart: nil
+                    )))
+                }
+            }
+            #endif
+        }
         .onChange(of: returnToTodayTrigger) { _, _ in
             withAnimation(.easeInOut(duration: 0.3)) { carouselPage = Self.todayPage }
         }
@@ -747,6 +782,59 @@ struct TodayView: View {
 
     /// Use this instead of assigning `activeSheet` directly whenever the target might not be
     /// nil — see the doc comment on `queuedSheet` for why.
+    /// The day's work, or a lock where it would be.
+    ///
+    /// Two different limits, deliberately asymmetric. A past day is *readable and not editable*:
+    /// finished work belongs to whoever did it, and holding someone's own history behind glass
+    /// to sell a subscription is how an app earns refund requests. A future day is *hidden*,
+    /// because planning forward is the thing being sold and a free user has nothing there to be
+    /// held hostage in the first place.
+    ///
+    /// Said in one line: look back for free, pay to plan forward.
+    @ViewBuilder
+    private var timeline: some View {
+        let dayTimeline = DayTimelineView(
+            day: selectedDate,
+            isViewingToday: isViewingToday,
+            now: clockTick,
+            commitments: commitments,
+            hiddenTaskIDs: hiddenTaskIDs,
+            sortMode: sortMode,
+            isEditable: subscription.status.canEditDay(selectedDate),
+            onToggle: { task in toggleTask(task) },
+            onEditTask: requestEdit,
+            onStartFocus: { task in presentSheet(.pomodoro(task)) },
+            onReschedule: requestEdit
+        )
+
+        dayTimeline
+            .lockedBehindPaywall(
+                !subscription.status.canViewDay(selectedDate),
+                title: "Plan ahead",
+                message: "Scheduling work beyond today is part of the subscription. Today, and everything you've already done, stay free."
+            )
+    }
+
+    /// The single way the editor opens, so the free-tier limit can't be routed around.
+    ///
+    /// It was written at the call sites first, and that was the bug: a row has three ways into
+    /// its editor — tapping it, the reschedule button an overdue row carries, and the goal
+    /// page's own list — and gating the tap left the other two wide open. An overdue task from
+    /// yesterday could still be pushed to today on the free tier, which is exactly the thing
+    /// being sold.
+    ///
+    /// Keyed on the **task's own date**, not the day being browsed. The two usually agree, but
+    /// only the task's date is the real question: yesterday's work isn't editable on the free
+    /// tier whatever screen you reached it from, and anything that answers that from the
+    /// browsing context is one more route away from being wrong again.
+    private func requestEdit(_ task: TaskEntity) {
+        guard subscription.status.canEditDay(task.resolvedDate) else {
+            showingGoalPaywall = true
+            return
+        }
+        presentSheet(.editTask(task))
+    }
+
     private func presentSheet(_ sheet: ActiveSheet) {
         if activeSheet == nil {
             activeSheet = sheet
@@ -812,11 +900,15 @@ struct TodayView: View {
     /// would say twice what the header already says once — the dot's *absence* is the signal.
     private var nowDot: some View {
         ZStack {
-            Circle()
-                .fill(theme.accentSwatch.markColor)
-                .frame(width: 14, height: 14)
-                .blur(radius: 5)
-                .opacity(0.8)
+            // The aura goes in paper mode; the dot stays. What it means — "this is today" — is
+            // carried by the dot being there at all, so losing the glow costs the signal nothing.
+            if Palette.current.usesDepth {
+                Circle()
+                    .fill(theme.accentSwatch.markColor)
+                    .frame(width: 14, height: 14)
+                    .blur(radius: 5)
+                    .opacity(0.8)
+            }
             Circle()
                 .fill(theme.accentSwatch.markColor)
                 .frame(width: 9, height: 9)
@@ -905,7 +997,17 @@ struct TodayView: View {
             }
 
             carouselPage {
-                Button { presentSheet(.goalCreate) } label: {
+                Button {
+                    // One goal on the free tier — enough to use the feature rather than peer at
+                    // it. Phrased as a limit on *creating*: anyone who made several during the
+                    // trial keeps them all, because choosing which of someone's goals to take
+                    // away is not a thing this app is going to do.
+                    if subscription.status.canCreateGoal(existingCount: goals.count) {
+                        presentSheet(.goalCreate)
+                    } else {
+                        showingGoalPaywall = true
+                    }
+                } label: {
                     addGoalCard
                 }
                 .buttonStyle(.plain)
@@ -1057,8 +1159,24 @@ struct TodayView: View {
         return copy
     }
 
-    private func newDraftMessage(for info: NewTaskBumpInfo) -> String {
-        "\u{201C}\(info.draft.title)\u{201D} overlaps \(info.blockedBy)."
+    private func draftRangeLabel(_ draft: TaskDraft) -> String {
+        "\(draft.startTime.formatted(.dateTime.hour().minute()))–\(draft.endTime.formatted(.dateTime.hour().minute()))"
+    }
+
+    /// Times on the draft's own day with room for it, soonest first.
+    ///
+    /// Capped at four. The point is a quick answer, not a timetable — and a row of eight
+    /// identical chips stops reading as "pick one" and starts reading as "work this out".
+    private func openSlots(fitting draft: TaskDraft) -> [ScheduleEngine.OpenSlot] {
+        let notBefore = Calendar.current.isDateInToday(draft.date) ? Date.now : .distantPast
+        return Array(
+            ScheduleEngine.openSlots(
+                on: draft.date,
+                minimumMinutes: draft.durationMinutes,
+                notBefore: notBefore,
+                context: context
+            ).prefix(4)
+        )
     }
 
     private func applyEdit(_ draft: TaskDraft, to existing: TaskEntity) {
@@ -1220,15 +1338,13 @@ struct TodayView: View {
         }
     }
 
-    /// Cancels any pending reminder for the task, then re-schedules one if it's still
-    /// pending, in the future, and notifications are on.
-    /// Rebuilds every task reminder from today's list.
+    /// Rebuilds every task reminder from the store.
     ///
     /// Called after anything that could change what's due — create, edit, complete, delete,
     /// cascade — rather than each of those trying to patch a single notification. Patching is
     /// what let reminders drift out of step with reality; a rebuild can't.
     private func rescheduleReminder(for task: TaskEntity) {
-        NotificationManager.refreshTaskReminders(tasks: Array(realTodayTasks), enabled: theme.notificationsEnabled)
+        NotificationManager.refreshTaskReminders(in: context, enabled: theme.notificationsEnabled)
     }
 
     private func runAutoComplete() {

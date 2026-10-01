@@ -87,11 +87,13 @@ struct MainTabView: View {
     /// Today — someone browsing a future day who taps "+" almost certainly wants a task on
     /// *that* day, not to be bounced back to today first.
     private func requestAddTask() {
-        // The gate. Everything already in the app stays readable, completable and editable when
-        // a trial lapses — only *making more* stops, because that's the thing being paid for.
-        // Locking someone out of work they already typed in earns refunds and one-star reviews,
-        // and it isn't what they agreed to when they typed it.
-        guard subscription.status.canCreate else {
+        // The gate. On the free tier today is still fully yours — make, edit and finish as much
+        // as you like. What's bought is everything *around* today: planning forward, the week,
+        // the patterns. So this blocks adding work to a day that isn't today, and nothing else.
+        //
+        // Note which way round that is. Nothing already written is ever taken away; the limit
+        // falls on new work on other days, which a free user has no way to reach anyway.
+        guard subscription.status.canEditDay(dateStore.selectedDate) else {
             showingPaywall = true
             return
         }
@@ -135,10 +137,20 @@ struct MainTabView: View {
                     // WeekView now retargets its own fetch when the month changes.
                     .id(weekRefreshTrigger)
                 }
+                .lockedBehindPaywall(
+                    !subscription.status.canUseWeekTab,
+                    title: "Your week",
+                    message: "Seeing the week as a whole, and moving work around inside it, is part of the subscription."
+                )
                 .opacity(selectedTab == 1 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 1)
 
                 NavigationStack { ProgressAnalyticsView() }
+                    .lockedBehindPaywall(
+                        !subscription.status.canUseProgress,
+                        title: "Your patterns",
+                        message: "Waypoint keeps recording what you finish and what you put off. Subscribing is what lets you read it back."
+                    )
                     .opacity(selectedTab == 2 ? 1 : 0)
                     .allowsHitTesting(selectedTab == 2)
 
@@ -276,9 +288,13 @@ private struct CustomTabBar: View {
     private let notchDepth: CGFloat = 52
 
     private var activeIndex: Int { searchActive ? 4 : selectedTab }
-    private var iconColor: Color { colorScheme == .dark ? .white : .black }
-    private var badgeFill: Color { colorScheme == .dark ? .white : .black }
-    private var badgeIconColor: Color { colorScheme == .dark ? .black : .white }
+    // These sit *on the accent-filled bar*, so they have to contrast with the accent, not with
+    // the page. Two wrong answers got here before the right one: literal black/white, which
+    // paper has no business showing, and then `textPrimary`, which is near-black in paper — on
+    // a bar whose fill is also near-black, so every icon vanished.
+    private var iconColor: Color { theme.accentSwatch.onAccentColor }
+    private var badgeFill: Color { theme.accentSwatch.onAccentColor }
+    private var badgeIconColor: Color { theme.accentSwatch.color }
 
     private func select(_ index: Int) {
         if index == 4 {
@@ -308,6 +324,10 @@ private struct CustomTabBar: View {
                                 if index == activeIndex {
                                     Color.clear
                                 } else {
+                                    // No lock badge here, deliberately. A locked tab icon
+                                    // refuses to open and teaches people the app is small; the
+                                    // tab opens and shows what's inside it, blurred, which
+                                    // argues for itself far better than a padlock does.
                                     Image(systemName: icons[index])
                                         .font(.system(size: 22))
                                         .foregroundStyle(iconColor.opacity(0.7))

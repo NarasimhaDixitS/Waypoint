@@ -76,7 +76,13 @@ enum TaskReplicator {
                 priority: task.priorityValue,
                 goal: task.goal,
                 notes: task.notes,
-                seriesID: seriesID
+                seriesID: seriesID,
+                // The reminder travels with the pattern. Arming one on a repeating task and
+                // getting it on only the first occurrence would be a habit reminder you have to
+                // re-arm every week, which is no reminder at all. It costs nothing: only the
+                // occurrences inside the scheduling window ever hold a slot in iOS's queue.
+                reminderEnabled: task.reminderEnabled,
+                reminderLeadMinutes: task.reminderLeadMinutes
             )
             created += 1
             lastDate = day

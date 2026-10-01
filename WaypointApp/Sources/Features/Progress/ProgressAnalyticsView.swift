@@ -105,7 +105,22 @@ struct ProgressAnalyticsView: View {
         }
     }
 
-    @State private var section: Section = .patterns
+    @State private var section: Section = ProgressAnalyticsView.launchSection
+
+    /// Lets a build be launched straight onto one of the three groups: `-wpSection friction`.
+    ///
+    /// Same reasoning as `MainTabView.launchTab`, and the same debug-only scope. Two of the three
+    /// groups are otherwise only reachable by tapping, and the simulator here is driven by hand —
+    /// which has meant shipping changes to cards nobody had looked at.
+    private static var launchSection: Section {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        guard let flag = args.firstIndex(of: "-wpSection"), flag + 1 < args.count else { return .patterns }
+        return Section(rawValue: args[flag + 1]) ?? .patterns
+        #else
+        return .patterns
+        #endif
+    }
     @State private var range: Range = .sinceStart
     @State private var didPickInitialRange = false
 
@@ -355,7 +370,11 @@ private var sectionPicker: some View {
         let data = ProgressAnalytics.effortByWeek(tasks, weeks: range.effortWeeks)
         let latest = data.last
         let caption: String = if let latest, latest.plannedHours > 0 {
-            "This week you planned \(hours(latest.plannedHours)) and completed \(hours(latest.completedHours)). Task counts hide this — a short errand and a long block count the same."
+            // A running total has to be worded as one. "You planned 20h and completed 9.6h" is a
+            // verdict, and on a Tuesday it's a verdict on a week that has five days left to run.
+            latest.isPartial
+                ? "You've planned \(hours(latest.plannedHours)) this week and done \(hours(latest.completedHours)) of it so far. Task counts hide this — a short errand and a long block count the same."
+                : "Last week you planned \(hours(latest.plannedHours)) and completed \(hours(latest.completedHours)). Task counts hide this — a short errand and a long block count the same."
         } else {
             "Hours planned against hours completed, week by week."
         }
@@ -364,16 +383,35 @@ private var sectionPicker: some View {
             if data.allSatisfy({ $0.plannedMinutes == 0 }) {
                 AnalyticsEmpty(message: emptyMessage)
             } else {
+                // One bar per week, completed drawn inside planned rather than beside it.
+                //
+                // This was two lines over a filled area — three marks for two series, and the
+                // fill was *planned* tinted with the accent while the accent line meant
+                // *completed*, so the one colour on the card carried both meanings and the eye
+                // bound the big tinted region to the wrong one. Lines also drew slopes between
+                // week-starts, describing values that don't exist: these are four discrete
+                // totals, not a continuous signal. And the quantity actually worth reading is
+                // the shortfall, which a reader of two lines has to measure by eye — as the
+                // unfilled top of a bar it needs no measuring at all.
                 Chart(data) { week in
-                    AreaMark(x: .value("Week", week.weekStart), y: .value("Planned", week.plannedHours))
-                        .foregroundStyle(accent.opacity(0.16))
-                    LineMark(x: .value("Week", week.weekStart), y: .value("Planned", week.plannedHours))
-                        .foregroundStyle(ColorTokens.textMuted)
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
-                    LineMark(x: .value("Week", week.weekStart), y: .value("Done", week.completedHours))
-                        .foregroundStyle(accent)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5))
-                        .symbol(.circle)
+                    BarMark(
+                        x: .value("Week", week.weekStart, unit: .weekOfYear),
+                        y: .value("Planned", week.plannedHours),
+                        stacking: .unstacked
+                    )
+                    .foregroundStyle(ColorTokens.textMuted.opacity(week.isPartial ? 0.13 : 0.24))
+                    .cornerRadius(3)
+
+                    BarMark(
+                        x: .value("Week", week.weekStart, unit: .weekOfYear),
+                        y: .value("Done", week.completedHours),
+                        stacking: .unstacked
+                    )
+                    // The week in progress is drawn faint rather than hidden or filled solid:
+                    // its number is real, it just isn't final, and a bar that looks settled
+                    // invites a conclusion the week hasn't earned yet.
+                    .foregroundStyle(week.isPartial ? accent.opacity(0.5) : accent)
+                    .cornerRadius(3)
                 }
                 .chartXAxis {
                     // A label per point is fine at four weeks and illegible at twenty-six —
@@ -396,8 +434,9 @@ private var sectionPicker: some View {
                 } }
                 .frame(height: 160)
                 ChartLegend(items: [
-                    ("Hours planned", .dashed(ColorTokens.textMuted)),
-                    ("Hours completed", .line(accent))
+                    ("Planned", .swatch(ColorTokens.textMuted.opacity(0.24))),
+                    ("Completed", .swatch(accent)),
+                    ("This week, still running", .swatch(accent.opacity(0.5)))
                 ])
             }
         }
@@ -693,8 +732,12 @@ private var sectionPicker: some View {
     // MARK: - 9. Estimate accuracy
 
     private var estimateCard: some View {
-        let data = ProgressAnalytics.estimateAccuracy(sessions: Array(sessions), tasks: tasks)
-        let median = ProgressAnalytics.medianEstimateRatio(data)
+        // The median comes off *everything* measured, the chart off the six worst. Taking both
+        // from the top six made the headline describe only the disasters — "work takes 60%
+        // longer than you book" when the typical task was within a few minutes.
+        let all = ProgressAnalytics.estimateAccuracy(sessions: Array(sessions), tasks: tasks, limit: .max)
+        let data = Array(all.prefix(6))
+        let median = ProgressAnalytics.medianEstimateRatio(all)
         let caption: String = if let median, median > 1.1 {
             "Work typically takes \(Int((median - 1) * 100))% longer than you book for it. Adding that to new estimates is the fastest way to make a plan hold."
         } else if let median, median < 0.9 {
@@ -707,7 +750,7 @@ private var sectionPicker: some View {
         return AnalyticsCard(
             title: "How good are your estimates?",
             caption: caption,
-            footnote: "Measured from focus timer sessions, added up per task. Paused time doesn't count."
+            footnote: "Measured from focus timer sessions. Repeats of the same task are averaged, so both figures are per sitting. Paused time doesn't count."
         ) {
             if data.isEmpty {
                 AnalyticsEmpty(message: "Run the focus timer on a task to start measuring this.")
