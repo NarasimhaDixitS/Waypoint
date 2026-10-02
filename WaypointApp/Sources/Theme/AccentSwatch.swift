@@ -96,6 +96,23 @@ enum AccentSwatch: String, CaseIterable, Identifiable, Hashable {
         Palette.current == .paper ? Color(ColorTokens.hex(0xF9F7F2)) : ColorTokens.dynamic(light: ColorTokens.hex(0x1A1A17), dark: ColorTokens.hex(0xFFFFFF))
     }
 
+    /// What reads on top of `onAccentColor` — the reverse pair.
+    ///
+    /// The tab bar's active badge is a reversed chip: the bar is filled with the accent, the
+    /// badge is filled with what reads on the accent, and the glyph inside it has to read on
+    /// *that*. Three layers, each the opposite of the one under it.
+    ///
+    /// This existed only as a literal before (`colorScheme == .dark ? .black : .white`), and
+    /// when the tab bar was reworked for paper all three lines were replaced together — so the
+    /// glyph became the accent itself, which is correct in paper by coincidence and wrong
+    /// everywhere else. Teal on the near-black badge measured 3.59:1 where white had measured
+    /// 17.44:1, making the *active* tab the least legible thing in the bar.
+    var onAccentReversedColor: Color {
+        // Paper's reverse of its off-white is the same charcoal the fill uses, which is why its
+        // appearance doesn't move at all with this fix.
+        Palette.current == .paper ? Color(ColorTokens.hex(Self.paperFillHex)) : ColorTokens.dynamic(light: ColorTokens.hex(0xFFFFFF), dark: ColorTokens.hex(0x1A1A17))
+    }
+
     var label: String {
         switch self {
         case .graphite: "Graphite"

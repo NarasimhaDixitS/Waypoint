@@ -294,7 +294,7 @@ private struct CustomTabBar: View {
     // a bar whose fill is also near-black, so every icon vanished.
     private var iconColor: Color { theme.accentSwatch.onAccentColor }
     private var badgeFill: Color { theme.accentSwatch.onAccentColor }
-    private var badgeIconColor: Color { theme.accentSwatch.color }
+    private var badgeIconColor: Color { theme.accentSwatch.onAccentReversedColor }
 
     private func select(_ index: Int) {
         if index == 4 {
