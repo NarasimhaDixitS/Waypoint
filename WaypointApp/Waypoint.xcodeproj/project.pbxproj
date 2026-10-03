@@ -39,6 +39,7 @@
 		44BE9612B982D4318CCBA0DC /* GoalEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414FAA12C134A64B5FAC53AB /* GoalEntity+Extensions.swift */; };
 		48BE184930A7474179462872 /* WaypointWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE492BC00F203FF4464B181F /* WaypointWidget.swift */; };
 		4C58570D19F446605A5BD6CE /* WaypointWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C7BF4FDD2AD1881B9290A991 /* WaypointWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4C8D379DE0F0CE0B4DDC5618 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BB739F7A123220EB294F242F /* PrivacyInfo.xcprivacy */; };
 		533DFC6751B97B99250FF265 /* PaletteContrastTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C3EEC73458DD77030433B2 /* PaletteContrastTests.swift */; };
 		5C435AF590790E4CDDF3DFB1 /* Buttons.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97861208E25D18FD4EDA1C3 /* Buttons.swift */; };
 		5FDBF2B5F80B33EC96191C60 /* Milestone.swift in Sources */ = {isa = PBXBuildFile; fileRef = A88F270B7F0F3974C05332C0 /* Milestone.swift */; };
@@ -84,6 +85,7 @@
 		B9B8319683994671D16A0B23 /* GoalEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414FAA12C134A64B5FAC53AB /* GoalEntity+Extensions.swift */; };
 		BC72C0B559FB4A5A84E7284B /* DaySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B0B19A96711C34C8AF1A8E /* DaySnapshot.swift */; };
 		BFB17E314B1FED350DC83406 /* ProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C766B58B62C0A77895616F9F /* ProgressRing.swift */; };
+		C952B7D72064FBD20D7D0259 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BB739F7A123220EB294F242F /* PrivacyInfo.xcprivacy */; };
 		CF21E057A5D19CC7F9404F23 /* TaskEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */; };
 		CF6EA76AFFA63BFCCC513572 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B6B74DE3D70181181BFF7E /* SampleData.swift */; };
 		D13C502840BF8A8063FFC353 /* CompletionBurst.swift in Sources */ = {isa = PBXBuildFile; fileRef = F91116B3A2600B6D867ECAD1 /* CompletionBurst.swift */; };
@@ -193,6 +195,7 @@
 		B4B6B74DE3D70181181BFF7E /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TaskEntity+Extensions.swift"; sourceTree = "<group>"; };
 		BA0E993CFF4FC1F5EB46A65E /* Waypoint.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Waypoint.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB739F7A123220EB294F242F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BC551CFE31C80A5743D2C5E7 /* GoalStreakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalStreakTests.swift; sourceTree = "<group>"; };
 		C18A03E31C5BF860FF284FE9 /* TaskEventLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEventLogTests.swift; sourceTree = "<group>"; };
 		C37C69C067FEC19CC0D353A2 /* Priority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Priority.swift; sourceTree = "<group>"; };
@@ -489,6 +492,7 @@
 			isa = PBXGroup;
 			children = (
 				13F66EB6BA064C5E76B26FB6 /* Assets.xcassets */,
+				BB739F7A123220EB294F242F /* PrivacyInfo.xcprivacy */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -623,6 +627,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7A3DDBBDD35D00EC9303C224 /* Assets.xcassets in Resources */,
+				4C8D379DE0F0CE0B4DDC5618 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -631,6 +636,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A53FFB0471686FC364842675 /* Assets.xcassets in Resources */,
+				C952B7D72064FBD20D7D0259 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

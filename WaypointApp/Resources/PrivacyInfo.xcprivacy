@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Waypoint sends nothing anywhere. Every task, goal, focus session and milestone lives in a
+	  Core Data store on the device and in the shared App Group container, and there is no
+	  backend, no analytics and no network call in the app at all. So both of the collection
+	  keys below are deliberately empty rather than omitted: an absent key and an empty array
+	  mean the same thing to Apple, but the empty array says it was answered.
+
+	  This changes the day RevenueCat is added. Its SDK ships its own privacy manifest declaring
+	  what it collects, and Apple merges every manifest in the bundle — so the SDK's entry
+	  appears without being copied here. What would have to change here is only anything
+	  Waypoint's *own* code starts sending, which is still nothing.
+	-->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<!--
+	  Required-reason APIs. The whole codebase was checked against Apple's five categories and
+	  only one is touched: file timestamps, system boot time, disk space and active keyboard
+	  are all unused.
+	-->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!--
+				  CA92.1 — information accessible only to the app itself. Covers
+				  `UserDefaults.standard`: theme, accent, palette, completion mode,
+				  notification switch, onboarding state, subscription plan and renewal.
+				-->
+				<string>CA92.1</string>
+				<!--
+				  1C8F.1 — information shared with members of the same App Group. Covers
+				  `UserDefaults(suiteName: group.com.narasimhadixit.waypoint)`, which is how the
+				  widget learns the accent and palette: it runs in its own process and cannot
+				  see the app's own defaults.
+				-->
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
