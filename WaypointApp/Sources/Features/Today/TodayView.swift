@@ -425,13 +425,29 @@ private struct DayTimelineView: View {
     private func row(for item: TimelineItem) -> some View {
         switch item {
         case .task(let task):
-            // No swipe actions on this row, deliberately. The container already carries a
-            // horizontal drag for changing the day, and a second one here would be on the same
-            // axis over the same pixels — both are `simultaneousGesture`, so both fire, and
-            // deleting a task also moved you to tomorrow. Separating them by distance doesn't
-            // work either: the day commits at 55pt, so any row threshold worth reaching clears
-            // it too. Delete and Duplicate live at the end of the editor instead, where they're
-            // labelled and can't be hit by accident.
+            // No swipe actions on this row, and this is a decision rather than an obstacle.
+            //
+            // The container carries a horizontal drag for changing the day. A second one here
+            // sits on the same axis over the same pixels, and both are `simultaneousGesture`,
+            // so both fire — deleting a task also moved you to tomorrow. Distance can't
+            // separate them either: the day commits at 55pt, so any row threshold worth
+            // reaching clears it too.
+            //
+            // It *is* fixable. The goal carousel has exactly this conflict and solves it by
+            // measuring its own frame and having the day gesture ignore drags that start
+            // inside it (see `carouselFrame`). The same trick works here against the timeline
+            // container, and was weighed.
+            //
+            // It was declined on what it costs, not on whether it works. After the carousel is
+            // excluded the task list *is* the day-swipe surface — exclude it too and only the
+            // header strip and the gaps between sections respond, which on a full day is
+            // almost nothing. Day navigation has no other control at all, so that trade buys a
+            // shortcut for something the editor already does, and pays for it with the app's
+            // only way of moving between days.
+            //
+            // Delete and Duplicate live at the end of the editor instead, where they're
+            // labelled and can't be hit by accident. Anyone revisiting this should move day
+            // navigation to an explicit control first; until then, the swipe surface wins.
             TaskRowView(
                 task: task,
                 onToggle: { onToggle(task) },
@@ -480,10 +496,17 @@ struct TodayView: View {
     private var realTodayTasks: FetchedResults<TaskEntity>
 
     @EnvironmentObject private var subscription: SubscriptionManager
-    /// Only for the goal limit — the day lock carries its own, inside `lockedBehindPaywall`.
     /// Shown whenever a free-tier limit is reached from this screen — the goal count, or an
-    /// edit to a day that isn't today.
+    /// edit to a day that isn't today. The day lock carries its own, inside `lockedBehindPaywall`.
     @State private var showingGoalPaywall = false
+    /// Where the goal carousel currently sits, so the day-change swipe can leave it alone.
+    /// Measured rather than assumed: it scrolls with the content, so any fixed band would be
+    /// wrong the moment the page moves.
+    @State private var carouselFrame: CGRect = .zero
+
+    /// The coordinate space the carousel is measured in and the day swipe is read in — one
+    /// space, so the frame and the drag's start point are expressed in the same terms.
+    private static let surface = "todaySurface"
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \CommitmentEntity.createdAt, ascending: true)])
     private var commitments: FetchedResults<CommitmentEntity>
@@ -590,6 +613,13 @@ struct TodayView: View {
                 }
 
                 goalSection
+                    .background {
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear { carouselFrame = proxy.frame(in: .named(Self.surface)) }
+                                .onChange(of: proxy.frame(in: .named(Self.surface))) { _, f in carouselFrame = f }
+                        }
+                    }
 
                 timeline
                     .id(selectedDate)
@@ -604,6 +634,7 @@ struct TodayView: View {
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .contentShape(Rectangle())
+        .coordinateSpace(name: Self.surface)
         // `simultaneousGesture`, not `gesture`. The latter competes with the scroll view and
         // with every button in the task rows, and loses — which left only a couple of thin
         // strips of screen where a swipe actually registered.
@@ -612,8 +643,17 @@ struct TodayView: View {
         // travelled that far, so the day change always arrived late. 12pt starts tracking
         // almost immediately, and the decision still happens at the end.
         .simultaneousGesture(
-            DragGesture(minimumDistance: 12)
+            DragGesture(minimumDistance: 12, coordinateSpace: .named(Self.surface))
                 .onEnded { value in
+                    // A drag that began on the goal carousel belongs to the carousel. Both are
+                    // `simultaneousGesture` over the same pixels, so paging from the Today card
+                    // across to a goal also satisfied this one and changed the day as well —
+                    // two things happening for one swipe.
+                    //
+                    // Excluded by where the drag *started*, not where it ended: a page swipe
+                    // travels a long way and would otherwise leave the carousel's bounds part
+                    // way through and start counting again.
+                    guard !carouselFrame.contains(value.startLocation) else { return }
                     let horizontal = value.translation.width
                     // Beat vertical by half again, or a diagonal flick while scrolling changes
                     // the day by accident — which is far more annoying than a missed swipe.
