@@ -63,6 +63,15 @@ enum Palette: String, CaseIterable, Identifiable, Hashable {
     ///
     /// `ThemeManager` owns writing it. Read it anywhere.
     static var current: Palette = {
+        #if DEBUG
+        // `-wpPaper` / `-wpStandard`, same family as `-wpTab`. Not a convenience: writing
+        // `themePalette` from the command line races the app's own preference flush and loses
+        // about as often as it wins, so a palette set that way can't be trusted to be the one
+        // on screen. A launch argument is read before anything else and can't be overwritten.
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-wpPaper") { return .paper }
+        if args.contains("-wpStandard") { return .standard }
+        #endif
         let raw = sharedDefaults?.string(forKey: storageKey)
             ?? UserDefaults.standard.string(forKey: storageKey)
         return Palette(rawValue: raw ?? "") ?? .standard
