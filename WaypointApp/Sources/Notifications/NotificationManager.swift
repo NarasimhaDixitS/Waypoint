@@ -150,13 +150,14 @@ enum NotificationManager {
         // through silent mode, and `.timeSensitive` is the one level that breaks through a Focus
         // mode when the user permits it.
         //
-        // It does **not** currently work in this build. The level requires the
-        // `com.apple.developer.usernotifications.time-sensitive` entitlement, which
-        // `Generated/Waypoint.entitlements` does not carry — without it iOS downgrades the
-        // request silently, so these behave as ordinary notifications. Adding the entitlement
-        // needs a provisioning profile from a paid developer account; doing it before then
-        // breaks signing. Left set so the behaviour arrives with the account rather than needing
-        // to be remembered, and said plainly here so nobody reads the line and believes it.
+        // This works as of the paid membership. The level needs the
+        // `com.apple.developer.usernotifications.time-sensitive` entitlement, which the app now
+        // carries — before that iOS downgraded the request silently and these behaved as
+        // ordinary notifications, with nothing anywhere to say so.
+        //
+        // Still worth knowing that it degrades rather than fails: a build signed without the
+        // entitlement posts the notification at the ordinary level and reports success. So the
+        // only way to confirm it works is to put a Focus mode on and watch one arrive.
         content.interruptionLevel = .timeSensitive
         content.threadIdentifier = "wp.task"
 

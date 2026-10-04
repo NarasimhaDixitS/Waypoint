@@ -82,7 +82,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.narasimhadixit.waypoint.widget
         DEVELOPMENT_TEAM: 23495RS836
-        CODE_SIGN_ENTITLEMENTS: Generated/Waypoint.entitlements
+        CODE_SIGN_ENTITLEMENTS: Generated/WaypointWidget.entitlements
         SWIFT_VERSION: 5.0
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: true

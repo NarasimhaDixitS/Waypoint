@@ -809,7 +809,7 @@
 		089CB9D386CF308AF3AC74CA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Generated/Waypoint.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Generated/WaypointWidget.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -922,7 +922,7 @@
 		6DBDCA492D3698B3ADDE54F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Generated/Waypoint.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Generated/WaypointWidget.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;

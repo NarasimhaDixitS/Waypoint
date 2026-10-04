@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  The widget's only entitlement, and the whole reason it has one: it runs in its own
+	  process and reads the task store out of the shared container. Same identifier as the
+	  app's, character for character.
+	-->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.narasimhadixit.waypoint</string>
+	</array>
+</dict>
+</plist>

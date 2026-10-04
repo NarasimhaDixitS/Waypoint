@@ -2,9 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!--
+	  Must match `WPAppGroupIdentifier` in Info.plist exactly. `containerURL` returns nil for a
+	  group the running build doesn't hold, which is indistinguishable from the entitlement
+	  being absent — these two drifted apart once already and nothing announced it.
+	-->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.narasimhadixit.waypoint</string>
 	</array>
+
+	<!--
+	  What lets a reminder break through a Focus mode, and the closest a third-party app gets
+	  to an alarm. `NotificationManager` has been setting `.timeSensitive` all along; without
+	  this key iOS downgrades it silently, so reminders behaved as ordinary notifications and
+	  nothing said why. It needs a provisioning profile from a paid account, which is why it
+	  could not be added before now — adding it earlier broke signing outright.
+
+	  Deliberately NOT in the widget's entitlements: the widget posts no notifications, and an
+	  entitlement its App ID doesn't carry fails the build rather than being ignored.
+	-->
+	<key>com.apple.developer.usernotifications.time-sensitive</key>
+	<true/>
 </dict>
 </plist>
