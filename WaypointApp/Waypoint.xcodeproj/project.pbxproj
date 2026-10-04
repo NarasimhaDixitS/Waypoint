@@ -598,6 +598,12 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					216749C43C6C21965C9F777F = {
+						DevelopmentTeam = 23495RS836;
+					};
+					C2F92D227913837FFA259593 = {
+						DevelopmentTeam = 23495RS836;
+					};
 				};
 			};
 			buildConfigurationList = 61ECA9088B277AB8DAAEB920 /* Build configuration list for PBXProject "Waypoint" */;
@@ -784,6 +790,7 @@
 				CODE_SIGN_ENTITLEMENTS = Generated/Waypoint.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Generated/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -791,7 +798,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.waypoint.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.narasimhadixit.waypoint;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -804,6 +811,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Generated/Waypoint.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Generated/WidgetInfo.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -812,7 +820,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.waypoint.app.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.narasimhadixit.waypoint.widget;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -885,7 +893,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.waypoint.WaypointTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.narasimhadixit.WaypointTests;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -903,7 +911,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.waypoint.WaypointTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.narasimhadixit.WaypointTests;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -916,6 +924,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Generated/Waypoint.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Generated/WidgetInfo.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -924,7 +933,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.waypoint.app.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.narasimhadixit.waypoint.widget;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -1003,6 +1012,7 @@
 				CODE_SIGN_ENTITLEMENTS = Generated/Waypoint.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Generated/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1010,7 +1020,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.waypoint.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.narasimhadixit.waypoint;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

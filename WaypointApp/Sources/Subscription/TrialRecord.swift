@@ -21,7 +21,14 @@ import Security
 /// fortnight costs them.
 enum TrialRecord {
     /// Namespaced to the bundle so a second app from the same team can't read or clobber it.
-    private static let service = Bundle.main.bundleIdentifier ?? "com.waypoint.app"
+    ///
+    /// Note what that ties together: **changing the bundle identifier orphans the stored trial
+    /// date**, because the keychain item is filed under the old service name and nothing looks
+    /// there any more. The effect is a fresh fourteen days for everyone who updates. That
+    /// happened once already, moving from `com.waypoint.app` to the identifier Xcode had
+    /// actually registered, and cost nothing because the app had never shipped. After release
+    /// it would be a real loss, so the bundle identifier is now fixed for good.
+    private static let service = Bundle.main.bundleIdentifier ?? "com.narasimhadixit.waypoint"
     static let defaultAccount = "trial.startedAt"
 
     /// Where the trial start used to live. Read once, so an existing install doesn't have its

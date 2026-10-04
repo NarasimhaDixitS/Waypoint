@@ -1,6 +1,6 @@
 name: Waypoint
 options:
-  bundleIdPrefix: com.waypoint
+  bundleIdPrefix: com.narasimhadixit
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -29,12 +29,17 @@ targets:
         # Swift, because those two drifted apart once already and nothing said so.
         WPAppGroupIdentifier: group.com.narasimhadixit.waypoint
         CFBundleURLTypes:
-          - CFBundleURLName: com.waypoint.app
+          - CFBundleURLName: com.narasimhadixit.waypoint
             CFBundleURLSchemes:
               - waypoint
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.waypoint.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.narasimhadixit.waypoint
+        # Matches the App ID Xcode already registered, and the app group's own naming. The
+        # project said `com.waypoint.app` while the only provisioning profiles on disk were for
+        # `com.narasimhadixit.waypoint` — a mismatch the simulator never checks, and a plausible
+        # reason the widget has never once worked on real hardware.
+        DEVELOPMENT_TEAM: 23495RS836
         CODE_SIGN_ENTITLEMENTS: Generated/Waypoint.entitlements
         SWIFT_VERSION: 5.0
         TARGETED_DEVICE_FAMILY: "1"
@@ -75,7 +80,8 @@ targets:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.waypoint.app.widget
+        PRODUCT_BUNDLE_IDENTIFIER: com.narasimhadixit.waypoint.widget
+        DEVELOPMENT_TEAM: 23495RS836
         CODE_SIGN_ENTITLEMENTS: Generated/Waypoint.entitlements
         SWIFT_VERSION: 5.0
         TARGETED_DEVICE_FAMILY: "1"
