@@ -5,6 +5,18 @@ import XCTest
 /// generous and nobody pays, too strict and a paying customer gets locked out of their own work.
 /// `resolve` takes the clock rather than reading it, so the edges can actually be checked.
 final class SubscriptionPolicyTests: XCTestCase {
+
+    /// The beta override opens every gate, so it has to be off for any test of the gates
+    /// themselves — otherwise these all pass without testing anything.
+    override func setUp() {
+        super.setUp()
+        BetaAccess.grantsFullAccess = false
+    }
+
+    override func tearDown() {
+        BetaAccess.grantsFullAccess = true
+        super.tearDown()
+    }
     private func date(_ y: Int, _ m: Int, _ d: Int, hour: Int = 9) -> Date {
         Calendar.current.date(from: DateComponents(year: y, month: m, day: d, hour: hour))!
     }
@@ -198,5 +210,42 @@ final class SubscriptionPolicyTests: XCTestCase {
         let introMonthly = Double(SubscriptionPlan.monthly.mockIntroPrice.dropFirst())!
         let introAnnual = Double(SubscriptionPlan.annual.mockIntroPrice.dropFirst())!
         XCTAssertLessThan(introAnnual, introMonthly * 12, "and the same has to hold at the intro price")
+    }
+
+    // MARK: - Beta override
+
+    /// The beta override is the only thing standing between a shipped App Store build and the
+    /// app being free. It defaults to a *detected* value rather than a constant somebody has to
+    /// remember to flip back, and these pin the two halves of that.
+    func testTheBetaOverrideOpensEveryGate() {
+        BetaAccess.grantsFullAccess = true
+        let now = day(2026, 10, 1)
+        let free = SubscriptionStatus.free
+
+        XCTAssertTrue(free.hasFullAccess)
+        XCTAssertTrue(free.canUseWeekTab)
+        XCTAssertTrue(free.canUseProgress)
+        XCTAssertTrue(free.canEditDay(day(2026, 12, 25), now: now))
+        XCTAssertTrue(free.canCreateGoal(existingCount: 9))
+    }
+
+    /// And that the status underneath stays truthful, so Settings can still say where the trial
+    /// actually stands while nothing is being withheld.
+    func testTheStatusUnderneathIsUnchangedByTheOverride() {
+        BetaAccess.grantsFullAccess = true
+        let started = day(2026, 10, 1)
+        let status = SubscriptionPolicy.resolve(
+            trialStartedAt: started, plan: nil, renewsAt: nil, now: day(2026, 10, 20)
+        )
+        XCTAssertEqual(status, .free, "the trial still ends; only the gates are held open")
+    }
+
+    /// The override must not outlive the beta. If this starts failing, the beta has run long
+    /// enough that `BetaAccess` should have been deleted — which is the point of the date.
+    func testTheBetaOverrideHasNotOutlivedItsExpiry() {
+        XCTAssertLessThan(
+            Date.now, BetaAccess.expiry,
+            "BetaAccess expired — purchases should be real by now and this file deleted"
+        )
     }
 }

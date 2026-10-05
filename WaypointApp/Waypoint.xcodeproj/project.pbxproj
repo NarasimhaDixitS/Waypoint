@@ -30,6 +30,7 @@
 		335C7D833C6FD10CDF6DD338 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C82A719BF4F9099FF5D61725 /* SubscriptionManager.swift */; };
 		336714247F3CE0431661E8EC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54604A4F20F4FF521D885078 /* SettingsView.swift */; };
 		34760B15291E06AB0B433647 /* PaywallLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = F919099AF10E2EC3EACB1E99 /* PaywallLock.swift */; };
+		34C5DCE35BFB725A2AA60FCF /* BetaAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1AC78886983536B6D8F39F /* BetaAccess.swift */; };
 		382D8B866267D75CABE10EDE /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADBDE4286DDF140EAFB318B /* PaywallView.swift */; };
 		38DE3323419B24AA3320B70B /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DADD91610375507DE053467 /* Palette.swift */; };
 		3C10885AA13B46981028F597 /* TaskClashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F8235C48616CB3D03B7C4DF /* TaskClashView.swift */; };
@@ -155,6 +156,7 @@
 		1FA0A1BEACD65026BD0B1E3B /* ColorTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTokens.swift; sourceTree = "<group>"; };
 		20053870B085F4E0A2992460 /* GoalCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCreateView.swift; sourceTree = "<group>"; };
 		24ECA3D57DA1BDC6AAA0C1C7 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		2B1AC78886983536B6D8F39F /* BetaAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaAccess.swift; sourceTree = "<group>"; };
 		37E074FA3AF1BBB691783155 /* WaypointTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WaypointTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B7584D86923F2172B5800B8 /* CardBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardBackground.swift; sourceTree = "<group>"; };
 		3EB06A4AFB082B72DA0F3165 /* GoalWeekStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalWeekStrip.swift; sourceTree = "<group>"; };
@@ -318,6 +320,7 @@
 		7A4446667CBB51446ABC1C8D /* Subscription */ = {
 			isa = PBXGroup;
 			children = (
+				2B1AC78886983536B6D8F39F /* BetaAccess.swift */,
 				A08FEFA7026F5EE220D69588 /* Subscription.swift */,
 				C82A719BF4F9099FF5D61725 /* SubscriptionManager.swift */,
 				480E8655AE7F0B8D4D149C17 /* TrialRecord.swift */,
@@ -668,6 +671,7 @@
 				6D0CBF355D939EE2DE71AC42 /* AccentSwatch.swift in Sources */,
 				F793AC1C4B5BA0671B964170 /* AnalyticsCard.swift in Sources */,
 				907C9586FDDB75A3EE2D6348 /* AppSession.swift in Sources */,
+				34C5DCE35BFB725A2AA60FCF /* BetaAccess.swift in Sources */,
 				5C435AF590790E4CDDF3DFB1 /* Buttons.swift in Sources */,
 				9FAA7DF2F3D0B94F7929F1BC /* CardBackground.swift in Sources */,
 				66CA047020BB53456CF52163 /* CascadeConfirmView.swift in Sources */,

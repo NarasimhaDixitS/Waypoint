@@ -94,10 +94,18 @@ enum SubscriptionStatus: Equatable {
     var isTrial: Bool { if case .trial = self { true } else { false } }
     var isSubscribed: Bool { if case .subscribed = self { true } else { false } }
 
+    /// The single question every gate in the app asks.
+    ///
+    /// `BetaAccess` short-circuits it while the purchase path is still a mock, so testers get
+    /// the whole app rather than a paywall quoting prices for products that do not exist. The
+    /// status itself stays truthful underneath — a lapsed trial still reports `.free`, so
+    /// Settings can say so — only the gates open. See `BetaAccess` for why it is detected from
+    /// the receipt rather than left as a flag somebody has to remember to turn off.
     var hasFullAccess: Bool {
+        if BetaAccess.grantsFullAccess { return true }
         switch self {
-        case .trial, .subscribed: true
-        case .free: false
+        case .trial, .subscribed: return true
+        case .free: return false
         }
     }
 }

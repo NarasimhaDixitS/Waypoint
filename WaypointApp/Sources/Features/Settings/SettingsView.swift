@@ -235,7 +235,10 @@ struct SettingsView: View {
     }
 
 private var subscriptionCard: some View {
-        Button { showingPaywall = true } label: {
+        // No paywall while the beta is open — it would quote prices for products that do not
+        // exist yet. The row still reports the real state underneath, so a tester can see the
+        // trial counting down even though nothing is being withheld.
+        Button { if !BetaAccess.grantsFullAccess { showingPaywall = true } } label: {
             row {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(subscriptionTitle)
@@ -256,10 +259,11 @@ private var subscriptionCard: some View {
     }
 
     private var subscriptionTitle: String {
+        if BetaAccess.grantsFullAccess { return "Beta — everything unlocked" }
         switch subscription.status {
-        case .trial: "Free trial"
-        case .subscribed(let plan, _): "Waypoint \(plan.title)"
-        case .free: "Trial ended"
+        case .trial: return "Free trial"
+        case .subscribed(let plan, _): return "Waypoint \(plan.title)"
+        case .free: return "Trial ended"
         }
     }
 
@@ -288,13 +292,16 @@ private var subscriptionCard: some View {
     }
 
     private var subscriptionDetail: String {
+        if BetaAccess.grantsFullAccess {
+            return "Subscriptions aren't switched on yet, so nothing is limited while you test."
+        }
         switch subscription.status {
         case .trial(let daysLeft):
-            daysLeft == 1 ? "Last day — tap to subscribe" : "\(daysLeft) days left — tap to subscribe"
+            return daysLeft == 1 ? "Last day — tap to subscribe" : "\(daysLeft) days left — tap to subscribe"
         case .subscribed(_, let renewsAt):
-            "Renews \(renewsAt.formatted(.dateTime.day().month(.abbreviated).year()))"
+            return "Renews \(renewsAt.formatted(.dateTime.day().month(.abbreviated).year()))"
         case .free:
-            "Today and your history stay free. Subscribe to plan ahead, see the week and track progress."
+            return "Today and your history stay free. Subscribe to plan ahead, see the week and track progress."
         }
     }
 
