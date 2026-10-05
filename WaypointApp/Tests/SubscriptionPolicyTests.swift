@@ -190,26 +190,21 @@ final class SubscriptionPolicyTests: XCTestCase {
         XCTAssertEqual(afterwards, .free)
     }
 
-    /// The crossed-out price has to be one that is actually charged later, or it is deceptive
-    /// pricing — against Apple's rules and, in the UK and EU, against the law.
-    func testTheStruckThroughPriceIsHigherThanTheIntroPrice() {
-        for plan in SubscriptionPlan.allCases {
-            let standard = Double(plan.mockPrice.dropFirst())!
-            let intro = Double(plan.mockIntroPrice.dropFirst())!
-            XCTAssertGreaterThan(standard, intro, "\(plan.title) shows a discount that isn't one")
-        }
-    }
-
-    /// The badge steers towards annual without making a number up. What has to stay true is the
-    /// substance underneath it: a yearly plan that costs more than paying monthly is not a plan.
+    /// There is no introductory offer any more, so there is no second price to disclose and
+    /// nothing to be deceptive about. What has to stay true is the one claim the paywall still
+    /// makes: that annual is the better value.
     func testTheAnnualPlanIsActuallyTheBetterValue() {
         let monthly = Double(SubscriptionPlan.monthly.mockPrice.dropFirst())!
         let annual = Double(SubscriptionPlan.annual.mockPrice.dropFirst())!
-        XCTAssertLessThan(annual, monthly * 12)
+        XCTAssertLessThan(annual, monthly * 12, "a yearly plan costing more than paying monthly is not a plan")
+    }
 
-        let introMonthly = Double(SubscriptionPlan.monthly.mockIntroPrice.dropFirst())!
-        let introAnnual = Double(SubscriptionPlan.annual.mockIntroPrice.dropFirst())!
-        XCTAssertLessThan(introAnnual, introMonthly * 12, "and the same has to hold at the intro price")
+    /// Product identifiers cannot be changed once App Store Connect has them, and a subscriber's
+    /// purchase is tied to the string. A typo here is unrecoverable, so it is pinned.
+    func testProductIdentifiersMatchAppStoreConnect() {
+        XCTAssertEqual(SubscriptionPlan.monthly.productID, "waypoint.pro.monthly")
+        XCTAssertEqual(SubscriptionPlan.annual.productID, "waypoint.pro.annual")
+        XCTAssertEqual(Set(SubscriptionPlan.allCases.map(\.productID)).count, SubscriptionPlan.allCases.count)
     }
 
     // MARK: - Beta override

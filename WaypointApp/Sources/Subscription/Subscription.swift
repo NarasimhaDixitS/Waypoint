@@ -8,7 +8,7 @@ import Foundation
 /// StoreKit later touches `purchase`, `restore` and nothing else.
 ///
 /// Prices are stated here only so the mock paywall can show something. Real prices come from
-/// App Store Connect at runtime and are localised per storefront — a hardcoded "$4.99" shown to
+/// App Store Connect at runtime and are localised per storefront — a hardcoded "$1.99" shown to
 /// someone in India is both wrong and a review rejection, so these strings die with the mock.
 enum SubscriptionPlan: String, CaseIterable, Identifiable {
     case monthly
@@ -23,31 +23,33 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable {
         }
     }
 
-    /// What someone pays for the first period. Introductory offers are an Apple feature: a real
-    /// reduced price for a set time, after which the standard price applies. That distinction is
-    /// the whole reason the crossed-out number below is allowed to exist — a "was" price nobody
-    /// was ever charged is deceptive pricing, and in the UK and EU it is against consumer law.
-    var mockIntroPrice: String {
+    /// The identifier this plan has in App Store Connect.
+    ///
+    /// Fixed for the life of the product — Apple does not allow it to be changed once created,
+    /// and a subscriber's purchase is tied to it. This is the one string the app and App Store
+    /// Connect must agree on exactly.
+    var productID: String {
+        switch self {
+        case .monthly: "waypoint.pro.monthly"
+        case .annual: "waypoint.pro.annual"
+        }
+    }
+
+    /// Only so the mock paywall has something to draw.
+    ///
+    /// There is no introductory offer: the launch price *is* the price. An introductory offer
+    /// in Apple's sense is "pay this for N periods, then the standard price", and it needs a
+    /// standard price to revert to — so a low launch price with nothing above it is simply a
+    /// low price, which is also the version that leaves every option open. Raising it later
+    /// can preserve existing subscribers at what they signed up for.
+    ///
+    /// Dies with the mock. Real prices arrive from Apple at runtime, already converted and
+    /// formatted for the viewer's storefront — a hardcoded "$1.99" shown to someone in India is
+    /// both wrong and a review rejection.
+    var mockPrice: String {
         switch self {
         case .monthly: "$1.99"
         case .annual: "$19.99"
-        }
-    }
-
-    /// The standard price, shown struck through. Real, and really charged once the intro period
-    /// ends.
-    var mockPrice: String {
-        switch self {
-        case .monthly: "$4.99"
-        case .annual: "$39.99"
-        }
-    }
-
-    /// How long the introductory price lasts.
-    var introDuration: String {
-        switch self {
-        case .monthly: "for 3 months"
-        case .annual: "for the first year"
         }
     }
 

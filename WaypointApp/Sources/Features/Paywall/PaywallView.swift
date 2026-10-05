@@ -38,7 +38,7 @@ struct PaywallView: View {
                         subscription.purchase(selected)
                         dismiss()
                     } label: {
-                        Text("Subscribe — \(selected.mockIntroPrice) \(selected.cadence)")
+                        Text("Subscribe — \(selected.mockPrice) \(selected.cadence)")
                             .wpTypography(.cardTitle)
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -100,17 +100,13 @@ struct PaywallView: View {
                     Text(plan.title)
                         .wpTypography(.cardTitle)
                         .foregroundStyle(ColorTokens.textPrimary)
-                    Text("\(plan.mockIntroPrice) \(plan.cadence)")
+                    // One price, no "then". There is no introductory offer: the launch price
+                    // is the price, which means there is nothing a reader has to be warned
+                    // about further down. A second line here would only be there to disclose a
+                    // rise that isn't coming.
+                    Text("\(plan.mockPrice) \(plan.cadence)")
                         .wpTypography(.body)
                         .foregroundStyle(ColorTokens.textPrimary)
-                    // The standard price has to appear somewhere before the buy button — Apple
-                    // requires an introductory offer to state what follows it, and it is one of
-                    // the more common reasons a paywall gets rejected. Stated plainly and
-                    // quietly rather than struck through in the headline: the point is that
-                    // nobody is surprised in month four, not that they flinch in month one.
-                    Text("Introductory offer \(plan.introDuration), then \(plan.mockPrice) \(plan.cadence)")
-                        .wpTypography(.micro)
-                        .foregroundStyle(ColorTokens.textSecondary)
                 }
                 Spacer()
                 if let note = plan.savingNote {
