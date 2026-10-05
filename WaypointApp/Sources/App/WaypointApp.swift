@@ -4,7 +4,6 @@ import WidgetKit
 @main
 struct WaypointApp: App {
     @StateObject private var theme = ThemeManager.shared
-    @StateObject private var account = AccountManager.shared
     @StateObject private var subscription = SubscriptionManager.shared
     let persistence = PersistenceController.shared
     @State private var showingRecoveryNotice = false
@@ -62,7 +61,6 @@ struct WaypointApp: App {
                 RootView()
                     .environment(\.managedObjectContext, persistence.container.viewContext)
                     .environmentObject(theme)
-                    .environmentObject(account)
                     .environmentObject(subscription)
                     .onAppear {
                         // Only prime the real system permission prompt for users who already

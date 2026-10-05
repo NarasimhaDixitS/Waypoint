@@ -1,11 +1,9 @@
 import SwiftUI
-import AuthenticationServices
 
 /// The gate. Nothing in the app is reachable until this is past.
 struct WelcomeView: View {
-    var onSignIn: () -> Void
+    var onContinue: () -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,45 +25,20 @@ struct WelcomeView: View {
             Spacer()
 
             VStack(spacing: 12) {
-                // Apple's own button, not a lookalike — its wording, radius and light/dark
-                // behaviour are specified, and a hand-rolled copy is grounds for rejection.
+                // Was a Sign in with Apple button that signed nobody in — it called a stub
+                // hardcoding one name and address, so every person who installed the app
+                // became the developer. Nothing here ever needed an identity: the tasks are in
+                // a local database, and once purchases arrive they are tied to the buyer's
+                // Apple ID by the App Store, not by anything this app stores.
                 //
-                // Still a placeholder: the real request needs the
-                // `com.apple.developer.applesignin` entitlement, which requires a paid
-                // Developer Program membership. The overlay swallows the tap so the stub runs
-                // rather than a request that would fail; both go away with the entitlement.
-                SignInWithAppleButton(.signIn) { _ in
-                } onCompletion: { _ in }
-                    // Black on light, white on dark. Both the style and the background behind
-                    // it resolve from the same trait, so they can't disagree — but the failure
-                    // if they ever did is a button that vanishes into the page, so the outline
-                    // below guarantees an edge either way. Apple ships `.whiteOutline` for
-                    // exactly this, which settles whether a border is allowed.
-                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                    .frame(height: 50)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(ColorTokens.border, lineWidth: 1)
-                    }
-                    .allowsHitTesting(false)
-                    .overlay {
-                        Button(action: onSignIn) {
-                            Color.clear.contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    // Rebuilt whenever the scheme changes.
-                    //
-                    // `SignInWithAppleButton` wraps a UIKit `ASAuthorizationAppleIDButton`,
-                    // which takes its style at init and has no way to change it afterwards. The
-                    // SwiftUI wrapper doesn't recreate the view when the style modifier's value
-                    // changes, so the button keeps whatever it was born with — which is how a
-                    // white button ended up on a light background while the surrounding page,
-                    // drawn from live UIKit traits, correctly rendered light.
-                    .id(colorScheme)
+                // The screen stays because it is the only place the app introduces itself.
+                // Only the claim goes.
+                Button(action: onContinue) {
+                    Text("Get started")
+                }
+                .buttonStyle(.wpPrimary)
 
-                Text("Your tasks stay on this device. Signing in is how Waypoint knows the work is yours.")
+                Text("Everything you plan stays on this device. No account, nothing to sign up for.")
                     .wpTypography(.micro)
                     .foregroundStyle(ColorTokens.textMuted)
                     .multilineTextAlignment(.center)
@@ -99,5 +72,5 @@ struct WaypointLogoMark: View {
 }
 
 #Preview {
-    WelcomeView(onSignIn: {})
+    WelcomeView(onContinue: {})
 }

@@ -1,22 +1,24 @@
 import SwiftUI
 
 struct RootView: View {
+    @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @EnvironmentObject private var theme: ThemeManager
-    @EnvironmentObject private var account: AccountManager
 
-    /// Three gates, in order: signed in, set up, then the app.
+    /// Two steps on a first run — a welcome, then setup — and the app after that.
     ///
-    /// Sign-in comes first and nothing is reachable behind it. Worth being clear-eyed about
-    /// what that costs, since it's a deliberate choice rather than a default: every task lives
-    /// on this device, so the gate isn't protecting anything — it's establishing whose work it
-    /// is. The bill for that arrives the day the stub becomes a real Apple request, because
-    /// anyone who declines it, or opens the app somewhere with no signal, is then locked out
-    /// of a to-do list sitting intact on their own phone. That's the trade being made.
+    /// There used to be a sign-in gate in front of both, and nothing was reachable behind it.
+    /// It protected nothing: every task is in a database on this device, so the gate only ever
+    /// established whose work it was, and it did that by hardcoding one name for everybody.
+    /// Purchases don't need it either — the App Store ties those to the buyer's Apple ID.
+    ///
+    /// Shipping accounts would also have committed the app to offering account deletion in
+    /// perpetuity, which is a real obligation to take on for a database that never leaves the
+    /// phone. If sync ever arrives, sign-in arrives with it.
     var body: some View {
         Group {
-            if !account.isSignedIn {
-                WelcomeView(onSignIn: { account.signIn() })
+            if !hasSeenWelcome {
+                WelcomeView(onContinue: { hasSeenWelcome = true })
             } else if hasCompletedOnboarding {
                 MainTabView()
             } else {
@@ -29,13 +31,12 @@ struct RootView: View {
                 })
             }
         }
-        .animation(.easeInOut(duration: 0.28), value: account.isSignedIn)
+        .animation(.easeInOut(duration: 0.28), value: hasSeenWelcome)
         .background(ColorTokens.surface0.ignoresSafeArea())
     }
 }
 
-/// What's left of onboarding once the welcome screen became the sign-in gate.
-private struct SetupFlowView: View {
+struct SetupFlowView: View {
     enum Stage { case schedule, sleep }
     @State private var stage: Stage = .schedule
     var onFinished: () -> Void

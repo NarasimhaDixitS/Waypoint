@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var theme: ThemeManager
-    @EnvironmentObject private var account: AccountManager
     @EnvironmentObject private var subscription: SubscriptionManager
     @Environment(\.managedObjectContext) private var context
     @Environment(\.colorScheme) private var colorScheme
@@ -17,7 +16,6 @@ struct SettingsView: View {
                     .foregroundStyle(ColorTokens.textPrimary)
                     .padding(.top, 8)
 
-                accountCard
                 subscriptionCard
 
                 VStack(spacing: 0) {
@@ -161,6 +159,11 @@ struct SettingsView: View {
                 }
                 .wpCard(padding: 0)
 
+                // Debug builds only. Everything in here is destructive or dishonest in a
+                // tester's hands: "Load demo data" deletes every task and goal they own, and
+                // the state buttons hand out a paid subscription for nothing. Useful on a
+                // development device, indefensible on anyone else's.
+                #if DEBUG
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Developer")
                         .wpTypography(.micro)
@@ -205,6 +208,7 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
                     .wpCard(padding: 0)
                 }
+                #endif
             }
             .padding(.horizontal, 20)
             .padding(.bottom, ColorTokens.tabBarClearance)
@@ -294,42 +298,6 @@ private var subscriptionCard: some View {
         }
     }
 
-/// The signed-in state only.
-    ///
-    /// There's no sign-in button here any more: the welcome screen gates the whole app, so by
-    /// the time anyone reaches Settings they're signed in by definition. Signing out drops
-    /// straight back to that gate, which is why this doesn't need the other half.
-    @ViewBuilder
-    private var accountCard: some View {
-        VStack(spacing: 0) {
-            row {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(account.displayName ?? "Signed in")
-                        .wpTypography(.cardTitle)
-                        .foregroundStyle(ColorTokens.textPrimary)
-                    if let email = account.email {
-                        Text(email)
-                            .wpTypography(.body)
-                            .foregroundStyle(ColorTokens.textSecondary)
-                    }
-                }
-                Spacer()
-            }
-            divider
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) { account.signOut() }
-            } label: {
-                row {
-                    Text("Sign out")
-                        .wpTypography(.cardTitle)
-                        .foregroundStyle(ColorTokens.warning)
-                    Spacer()
-                }
-            }
-            .buttonStyle(.plain)
-        }
-        .wpCard(padding: 0)
-    }
 
     private func row<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         HStack {
