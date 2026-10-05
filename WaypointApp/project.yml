@@ -47,7 +47,7 @@ targets:
         ASSETSCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         GENERATE_INFOPLIST_FILE: true
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "2"
         SWIFT_EMIT_LOC_STRINGS: true
     dependencies:
       - target: WaypointWidgetExtension
@@ -87,7 +87,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: true
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "2"
 
   WaypointTests:
     type: bundle.unit-test
