@@ -59,7 +59,7 @@ struct PaywallView: View {
                     // Apple requires the terms of an auto-renewing subscription to be visible at
                     // the point of purchase — length, price, and that it renews until cancelled.
                     // Omitting it is a common review rejection.
-                    Text("Billed through your Apple ID. Renews automatically until cancelled; you can cancel any time in Settings. Prices shown are placeholders while payment is being built.")
+                    Text("Billed through your Apple ID. Renews automatically until cancelled; you can cancel any time in Settings.")
                         .wpTypography(.micro)
                         .foregroundStyle(ColorTokens.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
