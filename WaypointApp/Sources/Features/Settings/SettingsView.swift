@@ -5,7 +5,9 @@ struct SettingsView: View {
     @EnvironmentObject private var subscription: SubscriptionManager
     @Environment(\.managedObjectContext) private var context
     @Environment(\.colorScheme) private var colorScheme
+    #if DEBUG
     @State private var showingDemoConfirm = false
+    #endif
     /// Confirms the tap landed. The notes themselves won't reappear until the situation each
     /// one explains comes round again, so without this the button looks like it did nothing.
     @State private var tipsReset = false
@@ -241,6 +243,14 @@ struct SettingsView: View {
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
+        // Inside the guard, with the button that raises it. It sat outside, so a Release
+        // binary carried "Replace everything with demo data?" and a call to
+        // `SampleData.loadDemo` — unreachable, because the only thing that sets
+        // `showingDemoConfirm` is the DEBUG-only button, but shipped all the same. Two ways
+        // that matters: anyone running `strings` on the App Store binary reads a sentence
+        // about wiping their data, and the next person to add a second setter gets a live
+        // destructive dialog in production without touching this file.
+        #if DEBUG
         .confirmationDialog(
             "Replace everything with demo data?",
             isPresented: $showingDemoConfirm,
@@ -253,6 +263,7 @@ struct SettingsView: View {
         } message: {
             Text("Every task and goal is deleted and replaced with a seeded demo set. Your commitments and settings are left alone. This can't be undone.")
         }
+        #endif
     }
 
     private var divider: some View {
