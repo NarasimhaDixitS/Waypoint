@@ -54,6 +54,15 @@ struct GoalCenterView: View {
             VStack(alignment: .leading, spacing: 14) {
                 header
 
+                // Only once there's a goal to look at. On an empty tab the explanation would
+                // be describing something that isn't there yet.
+                if !goals.isEmpty {
+                    FirstRunNote(
+                        .goalCentre,
+                        "Open a goal to see everything under it at once — what's overdue, what's coming, and how the last few weeks have actually gone."
+                    )
+                }
+
                 ForEach(goals) { goal in
                     NavigationLink(value: GoalRoute.goal(goal.objectID)) {
                         GoalCard(goal: goal)

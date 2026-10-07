@@ -6,6 +6,9 @@ struct SettingsView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingDemoConfirm = false
+    /// Confirms the tap landed. The notes themselves won't reappear until the situation each
+    /// one explains comes round again, so without this the button looks like it did nothing.
+    @State private var tipsReset = false
     @State private var showingPaywall = false
 
     var body: some View {
@@ -156,6 +159,28 @@ struct SettingsView: View {
                             .labelsHidden()
                             .tint(theme.accentSwatch.color)
                     }
+                    divider
+                    // The first-run notes are one-shot by design, which makes them impossible
+                    // to find again the moment they're dismissed — including by someone who
+                    // dismissed one by accident reaching for something else.
+                    Button {
+                        FirstRunHint.resetAll()
+                        tipsReset = true
+                    } label: {
+                        row {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Show tips again").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                                Text(tipsReset ? "They'll appear next time each one applies" : "Brings back the one-off explanations")
+                                    .wpTypography(.micro)
+                                    .foregroundStyle(tipsReset ? theme.accentSwatch.markColor : ColorTokens.textSecondary)
+                            }
+                            Spacer()
+                            Image(systemName: tipsReset ? "checkmark" : "arrow.counterclockwise")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(tipsReset ? theme.accentSwatch.markColor : ColorTokens.textMuted)
+                        }
+                    }
+                    .buttonStyle(.wpRow)
                 }
                 .wpCard(padding: 0)
 

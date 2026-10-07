@@ -387,6 +387,10 @@ private struct DayTimelineView: View {
     /// than a rule with nothing hanging off it.
     private var hasFixedRows: Bool { timeline.contains(where: \.isFixed) }
 
+    private var hasOverdue: Bool {
+        timeline.contains { $0.taskEntity?.state(at: now) == .overdue }
+    }
+
     private var timeline: [TimelineItem] {
         var items = dayTasks
             .filter { !hiddenTaskIDs.contains($0.objectID) }
@@ -451,13 +455,21 @@ private struct DayTimelineView: View {
 
     /// A past day has no "+" (see `MainTabView.isViewingPastDay`), so say why rather than
     /// leaving an empty screen that just looks like the button went missing.
+    /// **Says what the app does, not where the button is.**
+    ///
+    /// "Tap + to add one" captions a control the user can already see, on the one screen where
+    /// they have no idea what makes this app different from a list. The interesting thing is
+    /// that Waypoint places work around the hours already spoken for — so the empty day is the
+    /// best place to say it, and the only one where there's room.
     private var emptyStateMessage: String {
-        if isViewingToday { return "No tasks yet today. Tap + to add one." }
         let cal = Calendar.current
         if cal.startOfDay(for: day) < cal.startOfDay(for: .now) {
             return "Nothing was scheduled. Past days are a record — they can't be added to."
         }
-        return "No tasks scheduled for this day."
+        if isViewingToday {
+            return "Nothing scheduled yet. Add a task and Waypoint will fit it around your work and sleep."
+        }
+        return "Nothing here yet. Anything you add lands between the fixed hours shown on the left."
     }
 
     var body: some View {
@@ -472,6 +484,16 @@ private struct DayTimelineView: View {
             //
             // Drawn behind rather than beside, so the cards keep their full width minus the
             // gutter and nothing has to know about the line but this.
+            // Shown the first time a day holds something overdue, which is the moment the
+            // locked checkbox stops being an abstraction. Said once, then never again.
+            if hasOverdue {
+                FirstRunNote(
+                    .overdueIsLocked,
+                    "A missed task can't be ticked off after its day. Open it to give it a new date, or delete it — Waypoint keeps the miss visible on purpose."
+                )
+                .padding(.bottom, 2)
+            }
+
             ZStack(alignment: .topLeading) {
                 if hasFixedRows {
                     Rectangle()
