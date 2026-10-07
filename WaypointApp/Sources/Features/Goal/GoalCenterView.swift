@@ -41,6 +41,10 @@ struct GoalCenterView: View {
     )
     private var ungrouped: FetchedResults<TaskEntity>
 
+    #if DEBUG
+    @State private var didApplyDebugRoute = false
+    #endif
+
     // `-wpGoal` / `-wpNoGoal` push straight to one of these screens on launch. Debug only,
     // same family as `-wpTab` and `-wpNewTask`, and for the same reason: they're two taps deep,
     // the simulator is driven by hand, and the alternative is shipping changes to them unseen.
@@ -85,8 +89,14 @@ struct GoalCenterView: View {
         }
         .onAppear {
             #if DEBUG
+            // **Once per launch, not once per appearance.** `onAppear` fires again every time
+            // this screen comes back — including the moment you pop back onto it, when the
+            // path is empty again. Guarding on `path.isEmpty` therefore passed every time and
+            // re-pushed the goal, so every trip back out added another copy of it to the
+            // stack: two chevron taps to leave, then three, then four.
+            guard !didApplyDebugRoute else { return }
+            didApplyDebugRoute = true
             let args = ProcessInfo.processInfo.arguments
-            guard path.isEmpty else { return }
             if args.contains("-wpGoal"), let first = goals.first {
                 path.append(GoalRoute.goal(first.objectID))
             } else if args.contains("-wpNoGoal") {
