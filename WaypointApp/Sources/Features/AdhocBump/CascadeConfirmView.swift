@@ -76,9 +76,10 @@ struct CascadeConfirmView: View {
         }
         .padding(18)
         .background(ColorTokens.surface1)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .padding(16)
         .presentationDetents([.medium])
-        .presentationBackground(ColorTokens.surface0)
+        // One surface, edge to edge — not a `surface1` card inset on a `surface0` sheet.
+        // Those two are 4% apart in light mode, so the surround read as a grey frame around a
+        // white page rather than as depth. See `ColorTokens.surface0`.
+        .presentationBackground(ColorTokens.surface1)
     }
 }

@@ -663,6 +663,13 @@ struct TodayView: View {
         exitEditMode()
     }
 
+    /// Extra room at the foot of the list while the bulk bar is up. Measured rather than
+    /// guessed: the bar is a 44pt control with 12pt of padding each side, plus the 20pt gap
+    /// that separates it from the last row.
+    private var bulkBarClearance: CGFloat {
+        isEditing && !selectedTaskIDs.isEmpty ? 88 : 0
+    }
+
     private static let undoWindow: TimeInterval = 4
 
     /// Drives both auto-complete and the screen's sense of time. Task state is derived from the
@@ -741,7 +748,12 @@ struct TodayView: View {
                 ))
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, ColorTokens.tabBarClearance)
+            // The bar is persistent while rows are selected, unlike the undo toast, so the
+            // list has to make room for it or the last task sits underneath — which is both
+            // unreadable and untappable, on the one screen where tapping rows is the point.
+            // The toast needs no equivalent: it's transient, and it covers a row for four
+            // seconds right after that row was deleted.
+            .padding(.bottom, ColorTokens.tabBarClearance + bulkBarClearance)
         }
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
