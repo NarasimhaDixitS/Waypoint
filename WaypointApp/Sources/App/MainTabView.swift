@@ -188,6 +188,14 @@ struct MainTabView: View {
                             searchActive = false
                         }
                     },
+                    onSelectGoal: { goal in
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            goalPath = NavigationPath()
+                            goalPath.append(GoalRoute.goal(goal.objectID))
+                            selectedTab = 2
+                            searchActive = false
+                        }
+                    },
                     onCancel: { searchActive = false }
                 )
                 .transition(.opacity)
@@ -467,14 +475,18 @@ private struct NotchedBarShape: Shape {
 
 /// Full-text search across every task, reachable from any tab — an overlay rather than a
 /// sheet, so the field sits right above the nav bar instead of taking over the whole screen.
-/// Matches on title or goal name; selecting a result jumps Today to that task's day.
+/// Goals first, then the tasks that match their own text. See `SearchResults`.
 private struct GlobalSearchOverlay: View {
     @EnvironmentObject private var theme: ThemeManager
     var onSelectTask: (TaskEntity) -> Void
+    var onSelectGoal: (GoalEntity) -> Void
     var onCancel: () -> Void
 
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \TaskEntity.startTime, ascending: true)])
     private var allTasks: FetchedResults<TaskEntity>
+
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \GoalEntity.createdAt, ascending: false)])
+    private var allGoals: FetchedResults<GoalEntity>
 
     @State private var query = ""
     @FocusState private var fieldFocused: Bool
@@ -483,13 +495,15 @@ private struct GlobalSearchOverlay: View {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var results: [TaskEntity] {
-        guard !trimmedQuery.isEmpty else { return [] }
-        return allTasks.filter {
-            ($0.title ?? "").localizedCaseInsensitiveContains(trimmedQuery)
-                || ($0.goal?.name ?? "").localizedCaseInsensitiveContains(trimmedQuery)
-        }
+    private var taskResults: [TaskEntity] {
+        SearchResults.tasks(matching: trimmedQuery, in: Array(allTasks))
     }
+
+    private var goalResults: [GoalEntity] {
+        SearchResults.goals(matching: trimmedQuery, in: Array(allGoals))
+    }
+
+    private var isEmpty: Bool { taskResults.isEmpty && goalResults.isEmpty }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -514,14 +528,24 @@ private struct GlobalSearchOverlay: View {
     @ViewBuilder
     private var resultsPanel: some View {
         if trimmedQuery.isEmpty {
-            hint("Search your tasks by title or goal.")
-        } else if results.isEmpty {
-            hint("No tasks match \u{201C}\(trimmedQuery)\u{201D}.")
+            hint("Search goals and tasks. Notes count too.")
+        } else if isEmpty {
+            hint("Nothing matches \u{201C}\(trimmedQuery)\u{201D}.")
         } else {
             ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(results, id: \.objectID) { task in
-                        resultRow(task)
+                VStack(alignment: .leading, spacing: 8) {
+                    if !goalResults.isEmpty {
+                        sectionLabel("Goals")
+                        ForEach(goalResults, id: \.objectID) { goal in
+                            goalRow(goal)
+                        }
+                    }
+                    if !taskResults.isEmpty {
+                        sectionLabel("Tasks")
+                            .padding(.top, goalResults.isEmpty ? 0 : 6)
+                        ForEach(taskResults, id: \.objectID) { task in
+                            resultRow(task)
+                        }
                     }
                 }
                 .padding(14)
@@ -572,6 +596,48 @@ private struct GlobalSearchOverlay: View {
         }
     }
 
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .wpTypography(.micro)
+            .fontWeight(.semibold)
+            .tracking(0.6)
+            .foregroundStyle(ColorTokens.textSecondary)
+            .padding(.horizontal, 2)
+    }
+
+    /// A goal, with the one line that says whether it's going well — so the result answers
+    /// "how's that going" without a tap, and the tap takes you to the rest.
+    private func goalRow(_ goal: GoalEntity) -> some View {
+        Button {
+            onSelectGoal(goal)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "target")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.accentSwatch.markColor)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(goal.name ?? "Untitled goal")
+                        .wpTypography(.body)
+                        .foregroundStyle(ColorTokens.textPrimary)
+                        .lineLimit(1)
+                    Text("\(goal.doneTaskCount) of \(goal.sortedTasks.count) done\(goal.daysRemaining > 0 ? " · \(goal.daysRemaining) days to go" : "")")
+                        .wpTypography(.micro)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ColorTokens.textMuted)
+            }
+            .padding(10)
+            .background(ColorTokens.surface0)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.wpRow)
+    }
+
     private func resultRow(_ task: TaskEntity) -> some View {
         Button {
             onSelectTask(task)
@@ -586,9 +652,13 @@ private struct GlobalSearchOverlay: View {
                         .foregroundStyle(ColorTokens.textPrimary)
                         .strikethrough(task.isDone)
                         .lineLimit(1)
-                    Text("\(task.resolvedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())) · \(task.timeRangeLabel)")
+                    // The goal name is here because it no longer gets you here: a task is a
+                    // match on its own words now, so this is the only thing saying what it
+                    // belongs to.
+                    Text("\(task.resolvedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())) · \(task.timeRangeLabel)\(task.goal?.name.map { " · \($0)" } ?? "")")
                         .wpTypography(.micro)
                         .foregroundStyle(ColorTokens.textSecondary)
+                        .lineLimit(1)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
@@ -599,7 +669,7 @@ private struct GlobalSearchOverlay: View {
             .background(ColorTokens.surface0)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 
     private func taskDotColor(_ task: TaskEntity) -> Color {

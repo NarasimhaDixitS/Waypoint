@@ -67,6 +67,7 @@
 		7B6A4C78890CB42F38283BD7 /* MilestoneEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66D58C32D596421CB3A30F7F /* MilestoneEvaluator.swift */; };
 		7BD20FD2295557FE33DA3FC3 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 964A24658EDB3CFCD37A6C71 /* NotificationManager.swift */; };
 		7C9A92811867F4BCDBAA4C79 /* AccentSwatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46ADE46F3D3E7582120A827 /* AccentSwatch.swift */; };
+		7D3C3B99B687283E37A8A070 /* SearchResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 057FF8D5CB398705A135F979 /* SearchResults.swift */; };
 		7ECD95A3E01805497F3F08C3 /* ProgressAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B3430892BB87A3265BC2445 /* ProgressAnalytics.swift */; };
 		83AD6D98E2D33E9B9FEAC484 /* ScheduleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92BA47E98AB9488DC68F588 /* ScheduleEngineTests.swift */; };
 		880F64ECC57A5DAE9CC1E551 /* TaskStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90DAA1220894578F53EF0F8 /* TaskStateTests.swift */; };
@@ -91,6 +92,7 @@
 		AB49C1D3F0DCDC0E3D6A7AA2 /* TaskEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90667575439EB7F1720690EE /* TaskEvent.swift */; };
 		B12E14D9F220506BE25B5E81 /* ScheduleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D9267BE1CEF896F6213025 /* ScheduleEngine.swift */; };
 		B1B48997D8C5ACC29B909437 /* ProgressAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2825CA55C119B410C18DE0 /* ProgressAnalyticsTests.swift */; };
+		B30C3F4BD72306C3B61819E5 /* SearchResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 057FF8D5CB398705A135F979 /* SearchResults.swift */; };
 		B63EEC5B378CBCC321856D4C /* BulkDeletePlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = C12C101068B6BA53989BAD23 /* BulkDeletePlan.swift */; };
 		B830178B192DA6126F60E980 /* TaskEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */; };
 		B8AE3F3458A1577CB492669D /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B6B74DE3D70181181BFF7E /* SampleData.swift */; };
@@ -98,6 +100,7 @@
 		B9B8319683994671D16A0B23 /* GoalEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414FAA12C134A64B5FAC53AB /* GoalEntity+Extensions.swift */; };
 		BC72C0B559FB4A5A84E7284B /* DaySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B0B19A96711C34C8AF1A8E /* DaySnapshot.swift */; };
 		BFB17E314B1FED350DC83406 /* ProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C766B58B62C0A77895616F9F /* ProgressRing.swift */; };
+		C1F15169C5CC5F09E2E6F4D4 /* SearchResultsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91BCF81D1599398CA2A848F /* SearchResultsTests.swift */; };
 		C952B7D72064FBD20D7D0259 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BB739F7A123220EB294F242F /* PrivacyInfo.xcprivacy */; };
 		CF21E057A5D19CC7F9404F23 /* TaskEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */; };
 		CF6EA76AFFA63BFCCC513572 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B6B74DE3D70181181BFF7E /* SampleData.swift */; };
@@ -155,6 +158,7 @@
 
 /* Begin PBXFileReference section */
 		036EE9F351B7734A2F5AD935 /* DateNavigationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateNavigationStore.swift; sourceTree = "<group>"; };
+		057FF8D5CB398705A135F979 /* SearchResults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResults.swift; sourceTree = "<group>"; };
 		0D3738DCD1C1C901FB58D4F5 /* TaskProgressWave.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskProgressWave.swift; sourceTree = "<group>"; };
 		0F8235C48616CB3D03B7C4DF /* TaskClashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskClashView.swift; sourceTree = "<group>"; };
 		112534D7A78B7F3D6D0C94C2 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
@@ -236,6 +240,7 @@
 		D46ADE46F3D3E7582120A827 /* AccentSwatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccentSwatch.swift; sourceTree = "<group>"; };
 		D80E17A9241B0FF5C23ACEC1 /* BulkEditPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkEditPolicy.swift; sourceTree = "<group>"; };
 		D85917D87C1E0FD562F03FE3 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
+		D91BCF81D1599398CA2A848F /* SearchResultsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultsTests.swift; sourceTree = "<group>"; };
 		DCCC2E97AF4EC6541D3BBD30 /* TaskRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRowView.swift; sourceTree = "<group>"; };
 		DE80DE7AC4078992019CFD76 /* GoalCenterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCenterTests.swift; sourceTree = "<group>"; };
 		E77987438EE104778D038C0B /* DatePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatePickerSheet.swift; sourceTree = "<group>"; };
@@ -301,6 +306,7 @@
 				66D58C32D596421CB3A30F7F /* MilestoneEvaluator.swift */,
 				C37C69C067FEC19CC0D353A2 /* Priority.swift */,
 				B4B6B74DE3D70181181BFF7E /* SampleData.swift */,
+				057FF8D5CB398705A135F979 /* SearchResults.swift */,
 				852BCE3589044E4C173DE674 /* TaskDraft.swift */,
 				B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */,
 				90667575439EB7F1720690EE /* TaskEvent.swift */,
@@ -548,6 +554,7 @@
 				CC2825CA55C119B410C18DE0 /* ProgressAnalyticsTests.swift */,
 				B46587CE13756D4E953FA227 /* SampleDataTests.swift */,
 				C92BA47E98AB9488DC68F588 /* ScheduleEngineTests.swift */,
+				D91BCF81D1599398CA2A848F /* SearchResultsTests.swift */,
 				17B25778C8DB61669568B62D /* SubscriptionPolicyTests.swift */,
 				C18A03E31C5BF860FF284FE9 /* TaskEventLogTests.swift */,
 				CB56D3F2D27B6CB75FD85E12 /* TaskReplicatorTests.swift */,
@@ -695,6 +702,7 @@
 				B1B48997D8C5ACC29B909437 /* ProgressAnalyticsTests.swift in Sources */,
 				1A881EBB0C58FEFAF5FB9101 /* SampleDataTests.swift in Sources */,
 				83AD6D98E2D33E9B9FEAC484 /* ScheduleEngineTests.swift in Sources */,
+				C1F15169C5CC5F09E2E6F4D4 /* SearchResultsTests.swift in Sources */,
 				68203474D6DCAB4A79F36359 /* SubscriptionPolicyTests.swift in Sources */,
 				97DE7E2B503F26DD7E9107AC /* TaskEventLogTests.swift in Sources */,
 				DBD85E619AD25D3CAE81E191 /* TaskReplicatorTests.swift in Sources */,
@@ -752,6 +760,7 @@
 				B8AE3F3458A1577CB492669D /* SampleData.swift in Sources */,
 				B12E14D9F220506BE25B5E81 /* ScheduleEngine.swift in Sources */,
 				282DF72FF66F505186DF4381 /* ScheduleSetupView.swift in Sources */,
+				B30C3F4BD72306C3B61819E5 /* SearchResults.swift in Sources */,
 				510306EE10A3497E53D04019 /* SelectableTaskList.swift in Sources */,
 				336714247F3CE0431661E8EC /* SettingsView.swift in Sources */,
 				ECFBF55BDFEF53CE52B6C2E9 /* SleepSettings.swift in Sources */,
@@ -797,6 +806,7 @@
 				6B378E79F27D57BA47ED0906 /* PersistenceController.swift in Sources */,
 				8ACE6830ED31EBF16BFEF998 /* Priority.swift in Sources */,
 				CF6EA76AFFA63BFCCC513572 /* SampleData.swift in Sources */,
+				7D3C3B99B687283E37A8A070 /* SearchResults.swift in Sources */,
 				75C1F5904077262E45EFC91B /* TaskDraft.swift in Sources */,
 				CF21E057A5D19CC7F9404F23 /* TaskEntity+Extensions.swift in Sources */,
 				AB49C1D3F0DCDC0E3D6A7AA2 /* TaskEvent.swift in Sources */,
