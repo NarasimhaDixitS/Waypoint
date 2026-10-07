@@ -907,22 +907,31 @@ struct TodayView: View {
                     .foregroundStyle(ColorTokens.textPrimary)
             }
             Spacer()
-            // A matched pair. Both are icon-only controls whose glyph *is* the state — clock
-            // or flag, sun or moon — so they belong to each other and read as one cluster
-            // rather than a pill and a button that happen to share a row.
+            // A matched pair in the standard palette. Both are icon-only controls whose glyph
+            // *is* the state — clock or flag, sun or moon — so they belong to each other and
+            // read as one cluster rather than a pill and a button that happen to share a row.
+            // In paper the sort button is alone, which is fine: it was never leaning on the
+            // other one to look deliberate.
             sortMenuButton
-            Button {
-                theme.appearanceMode = theme.appearanceMode == .dark ? .light : .dark
-            } label: {
-                Image(systemName: theme.appearanceMode == .dark ? "moon.fill" : "sun.max.fill")
-                    .foregroundStyle(ColorTokens.textSecondary)
-                    // 44pt target around a 17pt glyph, the same rule the completion circle
-                    // follows. The mark stays its size; the finger gets what it needs.
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+            // Gone in paper, not disabled — the same call Settings makes for the same reason
+            // (`SettingsView`, the Appearance and Accent rows). Paper is one appearance, the
+            // way a printed page is, so a sun/moon toggle here is a control that would do
+            // nothing, and a dead control is worse than an absent one. Settings says so in
+            // words; this row has no room to explain, so it simply doesn't offer it.
+            if theme.palette != .paper {
+                Button {
+                    theme.appearanceMode = theme.appearanceMode == .dark ? .light : .dark
+                } label: {
+                    Image(systemName: theme.appearanceMode == .dark ? "moon.fill" : "sun.max.fill")
+                        .foregroundStyle(ColorTokens.textSecondary)
+                        // 44pt target around a 17pt glyph, the same rule the completion circle
+                        // follows. The mark stays its size; the finger gets what it needs.
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Toggle dark mode")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Toggle dark mode")
         }
         // The buttons are 44pt tall and the title isn't, so the row centres on them rather
         // than hanging everything off the top edge.

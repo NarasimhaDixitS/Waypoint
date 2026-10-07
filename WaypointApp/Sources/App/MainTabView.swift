@@ -340,6 +340,9 @@ private struct CustomTabBar: View {
                 }
                 .offset(y: badgeLift)
 
+                // `UnfadedButtonStyle`, not `.plain` — see the style's own note. The badge is
+                // the lid on the notch, and a lid that goes translucent under a thumb is how
+                // the pocket underneath became visible as a hard dip.
                 Button { select(activeIndex) } label: {
                     ZStack {
                         Circle()
@@ -351,7 +354,7 @@ private struct CustomTabBar: View {
                     }
                     .frame(width: badgeDiameter, height: badgeDiameter)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(UnfadedButtonStyle())
                 .frame(width: slotWidth, alignment: .center)
                 .offset(x: slotWidth * CGFloat(activeIndex))
             }
@@ -359,6 +362,23 @@ private struct CustomTabBar: View {
         }
         .frame(height: barHeight + badgeLift)
     }
+}
+
+/// Renders its label exactly as given, with no pressed appearance at all.
+///
+/// `.buttonStyle(.plain)` fades its label while a finger is down. That is right for almost
+/// everything and wrong for the tab bar's selected badge: the badge circle is the only thing
+/// covering `NotchedBarShape`'s pocket, so fading it doesn't dim a button — it opens a window
+/// onto the notch carved into the bar beneath, which reads as the bar suddenly developing a
+/// sharp dip that lasts as long as the press. A tester reported it as two separate bugs
+/// ("goes transparent" and "there's a dip"); they are one.
+///
+/// Deliberately no substitute feedback — no scale, no opacity. The badge already answers the
+/// press by sliding to the tapped tab, and anything else competes with that animation.
+///
+/// The unselected icons keep `.plain`. Nothing hides behind them, and the fade is useful there.
+private struct UnfadedButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { configuration.label }
 }
 
 /// A pill whose top edge cuts into a deep, smooth pocket around `notchCenterX` — instead of a

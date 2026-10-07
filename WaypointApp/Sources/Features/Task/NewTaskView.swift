@@ -774,8 +774,6 @@ struct NewTaskView: View {
             footer
         }
         .background(ColorTokens.surface1)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .padding(16)
         .onAppear { applySmartDefaultsIfNeeded() }
         .onChange(of: repeatDays) { old, new in
             // The moment repeat is first turned on, default its length to reach the
@@ -795,7 +793,18 @@ struct NewTaskView: View {
             repeatWeeks = min(repeatWeeks, maxRepeatWeeks)
         }
         .presentationDragIndicator(.visible)
-        .presentationBackground(ColorTokens.surface0)
+        // `surface1`, matching the content above, so the sheet is one page edge to edge.
+        //
+        // This used to be `surface0` with the content inset by 16 and clipped to a 28pt
+        // corner — a raised card floating on the sheet's own background. The two tokens are
+        // #FFFFFF and #F5F5F3 in light mode, 4% apart, which is too close to read as a
+        // deliberate frame and far enough to read as a white page pasted onto a grey one.
+        // That's exactly how a tester described it.
+        //
+        // The inversion inside the page stays: the page is raised `surface1` and the fields
+        // are recessed `surface0`, which is what makes an input read as a well rather than a
+        // card. See `filledField`. Only the frame around it is gone.
+        .presentationBackground(ColorTokens.surface1)
         .sheet(isPresented: $showingDateSheet) {
                 DatePickerSheet(date: $selectedDay, notBefore: earliestSelectableDay)
             }
