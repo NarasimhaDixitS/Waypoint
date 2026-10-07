@@ -99,7 +99,9 @@ enum TaskSortMode: String, CaseIterable {
     }
 }
 
-private enum TimelineItem: Identifiable {
+/// Internal, not private, so `TimelineItem.ordered(_:by:)` can be tested directly. The
+/// ordering is small and has now broken twice without anything failing.
+enum TimelineItem: Identifiable {
     case task(TaskEntity)
     case block(CommitmentEntity, Date, Date)
     /// Sleep, drawn for the first time. It has always been the one hard wall the scheduler
@@ -142,6 +144,36 @@ private enum TimelineItem: Identifiable {
         switch self {
         case .block, .sleep: true
         case .task, .header: false
+        }
+    }
+
+    /// Time order, or priority order with the fixed rows pinned where time put them.
+    ///
+    /// **Every slot that isn't fixed is refilled from the priority queue, and every slot that
+    /// is fixed keeps its item.** The test for that reads "no task appears twice", which is
+    /// exactly how this broke: the guard matched `.block` by name rather than asking whether
+    /// the row was fixed, so when sleep arrived it fell through to the queue — each sleep row
+    /// swallowed a task, drew it a second time in sleep's place, and took the sleep row with
+    /// it. Two sleep rows, two duplicated tasks, and no sleep on the day at all.
+    ///
+    /// Sorting by priority only decides *which task* fills each task-shaped slot. A fixed row
+    /// never moves because the sort mode changed: it isn't yours to reorder.
+    static func ordered(_ items: [TimelineItem], by mode: TaskSortMode) -> [TimelineItem] {
+        let timeSorted = items.sorted { $0.sortDate < $1.sortDate }
+        guard mode == .priority else { return timeSorted }
+
+        let tasksByPriority = timeSorted
+            .filter { $0.taskEntity != nil }
+            .sorted { lhs, rhs in
+                let lRank = lhs.taskEntity?.priorityValue.sortWeight ?? 0
+                let rRank = rhs.taskEntity?.priorityValue.sortWeight ?? 0
+                if lRank != rRank { return lRank < rRank }
+                return lhs.sortDate < rhs.sortDate
+            }
+        var nextTask = tasksByPriority.makeIterator()
+        return timeSorted.map { item in
+            guard !item.isFixed else { return item }
+            return nextTask.next() ?? item
         }
     }
 
@@ -369,25 +401,7 @@ private struct DayTimelineView: View {
         for range in SleepSettings.shared.rangesTouching(day) {
             items.append(.sleep(range.start, range.end))
         }
-        let timeSorted = items.sorted { $0.sortDate < $1.sortDate }
-        guard sortMode == .priority else { return timeSorted }
-
-        // Fixed schedule blocks stay exactly where the time-sorted order puts them — sorting by
-        // priority only reshuffles which TASK fills each non-block slot, so a block never moves
-        // just because the sort mode changed.
-        let tasksByPriority = timeSorted
-            .filter { if case .task = $0 { return true } else { return false } }
-            .sorted { lhs, rhs in
-                let lRank = lhs.taskEntity?.priorityValue.sortWeight ?? 0
-                let rRank = rhs.taskEntity?.priorityValue.sortWeight ?? 0
-                if lRank != rRank { return lRank < rRank }
-                return lhs.sortDate < rhs.sortDate
-            }
-        var nextTask = tasksByPriority.makeIterator()
-        return timeSorted.map { item in
-            if case .block = item { return item }
-            return nextTask.next() ?? item
-        }
+        return TimelineItem.ordered(items, by: sortMode)
     }
 
     /// Whatever is running right now is hoisted out of the day's order and pinned to the top,
