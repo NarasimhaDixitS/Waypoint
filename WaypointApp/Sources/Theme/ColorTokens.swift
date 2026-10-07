@@ -60,6 +60,21 @@ enum ColorTokens {
     }
 
     /// Paper grounds are warm and never pure: no `0xFFFFFF` to glare, no `0x000000` to halo.
+    ///
+    /// **These two are one surface at two depths. They are not a separator.** `#F5F5F3` against
+    /// `#FFFFFF` is a 4% difference, and paper's pair is closer still. Put one directly on the
+    /// other and the result reads as a layering mistake rather than an edge — three separate
+    /// bugs have come from assuming otherwise:
+    ///
+    /// - the clash sheet's buttons filled `surface1` on a `surface1` sheet and vanished; the
+    ///   fix that worked was restoring the **border**, not swapping the fill to `surface0`,
+    ///   which changed nothing anybody could see;
+    /// - both editor sheets drew a `surface1` card inset on a `surface0` sheet, which testers
+    ///   described, accurately, as a white page pasted onto a grey one.
+    ///
+    /// When something needs to read as a separate object, spend `border` or a shadow on it —
+    /// or let it share the surface and separate with space. Depth is for recession (an input
+    /// well inside a raised page) and for stacking order, never for telling two things apart.
     static var surface0: Color { token(standard: (0xF5F5F3, 0x1C1C1A), paper: (0xEFEDE6, 0xEFEDE6)) }
     static var surface1: Color { token(standard: (0xFFFFFF, 0x242422), paper: (0xF9F7F2, 0xF9F7F2)) }
     /// Paper: 10.97:1 on card, 9.95:1 on page — against standard light's 13.99:1. Softer by
