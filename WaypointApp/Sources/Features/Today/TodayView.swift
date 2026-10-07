@@ -395,12 +395,13 @@ private struct DayTimelineView: View {
             let (start, end) = commitment.instance(on: day)
             items.append(.block(commitment, start, end))
         }
-        // Both ends of the day: the tail of last night and the start of tonight. `rangesTouching`
-        // already returns whichever of the two actually overlap this day, so a day is never given
-        // a sleep row it doesn't have.
-        for range in SleepSettings.shared.rangesTouching(day) {
-            items.append(.sleep(range.start, range.end))
-        }
+        // **Only the sleep that starts on this day.** `rangesTouching` returns two — last
+        // night's tail as well — and the scheduler is right to want both, because the early
+        // hours of this morning really were walled off. Drawing both is a different question:
+        // the tail is a record of something already over, and it was taking the first row of
+        // every single day to say so. Tonight's block is the one you can still bump into.
+        let tonight = SleepSettings.shared.range(startingOn: day)
+        items.append(.sleep(tonight.start, tonight.end))
         return TimelineItem.ordered(items, by: sortMode)
     }
 
