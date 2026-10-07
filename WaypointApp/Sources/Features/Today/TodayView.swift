@@ -926,7 +926,7 @@ struct TodayView: View {
         }
 
         if let pendingDeletion {
-            undoToast(pendingDeletion)
+            UndoToast(title: pendingDeletion.title, onUndo: undoDelete)
                 // Fixed clearance for the custom tab bar (MainTabView.CustomTabBar) — a
                 // `.safeAreaInset` on the ancestor ZStack does NOT propagate through this view's
                 // `NavigationStack` boundary the way it would for a plain sibling view, so this
@@ -955,25 +955,6 @@ struct TodayView: View {
         .animation(.easeInOut(duration: 0.22), value: selectedTaskIDs.isEmpty)
     }
 
-    private func undoToast(_ pending: PendingDeletion) -> some View {
-        HStack(spacing: 14) {
-            Text("\(pending.title) deleted")
-                .wpTypography(.body)
-                .foregroundStyle(.white)
-                .lineLimit(1)
-            Spacer(minLength: 8)
-            Button("Undo") { undoDelete() }
-                .wpTypography(.body)
-                .fontWeight(.semibold)
-                .foregroundStyle(theme.accentSwatch.color)
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(Color.black.opacity(0.85))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .padding(.horizontal, 20)
-    }
 
     /// Use this instead of assigning `activeSheet` directly whenever the target might not be
     /// nil — see the doc comment on `queuedSheet` for why.

@@ -59,6 +59,13 @@ enum ColorTokens {
         return dynamic(light: hex(pair.light), dark: hex(pair.dark))
     }
 
+    /// A floating dark slab — the undo toast. Opaque and palette-aware rather than
+    /// `Color.black.opacity(0.85)`, which composited differently over every page it floated
+    /// above and gave paper a cold black it has nowhere else.
+    static var inkSlab: Color { token(standard: (0x242423, 0x121211), paper: (0x332F29, 0x332F29)) }
+    /// Body text on `inkSlab`. Not `textPrimary`, which is near-*white* in dark mode only.
+    static var onInkPrimary: Color { token(standard: (0xFFFFFF, 0xF1EFE8), paper: (0xF9F7F2, 0xF9F7F2)) }
+
     /// Paper grounds are warm and never pure: no `0xFFFFFF` to glare, no `0x000000` to halo.
     ///
     /// **These two are one surface at two depths. They are not a separator.** `#F5F5F3` against

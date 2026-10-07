@@ -155,6 +155,21 @@ enum AccentSwatch: String, CaseIterable, Identifiable, Hashable {
     /// dark card surface, so a progress bar or ring in dark mode was very nearly invisible
     /// against its own track. Each is lightened here just far enough to clear 4.5:1 on that
     /// surface.
+    /// What reads on a **fixed dark slab** — the undo toast, and anything else that is dark
+    /// in every appearance rather than following the page.
+    ///
+    /// Always the swatch's dark-surface mark, in both appearances, because the surface it sits
+    /// on doesn't change with them. `markColor` is the near thing and the wrong one: in light
+    /// mode it returns the *fill*, which is tuned to carry white rather than to sit on black.
+    /// The toast was using `color` for its "Undo", which measured **2.76:1** on the slab in
+    /// standard light and **1.17:1** in paper — where the accent *is* ink, so the action was
+    /// charcoal on charcoal and effectively invisible. This is 6.01:1 and 14.51:1.
+    var onInkColor: Color {
+        Palette.current == .paper
+            ? Color(ColorTokens.hex(0xF9F7F2))
+            : Color(ColorTokens.hex(palette.mark))
+    }
+
     var markColor: Color {
         Palette.current == .paper
             ? ColorTokens.dynamic(light: ColorTokens.hex(Self.paperFillHex), dark: ColorTokens.hex(Self.paperMarkHex))

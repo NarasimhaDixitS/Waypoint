@@ -109,7 +109,7 @@ struct SelectableTaskList: View {
             }
 
             if let pendingDeletion {
-                undoToast(pendingDeletion)
+                UndoToast(title: pendingDeletion.title, onUndo: undoDelete)
                     .padding(.bottom, ColorTokens.tabBarClearance)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -415,25 +415,6 @@ struct SelectableTaskList: View {
         exitEditMode()
     }
 
-    private func undoToast(_ pending: PendingBulkDeletion) -> some View {
-        HStack(spacing: 14) {
-            Text("\(pending.title) deleted")
-                .wpTypography(.body)
-                .foregroundStyle(.white)
-                .lineLimit(1)
-            Spacer(minLength: 8)
-            Button("Undo") { undoDelete() }
-                .wpTypography(.body)
-                .fontWeight(.semibold)
-                .foregroundStyle(theme.accentSwatch.color)
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(Color.black.opacity(0.85))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .padding(.horizontal, 20)
-    }
 }
 
 struct PendingBulkDeletion {

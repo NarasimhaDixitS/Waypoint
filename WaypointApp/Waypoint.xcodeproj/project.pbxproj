@@ -80,6 +80,7 @@
 		94B83FE2C93D697C288130A0 /* BulkDeleteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B864C5B9573746A0751D6852 /* BulkDeleteSheet.swift */; };
 		96952B100095640D68BB1441 /* GoalDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD855111609613CF8664261 /* GoalDetailView.swift */; };
 		97DE7E2B503F26DD7E9107AC /* TaskEventLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18A03E31C5BF860FF284FE9 /* TaskEventLogTests.swift */; };
+		9A298FB8971C2D477B76A165 /* UndoToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56062E7C9E1045C542450BB6 /* UndoToast.swift */; };
 		9F13CB9AC82D9B32A2EFD6D3 /* BulkEditPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80E17A9241B0FF5C23ACEC1 /* BulkEditPolicy.swift */; };
 		9FAA7DF2F3D0B94F7929F1BC /* CardBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B7584D86923F2172B5800B8 /* CardBackground.swift */; };
 		A53FFB0471686FC364842675 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13F66EB6BA064C5E76B26FB6 /* Assets.xcassets */; };
@@ -183,6 +184,7 @@
 		49825B536B5B5A7898A561B9 /* ProgressAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAnalyticsView.swift; sourceTree = "<group>"; };
 		529E683B34096D07B9E09CAE /* HistoryReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryReconciler.swift; sourceTree = "<group>"; };
 		54604A4F20F4FF521D885078 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		56062E7C9E1045C542450BB6 /* UndoToast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoToast.swift; sourceTree = "<group>"; };
 		5B04BCD065D66177775BAEC3 /* BulkEditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkEditTests.swift; sourceTree = "<group>"; };
 		5EC2E726D5C05EC4A97877FE /* BulkActionBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkActionBar.swift; sourceTree = "<group>"; };
 		62517EC37ADA80B02BC0A463 /* GoalCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCenterView.swift; sourceTree = "<group>"; };
@@ -465,6 +467,7 @@
 				DCCC2E97AF4EC6541D3BBD30 /* TaskRowView.swift */,
 				9BCFF2BAB2A576AEC7181EA5 /* TopFade.swift */,
 				CCB64DD289BA093BF6235177 /* Typography.swift */,
+				56062E7C9E1045C542450BB6 /* UndoToast.swift */,
 			);
 			path = DesignSystem;
 			sourceTree = "<group>";
@@ -763,6 +766,7 @@
 				EAD1E0FDBC4A51758DCFF05E /* TopFade.swift in Sources */,
 				3DC6B63E91C18B82B8EC8663 /* TrialRecord.swift in Sources */,
 				6FE09E437E8792AA241BF182 /* Typography.swift in Sources */,
+				9A298FB8971C2D477B76A165 /* UndoToast.swift in Sources */,
 				FD011C345784CD18872C0386 /* Waypoint.xcdatamodeld in Sources */,
 				1C1EC3598704DA3D10F4B79E /* WaypointApp.swift in Sources */,
 				653F0D6E91617547083D6332 /* WeekView.swift in Sources */,
