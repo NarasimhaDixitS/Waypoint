@@ -42,7 +42,21 @@ struct MainTabView: View {
     @State private var weekRefreshTrigger = 0
     /// Global search, reachable from every tab via the nav bar — not itself a tab (selecting
     /// it doesn't change `selectedTab`), just an overlay above whichever tab is showing.
-    @State private var searchActive = false
+    @State private var searchActive = MainTabView.launchSearch != nil
+
+    /// `-wpSearch spanish` opens the search overlay with that query already typed. Debug only,
+    /// same family as `-wpTab` and `-wpNewTask`, and for the same reason: the overlay is behind
+    /// a tap, the simulator is driven by hand, and the alternative is shipping a screen nobody
+    /// has seen drawn — which is exactly how search shipped sorted oldest-first.
+    static var launchSearch: String? {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        guard let flag = args.firstIndex(of: "-wpSearch"), flag + 1 < args.count else { return nil }
+        return args[flag + 1]
+        #else
+        return nil
+        #endif
+    }
     /// Bumped by the "+" button docked beside the tab bar to tell TodayView to present the
     /// new-task sheet — see `TodayView.addTaskTrigger`. Docking the button in the tab bar's own
     /// fixed chrome (rather than floating it over each tab's scrollable content, as before)
@@ -488,8 +502,12 @@ private struct GlobalSearchOverlay: View {
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \GoalEntity.createdAt, ascending: false)])
     private var allGoals: FetchedResults<GoalEntity>
 
-    @State private var query = ""
+    @State private var query = MainTabView.launchSearch ?? ""
     @FocusState private var fieldFocused: Bool
+    /// Measured, because a `ScrollView` takes every point it is offered. Capping it at 320 made
+    /// the panel 320 tall whether it held one row or twenty, so a single result floated at the
+    /// top of a mostly-empty card.
+    @State private var contentHeight: CGFloat = 0
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -549,8 +567,18 @@ private struct GlobalSearchOverlay: View {
                     }
                 }
                 .padding(14)
+                .background(
+                    GeometryReader { proxy in
+                        // Written from `onAppear`/`onChange` rather than through a
+                        // `PreferenceKey`: the key reported 0.0 forever when this pattern was
+                        // first used for the clash sheet's detent, and this is the same shape.
+                        Color.clear
+                            .onAppear { contentHeight = proxy.size.height }
+                            .onChange(of: proxy.size.height) { _, h in contentHeight = h }
+                    }
+                )
             }
-            .frame(maxHeight: 320)
+            .frame(height: min(max(contentHeight, 60), 320))
             .background(ColorTokens.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .shadow(color: ColorTokens.ShadowTier.floating.color, radius: ColorTokens.ShadowTier.floating.radius, x: 0, y: ColorTokens.ShadowTier.floating.y)
