@@ -236,6 +236,24 @@ struct UngroupedTasksView: View {
 
     @State private var editingTask: TaskEntity?
 
+    /// This occurrence and every later one — never the past. Mirrors
+    /// `GoalDetailView.deleteSeries(from:)`, and `BulkDeletePlan` sweeps the same way.
+    private func deleteSeries(from task: TaskEntity) {
+        guard let seriesID = task.seriesID else { return }
+        let request = TaskEntity.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "seriesID == %@ AND date >= %@",
+            seriesID as CVarArg,
+            Calendar.current.startOfDay(for: task.resolvedDate) as NSDate
+        )
+        for match in (try? context.fetch(request)) ?? [] {
+            if let id = match.id { NotificationManager.cancelReminder(taskID: id) }
+            TaskEventLog.recordAbandonmentIfNeeded(task: match, in: context)
+            context.delete(match)
+        }
+        try? context.save()
+    }
+
     var body: some View {
         SelectableTaskList(
             title: "No goal",
@@ -266,6 +284,13 @@ struct UngroupedTasksView: View {
                     TaskEventLog.recordAbandonmentIfNeeded(task: task, in: context)
                     context.delete(task)
                     try? context.save()
+                    editingTask = nil
+                },
+                // A repeating task with no goal attached is perfectly ordinary, and until now
+                // this was the one screen that could show you one and then refuse to offer the
+                // series choice the editor offers everywhere else.
+                onDeleteSeries: {
+                    deleteSeries(from: task)
                     editingTask = nil
                 }
             )

@@ -275,6 +275,11 @@ enum SampleData {
         let specs: [(title: String, goal: GoalEntity?, hour: Int, days: [Int], minutes: Int, missEvery: Int)] = [
             ("Interval session", goals[0], 18, [2, 5], 50, 6),
             ("Vocab drill — 20 min", goals[3], 21, [0, 3], 20, 3),
+            // Deliberately goal-less. Every series in the fixture used to hang off a goal, so
+            // the No-goal list could never show one — and the series-delete choice was
+            // unreachable there however hard anyone tapped. A repeat with no goal is an
+            // ordinary thing to have, and the fixture should contain one.
+            ("Rubbish out", nil, 20, [6], 10, 5),
         ]
         let cal = Calendar.current
         for spec in specs {
