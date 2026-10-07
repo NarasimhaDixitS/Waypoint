@@ -246,6 +246,72 @@ enum ProgressAnalytics {
 
     // MARK: - 9. Goal burn-down
 
+    /// One day of a goal's history, for the calendar heatmap.
+    struct HeatDay: Identifiable, Equatable {
+        let date: Date
+        let total: Int
+        let done: Int
+
+        var id: Date { date }
+
+        /// `nil` on a day the goal asked nothing of you. A day with no work is not a day you
+        /// failed, and drawing it in the same ramp as 0-of-3 would say it was.
+        var fraction: Double? {
+            guard total > 0 else { return nil }
+            return Double(done) / Double(total)
+        }
+    }
+
+    /// Every day from the goal's start to its target, whether or not it has tasks.
+    ///
+    /// The gaps are the point. A heatmap built only from days that have tasks would close up
+    /// the week you skipped entirely, which is exactly the week worth seeing — the same reason
+    /// `GoalWeekStrip` leaves a missed day visibly hollow instead of resetting a counter.
+    ///
+    /// Bounded at `maxDays` because the grid has to fit a phone: a two-year goal is drawn from
+    /// its last `maxDays`, since the near past is what anyone reads a heatmap for.
+    static func heatmap(
+        for goal: GoalEntity,
+        now: Date = .now,
+        maxDays: Int = 182,
+        calendar: Calendar = .current
+    ) -> [HeatDay] {
+        let start = calendar.startOfDay(for: goal.resolvedCreatedAt)
+        let today = calendar.startOfDay(for: now)
+
+        var byDay: [Date: (total: Int, done: Int)] = [:]
+        var lastTaskDay = start
+        for task in goal.sortedTasks {
+            let day = calendar.startOfDay(for: task.resolvedDate)
+            var entry = byDay[day] ?? (0, 0)
+            entry.total += 1
+            if task.isDone { entry.done += 1 }
+            byDay[day] = entry
+            if day > lastTaskDay { lastTaskDay = day }
+        }
+
+        // **Never past today.** This answers "how has it gone", and tomorrow hasn't gone yet.
+        // Running to the target date instead drew a hundred future days, every one of them a
+        // scheduled-but-not-done square — so a goal on day 13 of 120 looked like a hundred
+        // days of failure, which is both wrong and the exact thing this app tries not to say.
+        //
+        // The second bound stops at the goal's own last day once that has passed, so a goal
+        // finished in August isn't trailed by six empty weeks. A goal still running past its
+        // deadline keeps its overrun, because `lastTaskDay` is out there with it.
+        let end = min(today, max(calendar.startOfDay(for: goal.resolvedTargetDate), lastTaskDay))
+        guard start <= end else { return [] }
+
+        var days: [HeatDay] = []
+        var cursor = start
+        while cursor <= end {
+            let entry = byDay[cursor] ?? (0, 0)
+            days.append(HeatDay(date: cursor, total: entry.total, done: entry.done))
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+        return days.count > maxDays ? Array(days.suffix(maxDays)) : days
+    }
+
     struct BurndownPoint: Identifiable {
         let id: Date
         let date: Date

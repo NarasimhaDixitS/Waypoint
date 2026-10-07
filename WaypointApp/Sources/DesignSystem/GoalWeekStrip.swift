@@ -14,6 +14,13 @@ struct GoalWeekStrip: View {
     /// Days before this are drawn as not-applicable. `nil` treats every day as in scope, which
     /// is right for a goal strip scoped to a goal that already exists.
     var activeSince: Date?
+    /// The one colour everything here is drawn in, at varying opacity.
+    ///
+    /// White by default because this was built for Today's banner, which is a card filled with
+    /// the accent — and it was hardcoded white until the goal centre put the same strip on a
+    /// `surface1` card, where white on white rendered nothing at all. The strip has no business
+    /// knowing which ground it is on; the caller does.
+    var tint: Color = .white
 
     var body: some View {
         HStack(spacing: 9) {
@@ -22,7 +29,7 @@ struct GoalWeekStrip: View {
                     dot(for: day)
                     Text(Self.weekdayLetter(for: day.date))
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white.opacity(isBeforeStart(day.date) ? 0.4 : 0.85))
+                        .foregroundStyle(tint.opacity(isBeforeStart(day.date) ? 0.4 : 0.85))
                 }
             }
         }
@@ -53,18 +60,18 @@ struct GoalWeekStrip: View {
         let outOfScope = isBeforeStart(day.date)
         return ZStack {
             if isToday {
-                Circle().fill(Color.white.opacity(0.18)).frame(width: 21, height: 21)
+                Circle().fill(tint.opacity(0.18)).frame(width: 21, height: 21)
             }
             if outOfScope {
                 // A dot, not a ring. A ring is a container with nothing in it, which is what
                 // "missed" looks like; a mark this small just holds the place in the row.
                 Circle()
-                    .fill(.white.opacity(0.22))
+                    .fill(tint.opacity(0.22))
                     .frame(width: 5, height: 5)
             } else {
                 Circle()
-                    .strokeBorder(.white.opacity(day.done || isToday ? 1 : 0.35), lineWidth: isToday ? 2 : 1.6)
-                    .background(Circle().fill(day.done ? Color.white : .clear))
+                    .strokeBorder(tint.opacity(day.done || isToday ? 1 : 0.35), lineWidth: isToday ? 2 : 1.6)
+                    .background(Circle().fill(day.done ? tint : .clear))
                     .frame(width: 15, height: 15)
             }
         }

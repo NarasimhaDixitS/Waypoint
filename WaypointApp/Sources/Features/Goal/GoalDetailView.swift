@@ -63,90 +63,14 @@ struct GoalDetailView: View {
 
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Goal")
-                        .wpTypography(.body)
-                        .foregroundStyle(ColorTokens.textSecondary)
-                    Text(goal.name ?? "")
-                        .wpTypography(.screenTitle)
-                        .foregroundStyle(ColorTokens.textPrimary)
-                }
-                .padding(.top, 12)
-
-                VStack(spacing: 8) {
-                    ProgressRing(
-                        progress: goal.completionFraction,
-                        lineWidth: 9,
-                        color: theme.accentSwatch.markColor,
-                        labelFont: .system(size: 22, weight: .semibold)
-                    )
-                    .frame(width: 148, height: 148)
-
-                    Text("Day \(goal.currentDayNumber) of \(goal.totalDayCount) · \(goal.daysRemaining) days to go")
-                        .wpTypography(.body)
-                        .foregroundStyle(ColorTokens.textSecondary)
-                }
-                .frame(maxWidth: .infinity)
-
-                HStack(spacing: 10) {
-                    statCard(value: "\(goal.doneTaskCount)", label: "Tasks done")
-                    statCard(value: "\(goal.dayStreak)", label: "Day streak")
-                }
-
-                goalCharts
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Upcoming")
-                        .wpTypography(.micro)
-                        .foregroundStyle(ColorTokens.textSecondary)
-
-                    if goal.upcomingTasks.isEmpty {
-                        Text("Nothing scheduled yet.")
-                            .wpTypography(.body)
-                            .foregroundStyle(ColorTokens.textMuted)
-                            .padding(.vertical, 8)
-                    } else {
-                        VStack(spacing: 8) {
-                            ForEach(goal.upcomingTasks.prefix(10)) { task in
-                                Button {
-                                    requestEdit(task)
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(task.title ?? "")
-                                                .wpTypography(.cardTitle)
-                                                .foregroundStyle(ColorTokens.textPrimary)
-                                            Text(task.resolvedDate.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
-                                                .wpTypography(.body)
-                                                .foregroundStyle(ColorTokens.textSecondary)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundStyle(ColorTokens.textMuted)
-                                    }
-                                    .wpCard()
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-
-                Button(role: .destructive) {
-                    showingDeleteConfirm = true
-                } label: {
-                    Text("Delete goal")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .padding(.top, 8)
-            }
-            .padding(20)
-        }
-        .background(ColorTokens.surface0.ignoresSafeArea())
+        SelectableTaskList(
+            title: goal.name ?? "Untitled goal",
+            subtitle: subtitle,
+            tasks: goal.sortedTasks,
+            emptyMessage: "No tasks under this goal yet. Add one from Today and pick this goal.",
+            summary: { AnyView(summarySection) },
+            onEditTask: requestEdit
+        )
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
             "Delete this goal?",
@@ -222,6 +146,70 @@ struct GoalDetailView: View {
                     }
                 )
             }
+        }
+    }
+
+    private var subtitle: String {
+        let remaining = goal.daysRemaining
+        if goal.completionFraction >= 1 { return "Finished" }
+        return remaining > 0
+            ? "Day \(goal.currentDayNumber) of \(goal.totalDayCount) · \(remaining) to go"
+            : "Past its date"
+    }
+
+    /// Everything above the task list: how far along, how it's been going, and what the charts
+    /// say. Handed to `SelectableTaskList` so the page scrolls as one piece — a pinned header
+    /// over a nested scroll view would mean two scrollbars and a heatmap you can't reach.
+    private var summarySection: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 16) {
+                ProgressRing(
+                    progress: goal.completionFraction,
+                    lineWidth: 8,
+                    color: theme.accentSwatch.markColor,
+                    labelFont: .system(size: 18, weight: .semibold)
+                )
+                .frame(width: 88, height: 88)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    stat("\(goal.doneTaskCount)", "tasks done")
+                    stat("\(goal.dayStreak)", "day streak")
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            // The heatmap goes directly under the ring rather than down with the charts. The
+            // ring says how far along; this says how it has actually gone — and together they
+            // answer the two questions anyone opens a goal to ask, before any chart is needed.
+            AnalyticsCard(
+                title: "How it's gone",
+                caption: "Each square is a day. Filled means you finished what that day asked."
+            ) {
+                GoalHeatmap(days: ProgressAnalytics.heatmap(for: goal))
+            }
+
+            goalCharts
+
+            Button(role: .destructive) {
+                showingDeleteConfirm = true
+            } label: {
+                Text("Delete goal")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private func stat(_ value: String, _ label: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Text(value)
+                .wpTypography(.cardTitle)
+                .foregroundStyle(ColorTokens.textPrimary)
+            Text(label)
+                .wpTypography(.body)
+                .foregroundStyle(ColorTokens.textSecondary)
         }
     }
 

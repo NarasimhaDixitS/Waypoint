@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0173E1DAB7E2CE778FD87D09 /* NewTaskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 648F57DB7F99D00D1D4366D8 /* NewTaskView.swift */; };
+		06EAC9FB6A90CD312B69ED25 /* GoalCenterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE80DE7AC4078992019CFD76 /* GoalCenterTests.swift */; };
 		0706AE82E45A2C513F2FF38A /* CommitmentEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B296A9CCFF099A42AA51B3 /* CommitmentEntity+Extensions.swift */; };
 		07263B67CC8B310B380FB1B3 /* PersistenceRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADE15B6BE478A64CBB4C6353 /* PersistenceRecoveryTests.swift */; };
 		0A486CE868C5538D3BC75F2C /* Priority.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37C69C067FEC19CC0D353A2 /* Priority.swift */; };
@@ -42,11 +43,13 @@
 		48BE184930A7474179462872 /* WaypointWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE492BC00F203FF4464B181F /* WaypointWidget.swift */; };
 		4C58570D19F446605A5BD6CE /* WaypointWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C7BF4FDD2AD1881B9290A991 /* WaypointWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4C8D379DE0F0CE0B4DDC5618 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BB739F7A123220EB294F242F /* PrivacyInfo.xcprivacy */; };
+		510306EE10A3497E53D04019 /* SelectableTaskList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36626374EC9E501B2BC2B9AF /* SelectableTaskList.swift */; };
 		533DFC6751B97B99250FF265 /* PaletteContrastTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C3EEC73458DD77030433B2 /* PaletteContrastTests.swift */; };
 		546CE458B0DC4EBF63EBEFB5 /* BulkEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B04BCD065D66177775BAEC3 /* BulkEditTests.swift */; };
 		5C435AF590790E4CDDF3DFB1 /* Buttons.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97861208E25D18FD4EDA1C3 /* Buttons.swift */; };
 		5FDBF2B5F80B33EC96191C60 /* Milestone.swift in Sources */ = {isa = PBXBuildFile; fileRef = A88F270B7F0F3974C05332C0 /* Milestone.swift */; };
 		606B9466CA613E8B386AA340 /* TrialRecordTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E3EA57544AA47E3B4847019 /* TrialRecordTests.swift */; };
+		62199AF7749394EEB34489C9 /* GoalCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62517EC37ADA80B02BC0A463 /* GoalCenterView.swift */; };
 		62E80A2D7D2E3662061F6458 /* SleepSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0E27307582BCBF61CAE14 /* SleepSetupView.swift */; };
 		653F0D6E91617547083D6332 /* WeekView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31BEC7026BBE9ED825FF591 /* WeekView.swift */; };
 		66CA047020BB53456CF52163 /* CascadeConfirmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CE1AE26B58AE7465DA15689 /* CascadeConfirmView.swift */; };
@@ -86,6 +89,7 @@
 		B1B48997D8C5ACC29B909437 /* ProgressAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2825CA55C119B410C18DE0 /* ProgressAnalyticsTests.swift */; };
 		B830178B192DA6126F60E980 /* TaskEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */; };
 		B8AE3F3458A1577CB492669D /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B6B74DE3D70181181BFF7E /* SampleData.swift */; };
+		B994A6099D3B72D4C94B7B2D /* GoalHeatmap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4642D1136F121A0219FDA24A /* GoalHeatmap.swift */; };
 		B9B8319683994671D16A0B23 /* GoalEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414FAA12C134A64B5FAC53AB /* GoalEntity+Extensions.swift */; };
 		BC72C0B559FB4A5A84E7284B /* DaySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B0B19A96711C34C8AF1A8E /* DaySnapshot.swift */; };
 		BFB17E314B1FED350DC83406 /* ProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C766B58B62C0A77895616F9F /* ProgressRing.swift */; };
@@ -161,6 +165,7 @@
 		20053870B085F4E0A2992460 /* GoalCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCreateView.swift; sourceTree = "<group>"; };
 		24ECA3D57DA1BDC6AAA0C1C7 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		2B1AC78886983536B6D8F39F /* BetaAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaAccess.swift; sourceTree = "<group>"; };
+		36626374EC9E501B2BC2B9AF /* SelectableTaskList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableTaskList.swift; sourceTree = "<group>"; };
 		37E074FA3AF1BBB691783155 /* WaypointTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WaypointTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B7584D86923F2172B5800B8 /* CardBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardBackground.swift; sourceTree = "<group>"; };
 		3EB06A4AFB082B72DA0F3165 /* GoalWeekStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalWeekStrip.swift; sourceTree = "<group>"; };
@@ -170,12 +175,14 @@
 		42D9267BE1CEF896F6213025 /* ScheduleEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleEngine.swift; sourceTree = "<group>"; };
 		43B0B19A96711C34C8AF1A8E /* DaySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySnapshot.swift; sourceTree = "<group>"; };
 		45F46A704BCA83753D3CD1A0 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
+		4642D1136F121A0219FDA24A /* GoalHeatmap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalHeatmap.swift; sourceTree = "<group>"; };
 		480E8655AE7F0B8D4D149C17 /* TrialRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrialRecord.swift; sourceTree = "<group>"; };
 		49825B536B5B5A7898A561B9 /* ProgressAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAnalyticsView.swift; sourceTree = "<group>"; };
 		529E683B34096D07B9E09CAE /* HistoryReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryReconciler.swift; sourceTree = "<group>"; };
 		54604A4F20F4FF521D885078 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		5B04BCD065D66177775BAEC3 /* BulkEditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkEditTests.swift; sourceTree = "<group>"; };
 		5EC2E726D5C05EC4A97877FE /* BulkActionBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkActionBar.swift; sourceTree = "<group>"; };
+		62517EC37ADA80B02BC0A463 /* GoalCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCenterView.swift; sourceTree = "<group>"; };
 		648F57DB7F99D00D1D4366D8 /* NewTaskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewTaskView.swift; sourceTree = "<group>"; };
 		66D58C32D596421CB3A30F7F /* MilestoneEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneEvaluator.swift; sourceTree = "<group>"; };
 		6700B3531ED099A170D79DBA /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
@@ -220,6 +227,7 @@
 		D80E17A9241B0FF5C23ACEC1 /* BulkEditPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkEditPolicy.swift; sourceTree = "<group>"; };
 		D85917D87C1E0FD562F03FE3 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		DCCC2E97AF4EC6541D3BBD30 /* TaskRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRowView.swift; sourceTree = "<group>"; };
+		DE80DE7AC4078992019CFD76 /* GoalCenterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCenterTests.swift; sourceTree = "<group>"; };
 		E77987438EE104778D038C0B /* DatePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatePickerSheet.swift; sourceTree = "<group>"; };
 		EEFD29EA2188DDDA9BD3E675 /* NotificationSchedulingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSchedulingTests.swift; sourceTree = "<group>"; };
 		EF5B6B74E18146252DE5EECF /* ScheduleSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleSetupView.swift; sourceTree = "<group>"; };
@@ -339,8 +347,10 @@
 		7EF14A6F153F42E0161EC78D /* Goal */ = {
 			isa = PBXGroup;
 			children = (
+				62517EC37ADA80B02BC0A463 /* GoalCenterView.swift */,
 				20053870B085F4E0A2992460 /* GoalCreateView.swift */,
 				7CD855111609613CF8664261 /* GoalDetailView.swift */,
+				36626374EC9E501B2BC2B9AF /* SelectableTaskList.swift */,
 			);
 			path = Goal;
 			sourceTree = "<group>";
@@ -439,6 +449,7 @@
 				3B7584D86923F2172B5800B8 /* CardBackground.swift */,
 				F91116B3A2600B6D867ECAD1 /* CompletionBurst.swift */,
 				E77987438EE104778D038C0B /* DatePickerSheet.swift */,
+				4642D1136F121A0219FDA24A /* GoalHeatmap.swift */,
 				3EB06A4AFB082B72DA0F3165 /* GoalWeekStrip.swift */,
 				F919099AF10E2EC3EACB1E99 /* PaywallLock.swift */,
 				C766B58B62C0A77895616F9F /* ProgressRing.swift */,
@@ -513,6 +524,7 @@
 			isa = PBXGroup;
 			children = (
 				5B04BCD065D66177775BAEC3 /* BulkEditTests.swift */,
+				DE80DE7AC4078992019CFD76 /* GoalCenterTests.swift */,
 				BC551CFE31C80A5743D2C5E7 /* GoalStreakTests.swift */,
 				7A63E683CB3E258852236030 /* MilestoneEvaluatorTests.swift */,
 				EEFD29EA2188DDDA9BD3E675 /* NotificationSchedulingTests.swift */,
@@ -657,6 +669,7 @@
 			files = (
 				546CE458B0DC4EBF63EBEFB5 /* BulkEditTests.swift in Sources */,
 				108D4C03526B8E2A3AF5B287 /* DaySnapshot.swift in Sources */,
+				06EAC9FB6A90CD312B69ED25 /* GoalCenterTests.swift in Sources */,
 				FADECE428C4516741B153F17 /* GoalStreakTests.swift in Sources */,
 				25E5D0B91F7DF7252785A5F4 /* MilestoneEvaluatorTests.swift in Sources */,
 				E1BDA75C7A4B44DB7EE49896 /* NotificationSchedulingTests.swift in Sources */,
@@ -695,9 +708,11 @@
 				400FB0185E2D807FE75A4834 /* DateNavigationStore.swift in Sources */,
 				D7FE8414B73861CA65EA2647 /* DatePickerSheet.swift in Sources */,
 				3227E1A7B270863316DC1250 /* FocusSession.swift in Sources */,
+				62199AF7749394EEB34489C9 /* GoalCenterView.swift in Sources */,
 				8DC2D818FECF68F4351808F1 /* GoalCreateView.swift in Sources */,
 				96952B100095640D68BB1441 /* GoalDetailView.swift in Sources */,
 				B9B8319683994671D16A0B23 /* GoalEntity+Extensions.swift in Sources */,
+				B994A6099D3B72D4C94B7B2D /* GoalHeatmap.swift in Sources */,
 				EAB29C9AE0CC289BD954D68F /* GoalWeekStrip.swift in Sources */,
 				DC3BCD7040FE504EBA03AD86 /* HistoryReconciler.swift in Sources */,
 				70742552221EB329839E8778 /* MainTabView.swift in Sources */,
@@ -718,6 +733,7 @@
 				B8AE3F3458A1577CB492669D /* SampleData.swift in Sources */,
 				B12E14D9F220506BE25B5E81 /* ScheduleEngine.swift in Sources */,
 				282DF72FF66F505186DF4381 /* ScheduleSetupView.swift in Sources */,
+				510306EE10A3497E53D04019 /* SelectableTaskList.swift in Sources */,
 				336714247F3CE0431661E8EC /* SettingsView.swift in Sources */,
 				ECFBF55BDFEF53CE52B6C2E9 /* SleepSettings.swift in Sources */,
 				62E80A2D7D2E3662061F6458 /* SleepSetupView.swift in Sources */,

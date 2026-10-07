@@ -19,7 +19,7 @@ struct MainTabView: View {
         #if DEBUG
         let args = ProcessInfo.processInfo.arguments
         guard let flag = args.firstIndex(of: "-wpTab"), flag + 1 < args.count,
-              let tab = Int(args[flag + 1]), (0...3).contains(tab) else { return 0 }
+              let tab = Int(args[flag + 1]), (0...4).contains(tab) else { return 0 }
         return tab
         #else
         return 0
@@ -145,18 +145,22 @@ struct MainTabView: View {
                 .opacity(selectedTab == 1 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 1)
 
+                NavigationStack { GoalCenterView() }
+                    .opacity(selectedTab == 2 ? 1 : 0)
+                    .allowsHitTesting(selectedTab == 2)
+
                 NavigationStack { ProgressAnalyticsView() }
                     .lockedBehindPaywall(
                         !subscription.status.canUseProgress,
                         title: "Your patterns",
                         message: "Waypoint keeps recording what you finish and what you put off. Subscribing is what lets you read it back."
                     )
-                    .opacity(selectedTab == 2 ? 1 : 0)
-                    .allowsHitTesting(selectedTab == 2)
-
-                NavigationStack { SettingsView() }
                     .opacity(selectedTab == 3 ? 1 : 0)
                     .allowsHitTesting(selectedTab == 3)
+
+                NavigationStack { SettingsView() }
+                    .opacity(selectedTab == 4 ? 1 : 0)
+                    .allowsHitTesting(selectedTab == 4)
             }
             // A crossfade, not a slide: the tabs aren't laid out in a row, so sliding would
             // imply an order that doesn't exist — and it would fight Today's own left/right
@@ -208,7 +212,7 @@ struct MainTabView: View {
         .wpTopFade()
         .environmentObject(dateStore)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
-        // waypoint://today, ://week, ://progress, ://settings — one route per tab.
+        // waypoint://today, ://week, ://goals, ://progress, ://settings — one route per tab.
         //
         // The widget only ever asks for `today`, which it does so the app opens on today rather
         // than wherever the user last was. The rest exist because a tab is a reasonable thing
@@ -219,8 +223,9 @@ struct MainTabView: View {
             let tab: Int? = switch url.host {
             case "today": 0
             case "week": 1
-            case "progress": 2
-            case "settings": 3
+            case "goals": 2
+            case "progress": 3
+            case "settings": 4
             default: nil
             }
             guard let tab else { return }
@@ -274,20 +279,27 @@ private struct CustomTabBar: View {
     @Binding var selectedTab: Int
     @Binding var searchActive: Bool
 
-    private let icons = ["sun.max", "calendar", "chart.bar", "gearshape", "magnifyingglass"]
-    private let filledIcons: [String?] = ["sun.max.fill", nil, "chart.bar.fill", "gearshape.fill", nil]
+    // Day, week, goals, patterns, settings — widening scope left to right, with search last
+    // because it isn't a place, it's a way of getting to one.
+    private let icons = ["sun.max", "calendar", "target", "chart.bar", "gearshape", "magnifyingglass"]
+    private let filledIcons: [String?] = ["sun.max.fill", nil, nil, "chart.bar.fill", "gearshape.fill", nil]
 
     private let barHeight: CGFloat = 68
-    private let badgeDiameter: CGFloat = 66
+    /// Badge and notch are scaled by ~0.82 against the five-slot version (66 / 86 / 52), which
+    /// is exactly the ratio that keeps them the same fraction of a slot now there are six:
+    /// the badge was 1.23 slots wide and still is, the notch was 1.6 and still is. `barHeight`
+    /// and `badgeLift` are deliberately untouched, so the bar sits where it always sat — only
+    /// what rides on it got smaller.
+    private let badgeDiameter: CGFloat = 54
     /// How far the badge's top sticks up above the bar's own top edge.
     private let badgeLift: CGFloat = 14
-    private let notchWidth: CGFloat = 86
+    private let notchWidth: CGFloat = 70
     /// Deep enough that the pocket's low point still sits right at the badge's own bottom edge
     /// (badgeDiameter - badgeLift) even after lowering the badge, so the badge keeps reading as
     /// sunk in all the way rather than merely nicking the bar's top line.
-    private let notchDepth: CGFloat = 52
+    private let notchDepth: CGFloat = 40
 
-    private var activeIndex: Int { searchActive ? 4 : selectedTab }
+    private var activeIndex: Int { searchActive ? 5 : selectedTab }
     // These sit *on the accent-filled bar*, so they have to contrast with the accent, not with
     // the page. Two wrong answers got here before the right one: literal black/white, which
     // paper has no business showing, and then `textPrimary`, which is near-black in paper — on
@@ -297,7 +309,7 @@ private struct CustomTabBar: View {
     private var badgeIconColor: Color { theme.accentSwatch.onAccentReversedColor }
 
     private func select(_ index: Int) {
-        if index == 4 {
+        if index == 5 {
             searchActive.toggle()
         } else {
             if searchActive { searchActive = false }
@@ -329,7 +341,7 @@ private struct CustomTabBar: View {
                                     // tab opens and shows what's inside it, blurred, which
                                     // argues for itself far better than a padlock does.
                                     Image(systemName: icons[index])
-                                        .font(.system(size: 22))
+                                        .font(.system(size: 19))
                                         .foregroundStyle(iconColor.opacity(0.7))
                                 }
                             }
@@ -349,7 +361,7 @@ private struct CustomTabBar: View {
                             .fill(badgeFill)
                             .shadow(color: ColorTokens.ShadowTier.raised.color, radius: ColorTokens.ShadowTier.raised.radius, x: 0, y: ColorTokens.ShadowTier.raised.y)
                         Image(systemName: filledIcons[activeIndex] ?? icons[activeIndex])
-                            .font(.system(size: 24, weight: .semibold))
+                            .font(.system(size: 21, weight: .semibold))
                             .foregroundStyle(badgeIconColor)
                     }
                     .frame(width: badgeDiameter, height: badgeDiameter)
