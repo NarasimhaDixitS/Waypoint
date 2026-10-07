@@ -286,35 +286,74 @@ struct TaskRowView: View {
     }
 }
 
+/// A fixed block on the day: a commitment, or sleep.
+///
+/// **No control at all.** This used to be a `Button` wearing a disclosure chevron, and the
+/// chevron was a lie — `collapsed` was local `@State` that nothing else read, so tapping it
+/// flipped the glyph and changed nothing. Worse, it made the row look like a collapsed section
+/// you operate, when a fixed block is the opposite: scaffolding you can't move.
+///
+/// Now it's a tick hanging off the day's spine. The short connector is what ties it to the
+/// line; the text names the hours. Tasks are raised cards you tap, fixed blocks are marks on a
+/// rule, and nothing about the second invites a finger.
 struct ScheduleBlockRow: View {
-    var commitment: CommitmentEntity
+    enum Kind {
+        case commitment(CommitmentEntity)
+        /// Drawn a step quieter. Sleep isn't something chosen for today the way Gym is — it's
+        /// the shape of the day itself, and it brackets every single one of them. At full
+        /// weight it would be the loudest repeated thing in the app.
+        case sleep
+    }
+
+    var kind: Kind
     var start: Date
     var end: Date
 
-    @State private var collapsed = false
+    private var icon: String {
+        switch kind {
+        case .commitment(let c): c.iconSystemName
+        case .sleep: "moon.fill"
+        }
+    }
+
+    private var name: String {
+        switch kind {
+        case .commitment(let c): c.name ?? ""
+        case .sleep: "Sleep"
+        }
+    }
+
+    private var tint: Color {
+        switch kind {
+        case .commitment: ColorTokens.textSecondary
+        case .sleep: ColorTokens.textMuted
+        }
+    }
 
     var body: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.18)) { collapsed.toggle() }
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: collapsed ? "chevron.right" : "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                Image(systemName: commitment.iconSystemName)
-                    .font(.system(size: 12))
-                Text("\(start.formatted(.dateTime.hour().minute()))–\(end.formatted(.dateTime.hour().minute()))")
-                Text("· \(commitment.name ?? "") (fixed)")
-                    .lineLimit(1)
-                Spacer()
-            }
-            .wpTypography(.body)
-            .foregroundStyle(ColorTokens.textSecondary)
+        HStack(spacing: 7) {
+            // The connector. Reaches back to where the spine runs, so the row reads as hanging
+            // off the line rather than floating beside it.
+            Rectangle()
+                .fill(ColorTokens.border)
+                .frame(width: 7, height: 1.5)
+                .padding(.leading, -7)
+
+            Image(systemName: icon)
+                .font(.system(size: 11))
+            Text("\(start.formatted(.dateTime.hour().minute()))–\(end.formatted(.dateTime.hour().minute()))")
+            Text("· \(name) (fixed)")
+                .lineLimit(1)
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
-        .padding(.top, 10)
-        .padding(.bottom, 2)
-        .padding(.horizontal, 4)
-        .accessibilityLabel("\(commitment.name ?? "Commitment"), fixed, \(start.formatted(.dateTime.hour().minute())) to \(end.formatted(.dateTime.hour().minute()))")
-        .accessibilityHint(collapsed ? "Double tap to expand" : "Double tap to collapse")
+        .wpTypography(.body)
+        .foregroundStyle(tint)
+        .padding(.vertical, 5)
+        // Not a button, so it takes no hits at all — a long press or a stray tap finds the
+        // scroll view underneath, which is what should happen.
+        .allowsHitTesting(false)
+        .accessibilityElement()
+        .accessibilityLabel("\(name), fixed, \(start.formatted(.dateTime.hour().minute())) to \(end.formatted(.dateTime.hour().minute()))")
     }
 }
+

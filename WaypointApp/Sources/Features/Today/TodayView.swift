@@ -102,6 +102,10 @@ enum TaskSortMode: String, CaseIterable {
 private enum TimelineItem: Identifiable {
     case task(TaskEntity)
     case block(CommitmentEntity, Date, Date)
+    /// Sleep, drawn for the first time. It has always been the one hard wall the scheduler
+    /// enforces (`ScheduleEngine.sleepWalls`) and the only one the day never showed, so the
+    /// hours nothing can be filed into looked simply empty rather than spoken for.
+    case sleep(Date, Date)
     /// Section label. Only ever present in pairs — see `DayTimelineView.timeline`.
     case header(String)
 
@@ -109,6 +113,7 @@ private enum TimelineItem: Identifiable {
         switch self {
         case .task(let t): "task-\(t.id?.uuidString ?? UUID().uuidString)"
         case .block(let c, let s, _): "block-\(c.id?.uuidString ?? UUID().uuidString)-\(s.timeIntervalSince1970)"
+        case .sleep(let s, _): "sleep-\(s.timeIntervalSince1970)"
         case .header(let title): "header-\(title)"
         }
     }
@@ -117,6 +122,7 @@ private enum TimelineItem: Identifiable {
         switch self {
         case .task(let t): t.resolvedStartTime
         case .block(_, let s, _): s
+        case .sleep(let s, _): s
         case .header: .distantPast
         }
     }
@@ -125,7 +131,17 @@ private enum TimelineItem: Identifiable {
         switch self {
         case .task(let t): t.endTime
         case .block(_, _, let e): e
+        case .sleep(_, let e): e
         case .header: .distantPast
+        }
+    }
+
+    /// Fixed scaffolding rather than work: a commitment or sleep. These are the rows that get a
+    /// tick on the spine and no tap target at all.
+    var isFixed: Bool {
+        switch self {
+        case .block, .sleep: true
+        case .task, .header: false
         }
     }
 
@@ -330,6 +346,15 @@ private struct DayTimelineView: View {
         _dayTasks = FetchRequest(fetchRequest: TaskEntity.fetchRequest(on: day, context: PersistenceController.shared.container.viewContext))
     }
 
+    /// Where the hairline sits, and how far the rows clear it. The connector on a fixed row is
+    /// 7pt and reaches back by the same, so the three numbers have to agree.
+    private static let spineInset: CGFloat = 3
+    private static let gutter: CGFloat = 11
+
+    /// No fixed rows, no line. A day with nothing scheduled around it gets a plain list rather
+    /// than a rule with nothing hanging off it.
+    private var hasFixedRows: Bool { timeline.contains(where: \.isFixed) }
+
     private var timeline: [TimelineItem] {
         var items = dayTasks
             .filter { !hiddenTaskIDs.contains($0.objectID) }
@@ -337,6 +362,12 @@ private struct DayTimelineView: View {
         for commitment in commitments where commitment.occurs(on: day) {
             let (start, end) = commitment.instance(on: day)
             items.append(.block(commitment, start, end))
+        }
+        // Both ends of the day: the tail of last night and the start of tonight. `rangesTouching`
+        // already returns whichever of the two actually overlap this day, so a day is never given
+        // a sleep row it doesn't have.
+        for range in SleepSettings.shared.rangesTouching(day) {
+            items.append(.sleep(range.start, range.end))
         }
         let timeSorted = items.sorted { $0.sortDate < $1.sortDate }
         guard sortMode == .priority else { return timeSorted }
@@ -416,10 +447,30 @@ private struct DayTimelineView: View {
 
     var body: some View {
         Group {
-            VStack(spacing: 8) {
-                ForEach(sectionedTimeline) { item in
-                    row(for: item)
+            // The day's spine.
+            //
+            // One hairline, uniform the whole way down — not a bar whose thickness tracks each
+            // block's hours. The thickness was drawn first and cut: it made the line a second
+            // chart competing with the cards beside it, when all the line has to do is give the
+            // fixed rows something to hang off. Extent is carried by the times in the labels,
+            // which were always the precise version of it anyway.
+            //
+            // Drawn behind rather than beside, so the cards keep their full width minus the
+            // gutter and nothing has to know about the line but this.
+            ZStack(alignment: .topLeading) {
+                if hasFixedRows {
+                    Rectangle()
+                        .fill(ColorTokens.border)
+                        .frame(width: 1.5)
+                        .padding(.leading, Self.spineInset)
                 }
+
+                VStack(spacing: 8) {
+                    ForEach(sectionedTimeline) { item in
+                        row(for: item)
+                    }
+                }
+                .padding(.leading, Self.gutter)
             }
             .animation(.easeInOut(duration: 0.3), value: sectionedTimeline.map(\.id))
 
@@ -487,7 +538,9 @@ private struct DayTimelineView: View {
                 }
             }
         case .block(let commitment, let start, let end):
-            ScheduleBlockRow(commitment: commitment, start: start, end: end)
+            ScheduleBlockRow(kind: .commitment(commitment), start: start, end: end)
+        case .sleep(let start, let end):
+            ScheduleBlockRow(kind: .sleep, start: start, end: end)
         case .header(let title):
             Text(title)
                 .wpTypography(.micro)
