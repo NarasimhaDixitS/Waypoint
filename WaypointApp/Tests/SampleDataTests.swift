@@ -87,6 +87,31 @@ final class SampleDataTests: XCTestCase {
         XCTAssertTrue(biggest.contains { $0.1.resolvedDate > today }, "and future occurrences")
     }
 
+    /// A title is either a repeat or it isn't — never both.
+    ///
+    /// `historyTitles` once shared two titles with `seedRepeatSeries`, so the fixture held a
+    /// "Vocab drill — 20 min" at 9pm that was part of a series and another at 4:41pm that
+    /// wasn't. Selecting the second and deleting it correctly offered no series choice, while
+    /// its twin three rows up did — which looks exactly like a broken feature and isn't one.
+    func testNoTitleIsBothARepeatAndNotARepeat() {
+        let byTitle = Dictionary(grouping: tasks, by: { $0.title ?? "" })
+
+        for (title, group) in byTitle {
+            let repeating = group.filter { $0.seriesID != nil }
+            let oneOffs = group.filter { $0.seriesID == nil }
+            XCTAssertTrue(
+                repeating.isEmpty || oneOffs.isEmpty,
+                "\"\(title)\" exists both as a series (\(repeating.count)) and as loose tasks (\(oneOffs.count)) — identical rows that behave differently read as a bug in the app"
+            )
+        }
+    }
+
+    /// The No-goal list has its own series-delete path, which needs something to act on.
+    func testAtLeastOneRepeatSeriesHasNoGoal() {
+        let goalless = tasks.filter { $0.seriesID != nil && $0.goal == nil }
+        XCTAssertFalse(goalless.isEmpty, "the No-goal list could never show a repeat to delete")
+    }
+
     func testPriorityAndNotesAreBothExercised() {
         XCTAssertEqual(Set(tasks.map(\.priorityValue)).count, Priority.allCases.count)
         XCTAssertTrue(tasks.contains { !($0.notes ?? "").isEmpty })

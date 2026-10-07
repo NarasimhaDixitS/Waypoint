@@ -111,11 +111,16 @@ enum SampleData {
 
     // MARK: - History
 
+    /// **No title here may also be a series title.** `seedRepeatSeries` creates its
+    /// occurrences with a `seriesID`; these are created without one. Share a title between the
+    /// two and the fixture grows a task that looks exactly like a repeat, isn't one, and so
+    /// correctly refuses the series-delete choice its twin three rows down offers — which
+    /// reads as a bug in the app rather than a collision in the data. It cost an afternoon.
     private static let historyTitles = [
-        "Half marathon": ["Easy 5k", "Interval session", "Long run", "Recovery jog", "Strength — legs", "Foam roll and stretch"],
+        "Half marathon": ["Easy 5k", "Hill repeats", "Long run", "Recovery jog", "Strength — legs", "Foam roll and stretch"],
         "Ship Waypoint v1": ["Fix scheduling edge case", "Write release notes", "Review PR backlog", "Polish the Week tab", "Screenshot pass for the store", "Triage crash reports"],
         "Read 12 books": ["Read — 30 pages", "Finish current chapter", "Write up notes", "Pick the next book"],
-        "Learn Spanish": ["Vocab drill — 20 min", "Listening practice", "Speak with tutor", "Review verb tenses"],
+        "Learn Spanish": ["Flashcards — 15 min", "Listening practice", "Speak with tutor", "Review verb tenses"],
     ]
 
     private static let looseTitles = [
@@ -232,8 +237,11 @@ enum SampleData {
             priority: .low, goal: goals[2],
             notes: "Chapter 7 onward; skim the appendix."
         )
+        // Not "Vocab drill — 20 min": that title belongs to `seedRepeatSeries`, and a loose
+        // copy of it sitting on today next to its own repeating twin is the collision
+        // `testNoTitleIsBothARepeatAndNotARepeat` exists to prevent.
         TaskEntity.create(
-            in: context, title: "Vocab drill — 20 min", date: today,
+            in: context, title: "Listening practice", date: today,
             startTime: laterToday(hours: 6, fallbackHour: 21), durationMinutes: 20,
             priority: .medium, goal: goals[3]
         )
