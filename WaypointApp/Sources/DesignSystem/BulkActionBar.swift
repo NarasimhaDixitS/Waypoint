@@ -77,7 +77,7 @@ struct BulkActionBar: View {
             .frame(minWidth: 52, minHeight: 44)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 }
 
@@ -177,6 +177,6 @@ struct BulkPrioritySheet: View {
             .background(ColorTokens.surface0)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 }

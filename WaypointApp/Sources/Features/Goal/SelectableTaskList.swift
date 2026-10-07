@@ -270,11 +270,28 @@ struct SelectableTaskList: View {
 
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(task.title ?? "Untitled task")
-                        .wpTypography(.cardTitle)
-                        .foregroundStyle(task.isDone ? ColorTokens.textSecondary : ColorTokens.textPrimary)
-                        .strikethrough(task.isDone, color: ColorTokens.textMuted)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(task.title ?? "Untitled task")
+                            .wpTypography(.cardTitle)
+                            .foregroundStyle(task.isDone ? ColorTokens.textSecondary : ColorTokens.textPrimary)
+                            .strikethrough(task.isDone, color: ColorTokens.textMuted)
+                            .lineLimit(1)
+                        // Marks a row as part of a repeat.
+                        //
+                        // Nothing stops two unrelated tasks sharing a name, and nothing should —
+                        // "Grocery run" every Saturday as separate one-offs is an ordinary way
+                        // to work, and a title was never this app's idea of identity (`seriesID`
+                        // is). But without a mark, a one-off sitting beside an occurrence of a
+                        // repeat with the same name looks identical and then behaves
+                        // differently on delete, which reads as a bug. This is the one-glyph
+                        // answer: the rows differ because they *are* different.
+                        if task.seriesID != nil {
+                            Image(systemName: "repeat")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(ColorTokens.textMuted)
+                                .accessibilityLabel("Repeats")
+                        }
+                    }
                     Text(metaLine(task))
                         .wpTypography(.micro)
                         .foregroundStyle(ColorTokens.textSecondary)

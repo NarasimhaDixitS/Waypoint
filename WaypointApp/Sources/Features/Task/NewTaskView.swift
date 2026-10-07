@@ -1057,7 +1057,7 @@ struct GoalPickerSheet: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 }
 

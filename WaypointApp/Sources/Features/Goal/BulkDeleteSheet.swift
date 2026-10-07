@@ -56,11 +56,18 @@ struct BulkDeleteSheet: View {
                 .foregroundStyle(ColorTokens.textMuted)
 
             Spacer(minLength: 0)
+
+            // Swiping a sheet away is a gesture people have to know about, and this one opens
+            // in front of a destructive choice. A way out that's visible costs one row.
+            Button { dismiss() } label: {
+                Text("Cancel")
+            }
+            .buttonStyle(.wpSecondary)
         }
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(ColorTokens.surface1)
-        .presentationDetents([.height(380)])
+        .presentationDetents([.height(450)])
         .presentationDragIndicator(.visible)
         .presentationBackground(ColorTokens.surface1)
     }
@@ -100,7 +107,7 @@ struct BulkDeleteSheet: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 }
 
