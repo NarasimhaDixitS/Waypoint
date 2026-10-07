@@ -284,10 +284,16 @@ private struct DayTimelineView: View {
     let sortMode: TaskSortMode
     /// False on a past day for a free user: the rows still read, they just can't be opened.
     let isEditable: Bool
+    /// Selection mode. While true a tap selects instead of opening the editor, and the row's
+    /// own controls stop responding — two circles competing for the same tap is how you get a
+    /// completion toggled by someone trying to select.
+    let isSelecting: Bool
+    let selectedTaskIDs: Set<NSManagedObjectID>
     var onToggle: (TaskEntity) -> Void
     var onEditTask: (TaskEntity) -> Void
     var onStartFocus: (TaskEntity) -> Void
     var onReschedule: (TaskEntity) -> Void
+    var onToggleSelection: (TaskEntity) -> Void
 
     @FetchRequest private var dayTasks: FetchedResults<TaskEntity>
 
@@ -299,10 +305,13 @@ private struct DayTimelineView: View {
         hiddenTaskIDs: Set<NSManagedObjectID>,
         sortMode: TaskSortMode,
         isEditable: Bool,
+        isSelecting: Bool,
+        selectedTaskIDs: Set<NSManagedObjectID>,
         onToggle: @escaping (TaskEntity) -> Void,
         onEditTask: @escaping (TaskEntity) -> Void,
         onStartFocus: @escaping (TaskEntity) -> Void,
-        onReschedule: @escaping (TaskEntity) -> Void
+        onReschedule: @escaping (TaskEntity) -> Void,
+        onToggleSelection: @escaping (TaskEntity) -> Void
     ) {
         self.day = day
         self.isViewingToday = isViewingToday
@@ -311,10 +320,13 @@ private struct DayTimelineView: View {
         self.hiddenTaskIDs = hiddenTaskIDs
         self.sortMode = sortMode
         self.isEditable = isEditable
+        self.isSelecting = isSelecting
+        self.selectedTaskIDs = selectedTaskIDs
         self.onToggle = onToggle
         self.onEditTask = onEditTask
         self.onStartFocus = onStartFocus
         self.onReschedule = onReschedule
+        self.onToggleSelection = onToggleSelection
         _dayTasks = FetchRequest(fetchRequest: TaskEntity.fetchRequest(on: day, context: PersistenceController.shared.container.viewContext))
     }
 
@@ -456,10 +468,24 @@ private struct DayTimelineView: View {
                 isCompletionLocked: !Calendar.current.isDateInToday(task.resolvedDate),
                 isNext: task.objectID == nextTaskID
             )
+            // While selecting, the row becomes a single target: its own checkbox, play button
+            // and reschedule button stop taking hits so there's exactly one thing a tap can
+            // mean. The row still *draws* all of them — this is a mode, not a different list.
+            .allowsHitTesting(!isSelecting)
+            .selectable(
+                isSelecting: isSelecting,
+                isSelected: selectedTaskIDs.contains(task.objectID)
+            )
             // No tap target at all rather than a tap that opens an editor and then refuses
             // to save — a control that responds and then declines is worse than one that
             // visibly isn't there.
-            .onTapGesture { if isEditable { onEditTask(task) } }
+            .onTapGesture {
+                if isSelecting {
+                    onToggleSelection(task)
+                } else if isEditable {
+                    onEditTask(task)
+                }
+            }
         case .block(let commitment, let start, let end):
             ScheduleBlockRow(commitment: commitment, start: start, end: end)
         case .header(let title):
@@ -550,6 +576,92 @@ struct TodayView: View {
     /// to filter against without knowing about the toast itself.
     @State private var hiddenTaskIDs: Set<NSManagedObjectID> = []
     @State private var carouselPage = TodayView.todayPage
+
+    /// Selection mode. Off by default and never sticky — see the `.onChange(of: selectedDate)`
+    /// in `body`, which drops it the moment the day changes.
+    @State private var isEditing = false
+    /// Held as object IDs rather than entities so a task deleted out from under the selection
+    /// (by the undo window finalizing, say) can't leave a dangling reference in it.
+    @State private var selectedTaskIDs: Set<NSManagedObjectID> = []
+    @State private var showingBulkPriority = false
+    @State private var showingBulkGoal = false
+    /// Only ever written by `GoalPickerSheet`'s binding; the real answer arrives via its
+    /// `onPick`, because "No goal" is nil and a nil-to-nil write reports nothing.
+    @State private var bulkGoalBinding: GoalEntity?
+
+    /// Whether the pen appears at all.
+    ///
+    /// **Not on past days, deliberately.** Selecting every task you missed last week and
+    /// deleting them in one tap is the same move as "move all unfinished to tomorrow", which
+    /// this app doesn't offer and isn't going to. Fixing ten tasks you created wrong is
+    /// planning; erasing ten you didn't do is something else, and the whole point of keeping
+    /// misses visible is that they stay visible.
+    ///
+    /// A past task can still be deleted one at a time through its own editor. That costs a
+    /// deliberate act per task, which is the price.
+    ///
+    /// The free tier gets the same answer it gets everywhere else: `canEditDay` already says
+    /// whether this day is writable, so bulk can't be a way around it.
+    private var canEnterEditMode: Bool {
+        BulkEditPolicy.allowsBulkEditing(
+            on: selectedDate,
+            canEditDay: subscription.status.canEditDay(selectedDate)
+        )
+    }
+
+    private var selectedTasks: [TaskEntity] {
+        selectedTaskIDs.compactMap { try? context.existingObject(with: $0) as? TaskEntity }
+    }
+
+    private func exitEditMode() {
+        isEditing = false
+        selectedTaskIDs = []
+    }
+
+    private func toggleSelection(_ task: TaskEntity) {
+        if selectedTaskIDs.contains(task.objectID) {
+            selectedTaskIDs.remove(task.objectID)
+        } else {
+            selectedTaskIDs.insert(task.objectID)
+        }
+    }
+
+    /// One batch, one toast, one undo — `requestDelete(tasks:title:)` already works this way
+    /// for whole-series deletes, so bulk needed no new machinery. Eight racing 4-second timers
+    /// would have been the wrong shape: undo means "that whole action, reversed".
+    private func deleteSelected() {
+        let tasks = selectedTasks
+        guard !tasks.isEmpty else { return }
+        let title = tasks.count == 1
+            ? "\u{201C}\(tasks[0].title ?? "Task")\u{201D}"
+            : "\(tasks.count) tasks"
+        requestDelete(tasks: tasks, title: title)
+        exitEditMode()
+    }
+
+    /// Routed through `apply` rather than writing `priorityValue` directly, so the behavioural
+    /// log sees a bulk change exactly as it sees a single one. See `TaskEntity.currentDraft`.
+    private func applyBulkPriority(_ priority: Priority) {
+        for task in selectedTasks {
+            var draft = task.currentDraft
+            draft.priority = priority
+            task.apply(draft, in: context)
+            rescheduleReminder(for: task)
+        }
+        try? context.save()
+        exitEditMode()
+    }
+
+    private func applyBulkGoal(_ goal: GoalEntity?) {
+        for task in selectedTasks {
+            var draft = task.currentDraft
+            draft.goal = goal
+            task.apply(draft, in: context)
+        }
+        try? context.save()
+        goalRefreshTrigger += 1
+        exitEditMode()
+    }
 
     private static let undoWindow: TimeInterval = 4
 
@@ -667,6 +779,22 @@ struct TodayView: View {
                 }
         )
         .sheet(isPresented: $showingGoalPaywall) { PaywallView() }
+        // Edit mode is never sticky across days. Swiping to tomorrow with four of today's
+        // tasks selected and a bar offering to delete them is a trap: the selection is
+        // invisible by then, because those rows are on the day you just left.
+        .onChange(of: dateStore.selectedDate) { _, _ in
+            if isEditing { exitEditMode() }
+        }
+        .sheet(isPresented: $showingBulkPriority) {
+            BulkPrioritySheet(count: selectedTaskIDs.count, onPick: applyBulkPriority)
+        }
+        .sheet(isPresented: $showingBulkGoal) {
+            GoalPickerSheet(
+                goals: goals,
+                selectedGoal: $bulkGoalBinding,
+                onPick: applyBulkGoal
+            )
+        }
         .sheet(item: $activeSheet, onDismiss: handleSheetDismissed) { sheet in
             switch sheet {
             case .addTask:
@@ -796,8 +924,23 @@ struct TodayView: View {
                 .padding(.bottom, ColorTokens.tabBarClearance)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
         }
+
+        // Sits where the undo toast sits, and deliberately can't be on screen at the same
+        // time: deleting a selection exits edit mode, so the bar leaves as the toast arrives.
+        if isEditing, !selectedTaskIDs.isEmpty {
+            BulkActionBar(
+                count: selectedTaskIDs.count,
+                onPriority: { showingBulkPriority = true },
+                onGoal: { showingBulkGoal = true },
+                onDelete: deleteSelected
+            )
+            .padding(.bottom, ColorTokens.tabBarClearance)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
         }
         .animation(.easeInOut(duration: 0.22), value: pendingDeletion != nil)
+        .animation(.easeInOut(duration: 0.22), value: isEditing)
+        .animation(.easeInOut(duration: 0.22), value: selectedTaskIDs.isEmpty)
     }
 
     private func undoToast(_ pending: PendingDeletion) -> some View {
@@ -841,10 +984,13 @@ struct TodayView: View {
             hiddenTaskIDs: hiddenTaskIDs,
             sortMode: sortMode,
             isEditable: subscription.status.canEditDay(selectedDate),
+            isSelecting: isEditing,
+            selectedTaskIDs: selectedTaskIDs,
             onToggle: { task in toggleTask(task) },
             onEditTask: requestEdit,
             onStartFocus: { task in presentSheet(.pomodoro(task)) },
-            onReschedule: requestEdit
+            onReschedule: requestEdit,
+            onToggleSelection: toggleSelection
         )
 
         dayTimeline
@@ -912,13 +1058,41 @@ struct TodayView: View {
             // read as one cluster rather than a pill and a button that happen to share a row.
             // In paper the sort button is alone, which is fine: it was never leaning on the
             // other one to look deliberate.
-            sortMenuButton
+            if isEditing {
+                // The whole cluster collapses to one control while editing. Sort and appearance
+                // aren't what this row is for right now, and three icons plus a mode indicator
+                // is more than the row can carry at any sensible date length.
+                Button("Done") { exitEditMode() }
+                    .wpTypography(.body)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(theme.accentSwatch.color)
+                    .frame(height: 44)
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+            } else {
+                sortMenuButton
+                if canEnterEditMode {
+                    // Third in a row that already reads "the glyph is the state" — clock or
+                    // flag for sort, sun or moon for appearance, and now a pencil for the one
+                    // mode this screen has.
+                    Button {
+                        isEditing = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .foregroundStyle(ColorTokens.textSecondary)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Select tasks")
+                }
+            }
             // Gone in paper, not disabled — the same call Settings makes for the same reason
             // (`SettingsView`, the Appearance and Accent rows). Paper is one appearance, the
             // way a printed page is, so a sun/moon toggle here is a control that would do
             // nothing, and a dead control is worse than an absent one. Settings says so in
             // words; this row has no room to explain, so it simply doesn't offer it.
-            if theme.palette != .paper {
+            if theme.palette != .paper, !isEditing {
                 Button {
                     theme.appearanceMode = theme.appearanceMode == .dark ? .light : .dark
                 } label: {

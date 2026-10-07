@@ -976,12 +976,21 @@ private struct DurationPickerSheet: View {
     }
 }
 
-private struct GoalPickerSheet: View {
+/// Internal rather than private: Today's bulk edit reuses it, so there is one goal picker in
+/// the app rather than two that drift apart.
+struct GoalPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let goals: FetchedResults<GoalEntity>
     @Binding var selectedGoal: GoalEntity?
-    var onCreateNew: () -> Void
+    /// Omitted by bulk edit. Starting a new goal from inside "apply a goal to six tasks" means
+    /// crossing the free-tier goal limit mid-flow, and a button that sometimes refuses is worse
+    /// than one that isn't offered.
+    var onCreateNew: (() -> Void)?
+    /// Called with the chosen goal when the picker is answering a one-shot question rather than
+    /// editing a bound value. `nil` is a real answer here ("No goal"), which is why this exists
+    /// at all — a binding that starts nil can't report being set to nil.
+    var onPick: ((GoalEntity?) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -996,17 +1005,19 @@ private struct GoalPickerSheet: View {
                 }
             }
 
-            Button {
-                onCreateNew()
-                dismiss()
-            } label: {
-                HStack {
-                    Image(systemName: "plus")
-                    Text("Create new goal")
-                    Spacer()
+            if let onCreateNew {
+                Button {
+                    onCreateNew()
+                    dismiss()
+                } label: {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("Create new goal")
+                        Spacer()
+                    }
                 }
+                .buttonStyle(.wpSecondary)
             }
-            .buttonStyle(.wpSecondary)
         }
         .padding(22)
         .background(ColorTokens.surface1)
@@ -1021,6 +1032,7 @@ private struct GoalPickerSheet: View {
         let isSelected = selectedGoal?.objectID == goal?.objectID
         return Button {
             selectedGoal = goal
+            onPick?(goal)
             dismiss()
         } label: {
             HStack(spacing: 12) {

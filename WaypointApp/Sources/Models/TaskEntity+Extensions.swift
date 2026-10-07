@@ -177,6 +177,32 @@ extension TaskEntity {
     /// `TodayView` and `GoalDetailView` before this; it's in the model now because deferral
     /// logging has to sit on the mutation, not on any one screen's button — a third caller
     /// added later would otherwise silently skip it.
+    /// This task's current values as a draft, for callers that change one field and re-`apply`.
+    ///
+    /// `apply` is the only instrumented write — every event the behavioural log records hangs
+    /// off it. So a caller that wants to change one field must not reach past it and set the
+    /// property directly: bulk priority would then be the one route that never logged a
+    /// priority change, which is exactly the silent gap `apply`'s own comment warns about.
+    ///
+    /// Two fields are deliberately not round-tripped. `repeatWeekdays` is empty, because it
+    /// means "replicate this onto those weekdays" at creation time and re-applying it would
+    /// manufacture a second series. `reminderAppliesToSeries` is false for the same reason:
+    /// it's an instruction, not a stored value, and a bulk edit that silently rewrote every
+    /// sibling's reminder would be doing something nobody asked for.
+    var currentDraft: TaskDraft {
+        TaskDraft(
+            title: title ?? "",
+            date: resolvedDate,
+            startTime: resolvedStartTime,
+            durationMinutes: Int(durationMinutes),
+            priority: priorityValue,
+            notes: notes,
+            goal: goal,
+            reminderEnabled: reminderEnabled,
+            reminderLeadMinutes: Int(reminderLeadMinutes)
+        )
+    }
+
     func apply(_ draft: TaskDraft, in context: NSManagedObjectContext, now: Date = .now) {
         // Read before the write. Everything logged below is a *change*, and the task holds only
         // its current values — once these are overwritten there's no way back to what they were.
