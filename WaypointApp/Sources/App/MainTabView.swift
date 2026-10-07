@@ -293,8 +293,11 @@ private struct CustomTabBar: View {
 
     // Day, week, goals, patterns, settings — widening scope left to right, with search last
     // because it isn't a place, it's a way of getting to one.
-    private let icons = ["sun.max", "calendar", "target", "chart.bar", "gearshape", "magnifyingglass"]
-    private let filledIcons: [String?] = ["sun.max.fill", nil, nil, "chart.bar.fill", "gearshape.fill", nil]
+    private let icons = ["checklist", "calendar", "target", "chart.line.uptrend.xyaxis", "gearshape", "magnifyingglass"]
+    // Only `gearshape` has a filled twin among these. The others fall through to their
+    // outline, which the badge can carry: a filled chip in the reversed colour is already a
+    // much louder selection marker than a filled glyph would be.
+    private let filledIcons: [String?] = [nil, nil, nil, nil, "gearshape.fill", nil]
 
     private let barHeight: CGFloat = 68
     /// Badge and notch are scaled by ~0.82 against the five-slot version (66 / 86 / 52), which
@@ -316,7 +319,7 @@ private struct CustomTabBar: View {
     // the page. Two wrong answers got here before the right one: literal black/white, which
     // paper has no business showing, and then `textPrimary`, which is near-black in paper — on
     // a bar whose fill is also near-black, so every icon vanished.
-    private var iconColor: Color { theme.accentSwatch.onAccentColor }
+    private var iconColor: Color { theme.accentSwatch.onFillColor }
     private var badgeFill: Color { theme.accentSwatch.onAccentColor }
     private var badgeIconColor: Color { theme.accentSwatch.onAccentReversedColor }
 
@@ -354,7 +357,11 @@ private struct CustomTabBar: View {
                                     // argues for itself far better than a padlock does.
                                     Image(systemName: icons[index])
                                         .font(.system(size: 19))
-                                        .foregroundStyle(iconColor.opacity(0.7))
+                                        // 0.85, not 0.7: on the teal fill that's 4.49:1
+                                        // against 3.58:1, and the badge is a filled chip in
+                                        // the reversed colour, so selection doesn't need the
+                                        // unselected glyphs held that far back to read.
+                                        .foregroundStyle(iconColor.opacity(0.85))
                                 }
                             }
                             .frame(width: slotWidth, height: barHeight)

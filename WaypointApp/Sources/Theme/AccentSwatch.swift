@@ -96,6 +96,26 @@ enum AccentSwatch: String, CaseIterable, Identifiable, Hashable {
         Palette.current == .paper ? Color(ColorTokens.hex(0xF9F7F2)) : ColorTokens.dynamic(light: ColorTokens.hex(0x1A1A17), dark: ColorTokens.hex(0xFFFFFF))
     }
 
+    /// What reads on the accent **fill** — the bar, the "+" button, the Today card.
+    ///
+    /// White, in both appearances, because `color` is not dynamic: every swatch resolves to a
+    /// single `fill` hex whatever the appearance is, and the table above records each one's
+    /// contrast against white for exactly that reason (teal's 5.55).
+    ///
+    /// This exists because `onAccentColor` splits on light/dark, and on a surface that doesn't
+    /// split, that's a bug rather than a nuance: it put near-black glyphs on a dark teal bar in
+    /// light mode, measuring 2.37:1 at the 0.7 opacity they were drawn at — under the 3:1
+    /// floor, and the reason they looked washed out. In dark mode the same property happened to
+    /// return white and the bar was fine, which is why only half the app ever looked wrong.
+    ///
+    /// Paper keeps its page colour rather than pure white: its fill is ink, and `0xFFFFFF`
+    /// would glare against a palette that deliberately contains none.
+    var onFillColor: Color {
+        Palette.current == .paper
+            ? Color(ColorTokens.hex(0xF9F7F2))
+            : Color(ColorTokens.hex(0xFFFFFF))
+    }
+
     /// What reads on top of `onAccentColor` — the reverse pair.
     ///
     /// The tab bar's active badge is a reversed chip: the bar is filled with the accent, the
