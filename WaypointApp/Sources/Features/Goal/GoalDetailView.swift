@@ -149,12 +149,13 @@ struct GoalDetailView: View {
         }
     }
 
+    /// The one fact the title doesn't carry: when this is supposed to be over. Deliberately
+    /// not the day count or the days remaining — both of those are in the card below, and
+    /// saying them twice on one screen is what made the old header feel like filler.
     private var subtitle: String {
-        let remaining = goal.daysRemaining
         if goal.completionFraction >= 1 { return "Finished" }
-        return remaining > 0
-            ? "Day \(goal.currentDayNumber) of \(goal.totalDayCount) · \(remaining) to go"
-            : "Past its date"
+        let ends = goal.resolvedTargetDate.formatted(.dateTime.day().month(.abbreviated).year())
+        return goal.daysRemaining > 0 ? "Ends \(ends)" : "Was due \(ends)"
     }
 
     /// Everything above the task list: how far along, how it's been going, and what the charts
@@ -162,22 +163,29 @@ struct GoalDetailView: View {
     /// over a nested scroll view would mean two scrollbars and a heatmap you can't reach.
     private var summarySection: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 16) {
+            // Ring on the right with the facts down the left, inside a card that spans the
+            // width — the same shape as Today's own banner, so the two read as the same kind
+            // of object. The previous version floated a ring and two short lines in the left
+            // half of a bare page, which left a third of the screen visibly empty and made
+            // the space look like something had failed to load rather than like breathing room.
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 11) {
+                    stat("\(goal.doneTaskCount) of \(goal.sortedTasks.count)", "tasks done")
+                    stat("\(goal.dayStreak)", "day streak")
+                    stat("Day \(goal.currentDayNumber)", "of \(goal.totalDayCount)")
+                }
+
+                Spacer(minLength: 8)
+
                 ProgressRing(
                     progress: goal.completionFraction,
                     lineWidth: 8,
                     color: theme.accentSwatch.markColor,
-                    labelFont: .system(size: 18, weight: .semibold)
+                    labelFont: .system(size: 19, weight: .semibold)
                 )
-                .frame(width: 88, height: 88)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    stat("\(goal.doneTaskCount)", "tasks done")
-                    stat("\(goal.dayStreak)", "day streak")
-                }
-
-                Spacer(minLength: 0)
+                .frame(width: 92, height: 92)
             }
+            .wpCard(padding: 18)
 
             // The heatmap goes directly under the ring rather than down with the charts. The
             // ring says how far along; this says how it has actually gone — and together they
