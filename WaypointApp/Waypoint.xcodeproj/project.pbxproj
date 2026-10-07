@@ -27,6 +27,7 @@
 		2728BE2FE064476982605C05 /* BulkEditPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80E17A9241B0FF5C23ACEC1 /* BulkEditPolicy.swift */; };
 		27CFF110915B86F581B5AD91 /* Waypoint.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = C7FFB68E50A360EC43E84F0A /* Waypoint.xcdatamodeld */; };
 		282DF72FF66F505186DF4381 /* ScheduleSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5B6B74E18146252DE5EECF /* ScheduleSetupView.swift */; };
+		2BF8609A5C0D5C8E8B5056FB /* BulkDeletePlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0AD7DD407E061FA944521B0 /* BulkDeletePlanTests.swift */; };
 		2D0430BE7A28C26195FC73B6 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112534D7A78B7F3D6D0C94C2 /* AppSession.swift */; };
 		3227E1A7B270863316DC1250 /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6326291AAE39E4AFCD24CCE /* FocusSession.swift */; };
 		335C7D833C6FD10CDF6DD338 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C82A719BF4F9099FF5D61725 /* SubscriptionManager.swift */; };
@@ -76,6 +77,7 @@
 		8DC2D818FECF68F4351808F1 /* GoalCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20053870B085F4E0A2992460 /* GoalCreateView.swift */; };
 		907C9586FDDB75A3EE2D6348 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112534D7A78B7F3D6D0C94C2 /* AppSession.swift */; };
 		937180B7A0CB7A32E4A6638E /* MilestoneEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66D58C32D596421CB3A30F7F /* MilestoneEvaluator.swift */; };
+		94B83FE2C93D697C288130A0 /* BulkDeleteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B864C5B9573746A0751D6852 /* BulkDeleteSheet.swift */; };
 		96952B100095640D68BB1441 /* GoalDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD855111609613CF8664261 /* GoalDetailView.swift */; };
 		97DE7E2B503F26DD7E9107AC /* TaskEventLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18A03E31C5BF860FF284FE9 /* TaskEventLogTests.swift */; };
 		9F13CB9AC82D9B32A2EFD6D3 /* BulkEditPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80E17A9241B0FF5C23ACEC1 /* BulkEditPolicy.swift */; };
@@ -87,6 +89,7 @@
 		AB49C1D3F0DCDC0E3D6A7AA2 /* TaskEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90667575439EB7F1720690EE /* TaskEvent.swift */; };
 		B12E14D9F220506BE25B5E81 /* ScheduleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D9267BE1CEF896F6213025 /* ScheduleEngine.swift */; };
 		B1B48997D8C5ACC29B909437 /* ProgressAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2825CA55C119B410C18DE0 /* ProgressAnalyticsTests.swift */; };
+		B63EEC5B378CBCC321856D4C /* BulkDeletePlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = C12C101068B6BA53989BAD23 /* BulkDeletePlan.swift */; };
 		B830178B192DA6126F60E980 /* TaskEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */; };
 		B8AE3F3458A1577CB492669D /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B6B74DE3D70181181BFF7E /* SampleData.swift */; };
 		B994A6099D3B72D4C94B7B2D /* GoalHeatmap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4642D1136F121A0219FDA24A /* GoalHeatmap.swift */; };
@@ -208,9 +211,12 @@
 		B46587CE13756D4E953FA227 /* SampleDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleDataTests.swift; sourceTree = "<group>"; };
 		B4B6B74DE3D70181181BFF7E /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		B609959F08E703C4D7646E91 /* TaskEntity+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TaskEntity+Extensions.swift"; sourceTree = "<group>"; };
+		B864C5B9573746A0751D6852 /* BulkDeleteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkDeleteSheet.swift; sourceTree = "<group>"; };
 		BA0E993CFF4FC1F5EB46A65E /* Waypoint.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Waypoint.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB739F7A123220EB294F242F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BC551CFE31C80A5743D2C5E7 /* GoalStreakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalStreakTests.swift; sourceTree = "<group>"; };
+		C0AD7DD407E061FA944521B0 /* BulkDeletePlanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkDeletePlanTests.swift; sourceTree = "<group>"; };
+		C12C101068B6BA53989BAD23 /* BulkDeletePlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkDeletePlan.swift; sourceTree = "<group>"; };
 		C18A03E31C5BF860FF284FE9 /* TaskEventLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEventLogTests.swift; sourceTree = "<group>"; };
 		C37C69C067FEC19CC0D353A2 /* Priority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Priority.swift; sourceTree = "<group>"; };
 		C766B58B62C0A77895616F9F /* ProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRing.swift; sourceTree = "<group>"; };
@@ -347,6 +353,8 @@
 		7EF14A6F153F42E0161EC78D /* Goal */ = {
 			isa = PBXGroup;
 			children = (
+				C12C101068B6BA53989BAD23 /* BulkDeletePlan.swift */,
+				B864C5B9573746A0751D6852 /* BulkDeleteSheet.swift */,
 				62517EC37ADA80B02BC0A463 /* GoalCenterView.swift */,
 				20053870B085F4E0A2992460 /* GoalCreateView.swift */,
 				7CD855111609613CF8664261 /* GoalDetailView.swift */,
@@ -523,6 +531,7 @@
 		FC14452B308F4CC9B6234E85 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				C0AD7DD407E061FA944521B0 /* BulkDeletePlanTests.swift */,
 				5B04BCD065D66177775BAEC3 /* BulkEditTests.swift */,
 				DE80DE7AC4078992019CFD76 /* GoalCenterTests.swift */,
 				BC551CFE31C80A5743D2C5E7 /* GoalStreakTests.swift */,
@@ -667,6 +676,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2BF8609A5C0D5C8E8B5056FB /* BulkDeletePlanTests.swift in Sources */,
 				546CE458B0DC4EBF63EBEFB5 /* BulkEditTests.swift in Sources */,
 				108D4C03526B8E2A3AF5B287 /* DaySnapshot.swift in Sources */,
 				06EAC9FB6A90CD312B69ED25 /* GoalCenterTests.swift in Sources */,
@@ -697,6 +707,8 @@
 				907C9586FDDB75A3EE2D6348 /* AppSession.swift in Sources */,
 				34C5DCE35BFB725A2AA60FCF /* BetaAccess.swift in Sources */,
 				887520679ECE6EC44BF2BB69 /* BulkActionBar.swift in Sources */,
+				B63EEC5B378CBCC321856D4C /* BulkDeletePlan.swift in Sources */,
+				94B83FE2C93D697C288130A0 /* BulkDeleteSheet.swift in Sources */,
 				9F13CB9AC82D9B32A2EFD6D3 /* BulkEditPolicy.swift in Sources */,
 				5C435AF590790E4CDDF3DFB1 /* Buttons.swift in Sources */,
 				9FAA7DF2F3D0B94F7929F1BC /* CardBackground.swift in Sources */,

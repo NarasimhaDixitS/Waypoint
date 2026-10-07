@@ -44,6 +44,13 @@ struct SelectableTaskList: View {
     @State private var showingBulkGoal = false
     @State private var bulkGoalBinding: GoalEntity?
     @State private var pendingDeletion: PendingBulkDeletion?
+    /// Which groups are open. Done starts closed — on any goal with history it's the biggest
+    /// group by far, and it's a record rather than a workload, so leaving it open means
+    /// scrolling past three weeks of ticks to reach the one thing that still needs doing.
+    /// The others start open because they *are* the workload.
+    @State private var expanded: Set<TaskGroup.Kind> = [.overdue, .today, .upcoming]
+    @State private var bulkDelete: BulkDeletePlan?
+    @State private var seriesConfirm: BulkDeletePlan?
     @State private var hiddenTaskIDs: Set<NSManagedObjectID> = []
 
     @FetchRequest(
@@ -124,6 +131,24 @@ struct SelectableTaskList: View {
         .animation(.easeInOut(duration: 0.22), value: isEditing)
         .animation(.easeInOut(duration: 0.22), value: selectedTaskIDs.isEmpty)
         .animation(.easeInOut(duration: 0.22), value: pendingDeletion != nil)
+        .sheet(item: $bulkDelete) { plan in
+            BulkDeleteSheet(
+                plan: plan,
+                onDeleteTasks: {
+                    commitDelete(plan.selected, title: plan.plainTitle)
+                },
+                // Series goes through a second screen rather than deleting on the spot. It is
+                // the one action here that reaches tasks the user never ticked — up to several
+                // months of them — so it's deliberately two decisions, not one.
+                onDeleteSeries: { seriesConfirm = plan }
+            )
+        }
+        .sheet(item: $seriesConfirm) { plan in
+            SeriesDeleteConfirmSheet(
+                plan: plan,
+                onConfirm: { commitDelete(plan.seriesTasks, title: plan.seriesTitle) }
+            )
+        }
         .sheet(isPresented: $showingBulkPriority) {
             BulkPrioritySheet(count: selectedTaskIDs.count, onPick: applyBulkPriority)
         }
@@ -194,20 +219,37 @@ struct SelectableTaskList: View {
 
     @ViewBuilder
     private func section(_ group: TaskGroup) -> some View {
+        let isOpen = expanded.contains(group.kind)
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Text(group.kind.label.uppercased())
-                    .wpTypography(.micro)
-                    .fontWeight(.semibold)
-                    .tracking(0.6)
-                    .foregroundStyle(group.kind == .overdue ? ColorTokens.textWarning : ColorTokens.textSecondary)
-                Text("\(group.tasks.count)")
-                    .wpTypography(.micro)
-                    .foregroundStyle(ColorTokens.textMuted)
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if isOpen { expanded.remove(group.kind) } else { expanded.insert(group.kind) }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(group.kind.label.uppercased())
+                        .wpTypography(.micro)
+                        .fontWeight(.semibold)
+                        .tracking(0.6)
+                        .foregroundStyle(group.kind == .overdue ? ColorTokens.textWarning : ColorTokens.textSecondary)
+                    Text("\(group.tasks.count)")
+                        .wpTypography(.micro)
+                        .foregroundStyle(ColorTokens.textMuted)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(ColorTokens.textMuted)
+                        .rotationEffect(.degrees(isOpen ? 0 : -90))
+                    Spacer()
+                }
+                .frame(height: 28)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
-            ForEach(group.tasks, id: \.objectID) { task in
-                row(task)
+            if isOpen {
+                ForEach(group.tasks, id: \.objectID) { task in
+                    row(task)
+                }
             }
         }
     }
@@ -286,9 +328,18 @@ struct SelectableTaskList: View {
     private func deleteSelected() {
         let tasks = selectedTasks
         guard !tasks.isEmpty else { return }
-        let title = tasks.count == 1
-            ? "\u{201C}\(tasks[0].title ?? "Task")\u{201D}"
-            : "\(tasks.count) tasks"
+        let plan = BulkDeletePlan(selected: tasks, context: context)
+
+        // Nothing selected repeats, so there's no choice to offer — Delete just deletes, and
+        // the undo toast is the safety net, exactly as before.
+        guard plan.hasSeries else {
+            commitDelete(tasks, title: plan.plainTitle)
+            return
+        }
+        bulkDelete = plan
+    }
+
+    private func commitDelete(_ tasks: [TaskEntity], title: String) {
         requestDelete(tasks: tasks, title: title)
         exitEditMode()
     }
