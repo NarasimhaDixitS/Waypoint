@@ -78,7 +78,13 @@ struct SelectableTaskList: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header
-                    summary()
+                    // Gone while selecting. The goal page's summary is a ring, a heatmap and
+                    // three charts — about a screen and a half — so entering edit mode used to
+                    // leave you at the top with nothing selectable in view and a scroll to do
+                    // before the mode was any use. None of it is relevant to picking tasks.
+                    if !isEditing {
+                        summary()
+                    }
 
                     if visibleTasks.isEmpty {
                         Text(emptyMessage)
@@ -132,6 +138,23 @@ struct SelectableTaskList: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
+            // The app hides the navigation bar everywhere, which also hides the back button
+            // it would have supplied. This screen is always pushed, so it owns its own way
+            // out — without it the only route back was the home gesture.
+            if !isEditing {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(ColorTokens.textSecondary)
+                        .frame(width: 32, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back")
+            }
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .wpTypography(.appTitle)

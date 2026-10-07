@@ -11,7 +11,19 @@ import CoreData
 /// has, and they are exactly the pile that needs tidying in bulk — forty tasks typed in a hurry
 /// with the wrong duration. Hiding them behind a toggle would mean the one group most in need
 /// of this screen was the one group not on it.
+/// Where the goal centre can navigate to.
+///
+/// Value-based routes rather than `NavigationLink { destination }`, because only these update
+/// the stack's `path` binding — and that binding is what lets re-tapping the Goals tab pop
+/// back out. Goals are carried as `NSManagedObjectID` so the route stays `Hashable` and can't
+/// outlive the object it names.
+enum GoalRoute: Hashable {
+    case goal(NSManagedObjectID)
+    case ungrouped
+}
+
 struct GoalCenterView: View {
+    @Binding var path: NavigationPath
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject private var theme: ThemeManager
     @EnvironmentObject private var subscription: SubscriptionManager
@@ -29,11 +41,9 @@ struct GoalCenterView: View {
     )
     private var ungrouped: FetchedResults<TaskEntity>
 
-    /// Pushed by `-wpGoal` / `-wpNoGoal`. Debug only, same family as `-wpTab` and `-wpNewTask`,
-    /// and for the same reason: these screens are two taps deep, the simulator is driven by
-    /// hand, and the alternative is shipping changes to them unseen.
-    @State private var pushedGoal: GoalEntity?
-    @State private var pushedUngrouped = false
+    // `-wpGoal` / `-wpNoGoal` push straight to one of these screens on launch. Debug only,
+    // same family as `-wpTab` and `-wpNewTask`, and for the same reason: they're two taps deep,
+    // the simulator is driven by hand, and the alternative is shipping changes to them unseen.
 
     var body: some View {
         ScrollView {
@@ -41,9 +51,7 @@ struct GoalCenterView: View {
                 header
 
                 ForEach(goals) { goal in
-                    NavigationLink {
-                        GoalDetailView(goal: goal)
-                    } label: {
+                    NavigationLink(value: GoalRoute.goal(goal.objectID)) {
                         GoalCard(goal: goal)
                     }
                     .buttonStyle(.plain)
@@ -51,9 +59,7 @@ struct GoalCenterView: View {
 
                 // Always present, even at zero. A card reading "nothing loose" is a useful
                 // answer; a card that vanishes leaves you wondering where the loose tasks went.
-                NavigationLink {
-                    UngroupedTasksView()
-                } label: {
+                NavigationLink(value: GoalRoute.ungrouped) {
                     ungroupedCard
                 }
                 .buttonStyle(.plain)
@@ -67,15 +73,24 @@ struct GoalCenterView: View {
         }
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
-        .navigationDestination(item: $pushedGoal) { GoalDetailView(goal: $0) }
-        .navigationDestination(isPresented: $pushedUngrouped) { UngroupedTasksView() }
+        .navigationDestination(for: GoalRoute.self) { route in
+            switch route {
+            case .goal(let id):
+                if let goal = try? context.existingObject(with: id) as? GoalEntity {
+                    GoalDetailView(goal: goal)
+                }
+            case .ungrouped:
+                UngroupedTasksView()
+            }
+        }
         .onAppear {
             #if DEBUG
             let args = ProcessInfo.processInfo.arguments
-            if args.contains("-wpGoal") {
-                pushedGoal = goals.first
+            guard path.isEmpty else { return }
+            if args.contains("-wpGoal"), let first = goals.first {
+                path.append(GoalRoute.goal(first.objectID))
             } else if args.contains("-wpNoGoal") {
-                pushedUngrouped = true
+                path.append(GoalRoute.ungrouped)
             }
             #endif
         }

@@ -8,6 +8,11 @@ struct MainTabView: View {
     @EnvironmentObject private var subscription: SubscriptionManager
     @State private var showingPaywall = false
     @State private var selectedTab = MainTabView.launchTab
+    /// The goals tab is the only one that pushes anything, so it's the only one that needs a
+    /// path. Re-tapping a tab you're already on should return you to its root — standard
+    /// everywhere in iOS, and without it a pushed goal page had no way back at all once the
+    /// navigation bar was hidden.
+    @State private var goalPath = NavigationPath()
 
     /// Lets a build be launched straight onto a given tab: `-wpTab 1`.
     ///
@@ -79,6 +84,13 @@ struct MainTabView: View {
                 }
             }
             weekRefreshTrigger += 1
+        } else if newValue == 2, selectedTab == 2, !goalPath.isEmpty {
+            // Already on Goals and already pushed in: the tap means "take me back out", the
+            // same as every other iOS tab bar. Only when it's already the current tab — a tap
+            // that switches *to* Goals should land wherever you left off.
+            withAnimation(.easeInOut(duration: 0.25)) {
+                goalPath.removeLast(goalPath.count)
+            }
         }
         selectedTab = newValue
     }
@@ -145,7 +157,7 @@ struct MainTabView: View {
                 .opacity(selectedTab == 1 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 1)
 
-                NavigationStack { GoalCenterView() }
+                NavigationStack(path: $goalPath) { GoalCenterView(path: $goalPath) }
                     .opacity(selectedTab == 2 ? 1 : 0)
                     .allowsHitTesting(selectedTab == 2)
 
