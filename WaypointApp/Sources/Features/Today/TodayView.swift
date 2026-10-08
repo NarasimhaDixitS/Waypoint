@@ -342,6 +342,8 @@ private struct DayTimelineView: View {
     var onStartFocus: (TaskEntity) -> Void
     var onReschedule: (TaskEntity) -> Void
     var onToggleSelection: (TaskEntity) -> Void
+    /// Raised by the empty state, so the one screen with nothing on it can offer the way out.
+    var onAddTask: () -> Void
 
     @FetchRequest private var dayTasks: FetchedResults<TaskEntity>
 
@@ -359,7 +361,8 @@ private struct DayTimelineView: View {
         onEditTask: @escaping (TaskEntity) -> Void,
         onStartFocus: @escaping (TaskEntity) -> Void,
         onReschedule: @escaping (TaskEntity) -> Void,
-        onToggleSelection: @escaping (TaskEntity) -> Void
+        onToggleSelection: @escaping (TaskEntity) -> Void,
+        onAddTask: @escaping () -> Void
     ) {
         self.day = day
         self.isViewingToday = isViewingToday
@@ -375,6 +378,7 @@ private struct DayTimelineView: View {
         self.onStartFocus = onStartFocus
         self.onReschedule = onReschedule
         self.onToggleSelection = onToggleSelection
+        self.onAddTask = onAddTask
         _dayTasks = FetchRequest(fetchRequest: TaskEntity.fetchRequest(on: day, context: PersistenceController.shared.container.viewContext))
     }
 
@@ -386,6 +390,38 @@ private struct DayTimelineView: View {
     /// No fixed rows, no line. A day with nothing scheduled around it gets a plain list rather
     /// than a rule with nothing hanging off it.
     private var hasFixedRows: Bool { timeline.contains(where: \.isFixed) }
+
+    private var hasTasks: Bool { timeline.contains { $0.taskEntity != nil } }
+
+    /// The one place a new user is told what to do.
+    ///
+    /// A line of muted text was the whole of it, and it read as a status rather than an
+    /// instruction: the app noting an absence rather than telling you how to end it. The button
+    /// is the point — the "+" is docked in the tab bar, which is the right home for it and the
+    /// wrong place to notice it on your first morning.
+    @ViewBuilder
+    private var emptyState: some View {
+        let isPast = Calendar.current.startOfDay(for: day) < Calendar.current.startOfDay(for: .now)
+        VStack(spacing: 14) {
+            Text(emptyStateMessage)
+                .wpTypography(.body)
+                .foregroundStyle(ColorTokens.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Nothing to offer on a past day: it's a record, and it can't be added to.
+            if !isPast, isEditable {
+                Button(action: onAddTask) {
+                    Text(isViewingToday ? "Add your first task" : "Add a task")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .frame(maxWidth: 240)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 12)
+    }
 
     private var hasOverdue: Bool {
         timeline.contains { $0.taskEntity?.state(at: now) == .overdue }
@@ -511,12 +547,12 @@ private struct DayTimelineView: View {
             }
             .animation(.easeInOut(duration: 0.3), value: sectionedTimeline.map(\.id))
 
-            if timeline.isEmpty {
-                Text(emptyStateMessage)
-                    .wpTypography(.body)
-                    .foregroundStyle(ColorTokens.textMuted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 24)
+            // **No tasks**, not an empty timeline. `timeline` carries the commitments and sleep
+            // too, so once onboarding has created a working day this was never empty and the
+            // message never appeared — on the one screen where a new user has nothing else to
+            // go on. It was unreachable for every user who finished setup.
+            if !hasTasks {
+                emptyState
             }
         }
     }
@@ -1073,7 +1109,8 @@ struct TodayView: View {
             onEditTask: requestEdit,
             onStartFocus: { task in presentSheet(.pomodoro(task)) },
             onReschedule: requestEdit,
-            onToggleSelection: toggleSelection
+            onToggleSelection: toggleSelection,
+            onAddTask: { presentSheet(.addTask) }
         )
 
         dayTimeline
