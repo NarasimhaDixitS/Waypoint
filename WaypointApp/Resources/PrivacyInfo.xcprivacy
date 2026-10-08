@@ -18,6 +18,17 @@
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
+	<!--
+	  RevenueCat's SDK ships its own manifest declaring what it collects, and Apple merges
+	  every manifest in the bundle — so its entry appears without being copied here. This
+	  array stays empty because it describes what *Waypoint's own code* sends, which is still
+	  nothing: the app has no backend, makes no analytics call, and the only network traffic
+	  in it belongs to the purchase SDK.
+
+	  The App Store privacy *label* is a separate thing and does change: it has to declare
+	  Purchase History, linked to an identifier, not used for tracking. That's answered in App
+	  Store Connect, not here, and it must be done before submission.
+	-->
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array/>
 

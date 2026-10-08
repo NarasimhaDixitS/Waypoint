@@ -36,6 +36,9 @@ struct WaypointApp: App {
     }
 
     init() {
+        // Before anything reads an entitlement. `SubscriptionManager.shared` asks the store on
+        // first access, and asking an unconfigured SDK traps.
+        Store.configure()
         reseedIfRequested()
     }
 

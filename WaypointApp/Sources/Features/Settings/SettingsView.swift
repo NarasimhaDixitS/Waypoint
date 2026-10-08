@@ -250,7 +250,7 @@ struct SettingsView: View {
                     HStack(spacing: 10) {
                         stateButton("Trial", isCurrent: subscription.status.isTrial) { subscription.resetTrial() }
                         stateButton("Free tier", isCurrent: !subscription.status.hasFullAccess) { subscription.expireNow() }
-                        stateButton("Subscribed", isCurrent: subscription.status.isSubscribed) { subscription.purchase(.annual) }
+                        stateButton("Subscribed", isCurrent: subscription.status.isSubscribed) { Task { _ = await subscription.purchase(.annual) } }
                     }
 
                     Button {

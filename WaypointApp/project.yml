@@ -7,6 +7,13 @@ options:
 configs:
   Debug: debug
   Release: release
+packages:
+  # Pinned to a major version rather than a branch: a purchase path that silently changes
+  # behaviour on someone else's release schedule is not something to find out about from a
+  # customer who paid and got nothing.
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios
+    from: 5.0.0
 targets:
   Waypoint:
     type: application
@@ -52,6 +59,8 @@ targets:
     dependencies:
       - target: WaypointWidgetExtension
         embed: true
+      - package: RevenueCat
+        product: RevenueCat
     scheme:
       testTargets:
         - WaypointTests

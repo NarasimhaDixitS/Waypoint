@@ -24,7 +24,34 @@ final class SubscriptionManager: ObservableObject {
         static let renewsAt = "subscription.renewsAt"
     }
 
-    private init() { refresh() }
+    /// Set once RevenueCat has answered. `nil` before the first reply, and after a failure —
+    /// the same thing from here, deliberately: both mean "no confirmed subscription", and both
+    /// fall through to the trial clock, which is local and always available.
+    private var entitled: (plan: SubscriptionPlan, renewsAt: Date)?
+
+    /// Real prices, once the store has sent them. The paywall reads these and falls back to
+    /// nothing rather than to an invented number — a wrong price is worse than a missing one.
+    @Published private(set) var prices: [SubscriptionPlan: String] = [:]
+
+    private init() {
+        refresh()
+        Task { await syncWithStore() }
+    }
+
+    /// Asks RevenueCat what it knows, then recomputes.
+    ///
+    /// Not on a timer: an entitlement changes when somebody buys, cancels or renews, and the
+    /// SDK's cached `CustomerInfo` already survives being offline — polling would add network
+    /// traffic to answer a question whose answer is usually already on disk.
+    func syncWithStore() async {
+        if let info = try? await Store.customerInfo() {
+            entitled = Store.activeSubscription(from: info)
+            refresh()
+        }
+        for plan in SubscriptionPlan.allCases {
+            if let price = await Store.localisedPrice(for: plan) { prices[plan] = price }
+        }
+    }
 
     /// Recomputed rather than stored: a trial ends by the clock moving, and nothing fires an
     /// event when that happens. Anything showing entitlement has to ask again, not remember.
@@ -40,27 +67,57 @@ final class SubscriptionManager: ObservableObject {
             return
         }
         #endif
+        // **The store wins when it has an answer.** A confirmed entitlement is a fact about
+        // money that changed hands; the trial clock is a local guess about someone who hasn't
+        // paid. When RevenueCat hasn't replied — offline, first launch, an error — `entitled`
+        // is nil and the trial decides, which is the right way to fail: it can only ever be
+        // more generous than the truth, never less.
         status = SubscriptionPolicy.resolve(
             trialStartedAt: trialStartedAt,
-            plan: (defaults.string(forKey: Keys.plan)).flatMap(SubscriptionPlan.init(rawValue:)),
-            renewsAt: defaults.object(forKey: Keys.renewsAt) as? Date,
+            plan: entitled?.plan ?? (defaults.string(forKey: Keys.plan)).flatMap(SubscriptionPlan.init(rawValue:)),
+            renewsAt: entitled?.renewsAt ?? defaults.object(forKey: Keys.renewsAt) as? Date,
             now: now
         )
     }
 
-    /// Mock. A real one asks StoreKit, waits for Apple, and verifies the signed transaction —
-    /// and can fail, be cancelled, or be deferred for parental approval, none of which this
-    /// models. The states either side of it are real, which is the point.
-    func purchase(_ plan: SubscriptionPlan, now: Date = .now) {
-        let renewsAt = Calendar.current.date(byAdding: plan.renewalInterval, to: now) ?? now
-        UserDefaults.standard.set(plan.rawValue, forKey: Keys.plan)
-        UserDefaults.standard.set(renewsAt, forKey: Keys.renewsAt)
-        refresh(now: now)
+    enum PurchaseResult: Equatable { case bought, cancelled, failed(String) }
+
+    /// Buys through RevenueCat, which buys through StoreKit.
+    ///
+    /// Cancelling is returned, not thrown. It is the most common way a paywall ends, and
+    /// showing it as an error tells someone their deliberate choice went wrong.
+    func purchase(_ plan: SubscriptionPlan) async -> PurchaseResult {
+        do {
+            switch try await Store.purchase(plan) {
+            case .bought(let info):
+                entitled = Store.activeSubscription(from: info)
+                refresh()
+                return .bought
+            case .cancelled:
+                return .cancelled
+            case .unavailable:
+                // No package for this product in the current offering — a dashboard problem,
+                // not the customer's, and worth saying rather than failing silently.
+                return .failed("That plan isn't available right now.")
+            }
+        } catch {
+            return .failed(error.localizedDescription)
+        }
     }
 
-    /// Mock. The real one replays Apple's transaction history for this Apple ID, which is how
-    /// someone on a new phone gets back what they already bought.
-    func restore() { refresh() }
+    /// Replays Apple's transaction history for this Apple ID.
+    ///
+    /// Required by Apple on any app selling a subscription, and genuinely needed here: the
+    /// entitlement lives with the Apple ID and nothing in this app is synced.
+    func restore() async -> PurchaseResult {
+        do {
+            entitled = Store.activeSubscription(from: try await Store.restore())
+            refresh()
+            return entitled != nil ? .bought : .failed("No previous purchase found on this Apple ID.")
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
 
     /// Developer affordance so the lapsed state can actually be looked at — a seven-day wait is
     /// not a testing strategy.

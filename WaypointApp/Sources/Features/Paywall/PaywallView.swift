@@ -13,6 +13,24 @@ struct PaywallView: View {
 
     @State private var selected: SubscriptionPlan = .annual
 
+    @State private var errorMessage: String?
+
+    /// The App Store's own localised price, or nothing.
+    ///
+    /// Deliberately no invented fallback. `mockPrice` returned "$1.99" to everyone on earth,
+    /// which is wrong in every country that doesn't use dollars and wrong here the day a price
+    /// changes in App Store Connect — the one number on this screen somebody is deciding on,
+    /// hardcoded in Swift. An em dash while the store is still answering is honest; a made-up
+    /// figure is not.
+    private func price(for plan: SubscriptionPlan) -> String {
+        subscription.prices[plan] ?? "—"
+    }
+
+    private var buyLabel: String {
+        guard let price = subscription.prices[selected] else { return "Subscribe" }
+        return "Subscribe — \(price) \(selected.cadence)"
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -35,10 +53,18 @@ struct PaywallView: View {
                     }
 
                     Button {
-                        subscription.purchase(selected)
-                        dismiss()
+                        Task {
+                            // Only dismiss on success. Cancelling used to close the sheet too,
+                            // which reads as "bought" — the one misreading a paywall must not
+                            // allow.
+                            switch await subscription.purchase(selected) {
+                            case .bought: dismiss()
+                            case .cancelled: break
+                            case .failed(let message): errorMessage = message
+                            }
+                        }
                     } label: {
-                        Text("Subscribe — \(selected.mockPrice) \(selected.cadence)")
+                        Text(buyLabel)
                             .wpTypography(.cardTitle)
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -49,8 +75,13 @@ struct PaywallView: View {
                     .buttonStyle(.plain)
 
                     Button("Restore purchases") {
-                        subscription.restore()
-                        dismiss()
+                        Task {
+                            switch await subscription.restore() {
+                            case .bought: dismiss()
+                            case .cancelled: break
+                            case .failed(let message): errorMessage = message
+                            }
+                        }
                     }
                     .wpTypography(.body)
                     .foregroundStyle(ColorTokens.textSecondary)
@@ -104,7 +135,7 @@ struct PaywallView: View {
                     // is the price, which means there is nothing a reader has to be warned
                     // about further down. A second line here would only be there to disclose a
                     // rise that isn't coming.
-                    Text("\(plan.mockPrice) \(plan.cadence)")
+                    Text("\(price(for: plan)) \(plan.cadence)")
                         .wpTypography(.body)
                         .foregroundStyle(ColorTokens.textPrimary)
                 }
