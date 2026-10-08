@@ -9,9 +9,18 @@ struct PomodoroView: View {
     var focusTitle: String?
     /// Raw id, matching how the event log refers to tasks: the record has to outlive the task.
     var focusTaskID: UUID?
+    /// How long the task was planned for, and when. Both are `nil` for a free session.
+    ///
+    /// **The timer used to ignore these entirely.** It opened at whatever duration was last
+    /// used — so starting a focus run on a ninety-minute task gave you twenty-five minutes, and
+    /// a twenty-minute task could open a forty-five-minute timer because of something you did
+    /// on Tuesday. The task already says how long it's meant to take; asking again was asking a
+    /// question the app had already been answered.
+    var taskMinutes: Int?
+    var taskStart: Date?
     var onSessionComplete: (() -> Void)?
 
-    /// Remembered across sessions so returning users don't have to reselect a duration.
+    /// Remembered across sessions, and used only when there's no task to take the length from.
     @AppStorage("pomodoroMinutes") private var selectedMinutes = 25
 
     @State private var remainingSeconds: Int
@@ -37,15 +46,35 @@ struct PomodoroView: View {
     @State private var sessionStartedAt: Date?
     /// Guards against recording twice when the timer finishes and the sheet is then dismissed.
     @State private var didRecord = false
+    /// Drives the ring's slow pulse. Flipped once when a run starts; the repeating animation
+    /// does the rest.
+    @State private var breathing = false
 
-    private let presets = [25, 30, 45]
+    /// The task's own length leads, then the usual stretches — minus any that duplicate it.
+    ///
+    /// A fixed 25/30/45 beside a fifty-minute task offers three ways to stop early and no way
+    /// to do the thing as planned.
+    private var presets: [Int] {
+        guard let taskMinutes else { return [25, 30, 45] }
+        return [taskMinutes] + [25, 45].filter { $0 != taskMinutes }
+    }
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    init(focusTitle: String? = nil, focusTaskID: UUID? = nil, onSessionComplete: (() -> Void)? = nil) {
+    init(
+        focusTitle: String? = nil,
+        focusTaskID: UUID? = nil,
+        taskMinutes: Int? = nil,
+        taskStart: Date? = nil,
+        onSessionComplete: (() -> Void)? = nil
+    ) {
         self.focusTitle = focusTitle
         self.focusTaskID = focusTaskID
+        self.taskMinutes = taskMinutes
+        self.taskStart = taskStart
         self.onSessionComplete = onSessionComplete
-        let minutes = UserDefaults.standard.object(forKey: "pomodoroMinutes") as? Int ?? 25
+        // The task's own length wins over the remembered one. The memory is for free sessions,
+        // where there's nothing better to go on.
+        let minutes = taskMinutes ?? (UserDefaults.standard.object(forKey: "pomodoroMinutes") as? Int ?? 25)
         _remainingSeconds = State(initialValue: minutes * 60)
     }
 
@@ -56,37 +85,97 @@ struct PomodoroView: View {
     }
     private var isCustomSelected: Bool { !presets.contains(selectedMinutes) }
 
+    /// The length this run is actually using — the task's, unless the user has picked another.
+    private var activeMinutes: Int { selectedMinutes }
+
+    /// "Planned 12:00–12:45 PM", so the countdown is visibly tied to the plan rather than being
+    /// a stopwatch that happens to be open.
+    private var plannedWindow: String? {
+        guard let taskStart, let taskMinutes else { return nil }
+        let end = taskStart.addingTimeInterval(TimeInterval(taskMinutes * 60))
+        return "\(taskStart.formatted(date: .omitted, time: .shortened))–\(end.formatted(date: .omitted, time: .shortened))"
+    }
+
+    /// Focused minutes so far, counting only stretches where it was actually running.
+    private var focusedMinutes: Int {
+        let live = runStartedAt.map { Int(Date().timeIntervalSince($0)) } ?? 0
+        return (bankedSeconds + live) / 60
+    }
+
     var body: some View {
         VStack(spacing: 28) {
             Spacer()
 
-            VStack(spacing: 4) {
-                Text("Focusing on")
-                    .wpTypography(.body)
-                    .foregroundStyle(ColorTokens.textSecondary)
+            VStack(spacing: 5) {
                 Text(focusTitle ?? "Free session")
-                    .wpTypography(.cardTitle)
+                    .wpTypography(.screenTitle)
                     .foregroundStyle(ColorTokens.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                // The plan, not just the title. Without it the screen is a stopwatch that
+                // happens to be open; with it the countdown is visibly the task's own hour.
+                if let plannedWindow {
+                    Text("Planned \(plannedWindow) · \(taskMinutes ?? 0) min")
+                        .wpTypography(.body)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                }
             }
+            .padding(.horizontal, 8)
 
             ZStack {
                 ProgressRing(
                     progress: progress,
-                    lineWidth: 8,
+                    lineWidth: 12,
                     color: theme.accentSwatch.markColor,
+                    // `border`, not `surface1`. Thickening the ring made me reach for a
+                    // lighter track, and `surface1` on a `surface0` page is the 4% difference
+                    // this project has now been bitten by four times — it drew a fat white
+                    // donut with no track reading as a track at all. See `ColorTokens.surface0`.
                     trackColor: ColorTokens.border,
                     showsLabel: false
                 )
-                Text(timeLabel)
-                    .font(.system(size: 40, weight: .semibold, design: .rounded))
-                    .foregroundStyle(ColorTokens.textPrimary)
-                    .monospacedDigit()
+                // Breathing while it runs, still while it's paused — so the state is legible
+                // from across a desk without reading the glyph on the button. Paper gets no
+                // glow at all, like everything else matte in it.
+                .shadow(
+                    color: Palette.current.usesDepth && isRunning
+                        ? theme.accentSwatch.markColor.opacity(0.35) : .clear,
+                    radius: breathing ? 22 : 10
+                )
+                .animation(
+                    isRunning
+                        ? .easeInOut(duration: 2.4).repeatForever(autoreverses: true)
+                        : .easeOut(duration: 0.3),
+                    value: breathing
+                )
+
+                VStack(spacing: 2) {
+                    Text(timeLabel)
+                        .font(.system(size: 46, weight: .semibold, design: .rounded))
+                        .foregroundStyle(ColorTokens.textPrimary)
+                        .monospacedDigit()
+                    // Counts only stretches that were actually running, so a timer left paused
+                    // over lunch doesn't claim the lunch. See the session accounting above.
+                    if focusedMinutes > 0 {
+                        Text("\(focusedMinutes) min focused")
+                            .wpTypography(.micro)
+                            .foregroundStyle(ColorTokens.textSecondary)
+                    }
+                }
             }
-            .frame(width: 220, height: 220)
+            .frame(width: 248, height: 248)
 
             HStack(spacing: 10) {
                 ForEach(presets, id: \.self) { minutes in
-                    intervalChip(label: "\(minutes) min", isSelected: selectedMinutes == minutes) {
+                    // The task's own length is marked, so picking another is visibly a choice
+                    // to depart from the plan rather than just another number.
+                    intervalChip(
+                        label: "\(minutes) min",
+                        isSelected: selectedMinutes == minutes,
+                        // A dot rather than the word: "40 min · planned" wrapped onto two lines
+                        // and made one chip taller than the rest of the row.
+                        isPlanned: minutes == taskMinutes
+                    ) {
                         select(minutes: minutes)
                     }
                 }
@@ -117,16 +206,30 @@ struct PomodoroView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.surface0.ignoresSafeArea())
         .sensoryFeedback(.success, trigger: remainingSeconds) { old, new in old > 0 && new == 0 }
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Close") { dismiss() }
+        .overlay(alignment: .topTrailing) {
+            // The app hides the navigation bar everywhere, so a system toolbar button here was
+            // the one piece of borrowed chrome on an otherwise full-bleed screen.
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(ColorTokens.textSecondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .padding(.trailing, 4)
+            .accessibilityLabel("Close")
         }
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
+            if let taskMinutes { selectedMinutes = taskMinutes }
             remainingSeconds = selectedMinutes * 60
         }
         .onReceive(timer) { _ in tick() }
-        .onChange(of: isRunning) { toggleRunning($1) }
+        .onChange(of: isRunning) { _, running in
+            toggleRunning(running)
+            breathing = running
+        }
         .onDisappear { recordSession(ranToCompletion: false) }
         .sheet(isPresented: $showingCustomPicker) {
             CustomDurationSheet(minutes: $customMinutes) {
@@ -135,17 +238,31 @@ struct PomodoroView: View {
         }
     }
 
-    private func intervalChip(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func intervalChip(
+        label: String,
+        isSelected: Bool,
+        isPlanned: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
-            Text(label)
-                .wpTypography(.body)
-                .foregroundStyle(isSelected ? ColorTokens.surface0 : ColorTokens.textSecondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(isSelected ? ColorTokens.textPrimary : ColorTokens.surface1)
-                .clipShape(Capsule())
+            HStack(spacing: 5) {
+                if isPlanned {
+                    Circle()
+                        .fill(isSelected ? ColorTokens.surface0 : theme.accentSwatch.markColor)
+                        .frame(width: 5, height: 5)
+                }
+                Text(label)
+                    .wpTypography(.body)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(isSelected ? ColorTokens.surface0 : ColorTokens.textSecondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(isSelected ? ColorTokens.textPrimary : ColorTokens.surface1)
+            .clipShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
+        .accessibilityLabel(isPlanned ? "\(label), the planned length" : label)
     }
 
     private func select(minutes: Int) {

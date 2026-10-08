@@ -995,7 +995,12 @@ struct TodayView: View {
                 )
             case .pomodoro(let task):
                 NavigationStack {
-                    PomodoroView(focusTitle: task.title, focusTaskID: task.id)
+                    PomodoroView(
+                        focusTitle: task.title,
+                        focusTaskID: task.id,
+                        taskMinutes: Int(task.durationMinutes),
+                        taskStart: task.resolvedStartTime
+                    )
                 }
             }
         }
@@ -1029,6 +1034,8 @@ struct TodayView: View {
                 presentSheet(.addTask)
             } else if args.contains("-wpEditTask"), let first = realTodayTasks.first {
                 presentSheet(.editTask(first))
+            } else if args.contains("-wpFocus"), let first = realTodayTasks.first {
+                presentSheet(.pomodoro(first))
             } else if args.contains("-wpClash"), let victim = realTodayTasks.first {
                 // `-wpClash` stages a collision against today's first task. Reaching this sheet
                 // otherwise means typing a task that happens to overlap another one, which is a
