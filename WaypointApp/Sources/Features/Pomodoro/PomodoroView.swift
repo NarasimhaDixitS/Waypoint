@@ -59,7 +59,10 @@ struct PomodoroView: View {
         let remaining = windowMinutesLeft
         let offerRemaining = remaining.map { $0 >= 5 && $0 < taskMinutes - 4 } ?? false
         let base = [taskMinutes] + (offerRemaining ? [remaining!] : [])
-        return base + [25, 45].filter { !base.contains($0) }
+        // **Three, so that with Custom the row is four.** Adding the remaining-window chip
+        // made five, and five don't fit across a phone — every label truncated to "60…",
+        // "21…", "Cust…", which is worse than not offering the choice at all.
+        return Array((base + [25, 45].filter { !base.contains($0) }).prefix(3))
     }
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -134,10 +137,13 @@ struct PomodoroView: View {
     }
 
     var body: some View {
-        VStack(spacing: 28) {
-            Spacer()
-
-            VStack(spacing: 5) {
+        // **Three bands, not one floating cluster.** Everything used to sit between two
+        // `Spacer()`s in the middle of the page, with a third of the screen empty above and
+        // below — which reads as a layout that hasn't been finished rather than as calm. The
+        // title anchors the top, the clock owns the centre, and the controls group at the
+        // bottom where a thumb is.
+        VStack(spacing: 0) {
+            VStack(spacing: 6) {
                 Text(focusTitle ?? "Free session")
                     .wpTypography(.screenTitle)
                     .foregroundStyle(ColorTokens.textPrimary)
@@ -153,23 +159,39 @@ struct PomodoroView: View {
                 }
             }
             .padding(.horizontal, 8)
+            .padding(.top, 36)
+
+            Spacer(minLength: 24)
 
             // No ring. The page is the vessel now, and a ring would say the same thing twice.
-            VStack(spacing: 4) {
+            VStack(spacing: 8) {
                 Text(timeLabel)
-                    .font(.system(size: 68, weight: .semibold, design: .rounded))
+                    // Thin at this size. Semibold at 68 was a wall of ink in the middle of a
+                    // page whose whole character is a slow tide; the clock should be the
+                    // largest thing here without also being the heaviest.
+                    .font(.system(size: 82, weight: .light, design: .rounded))
                     .foregroundStyle(ColorTokens.textPrimary)
                     .monospacedDigit()
-                // Counts only stretches that were actually running, so a timer left paused
-                // over lunch doesn't claim the lunch. See the session accounting above.
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+
+                // Against the plan, not in isolation: "22 min focused" is a fact about a
+                // stopwatch, "22 of 40 min" is a fact about the task. Counts only stretches
+                // that were actually running, so a timer left paused over lunch doesn't claim
+                // the lunch — see the session accounting above.
                 if focusedMinutes > 0 {
-                    Text("\(focusedMinutes) min focused")
+                    Text("\(focusedMinutes) of \(activeMinutes) min")
                         .wpTypography(.body)
                         .foregroundStyle(ColorTokens.textSecondary)
+                        .monospacedDigit()
                 }
             }
-            .padding(.vertical, 18)
 
+            Spacer(minLength: 24)
+
+            // Scrolls rather than squeezes. The cap above should mean it never has to, but a
+            // long custom length shouldn't be able to shorten every other label to an ellipsis.
+            ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ForEach(presets, id: \.self) { minutes in
                     // The task's own length is marked, so picking another is visibly a choice
@@ -189,25 +211,39 @@ struct PomodoroView: View {
                     showingCustomPicker = true
                 }
             }
+            .padding(.horizontal, 4)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .padding(.bottom, 26)
 
             Button {
                 isRunning.toggle()
             } label: {
                 Image(systemName: isRunning ? "pause.fill" : "play.fill")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 26, weight: .semibold))
                     // Same reason as the Save button in `NewTaskView`: `textPrimary` is a warm
                     // off-white in dark mode, so a white glyph on it is invisible.
                     .foregroundStyle(ColorTokens.surface0)
-                    .frame(width: 64, height: 64)
+                    .frame(width: 84, height: 84)
                     .background(ColorTokens.textPrimary)
                     .clipShape(Circle())
+                    // Lifted while paused, flat while running. The one thing you touch on this
+                    // page should look touchable when it's waiting for you and settled when it
+                    // isn't. Paper takes no shadow, like everything else matte in it.
+                    .shadow(
+                        color: Palette.current.usesDepth && !isRunning
+                            ? ColorTokens.ShadowTier.raised.color : .clear,
+                        radius: ColorTokens.ShadowTier.raised.radius,
+                        x: 0, y: ColorTokens.ShadowTier.raised.y
+                    )
+                    .scaleEffect(isRunning ? 0.94 : 1)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isRunning)
             }
             .buttonStyle(.plain)
             .sensoryFeedback(.impact(weight: .medium), trigger: isRunning)
-
-            Spacer()
+            .padding(.bottom, 30)
         }
-        .padding(24)
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             ZStack {
