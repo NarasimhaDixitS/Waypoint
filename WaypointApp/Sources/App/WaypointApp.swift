@@ -23,7 +23,14 @@ struct WaypointApp: App {
     /// whole purpose is looking at the numbers has to not change the numbers.
     private func reseedIfRequested() {
         #if DEBUG
-        guard ProcessInfo.processInfo.arguments.contains("-wpReseed") else { return }
+        let args = ProcessInfo.processInfo.arguments
+        // `-wpFresh` runs first and wins: asking for both is asking for a new install, and a
+        // new install with forty-five days of history isn't one.
+        if args.contains("-wpFresh") {
+            FreshInstall.wipe(in: persistence.container.viewContext)
+            return
+        }
+        guard args.contains("-wpReseed") else { return }
         SampleData.loadDemo(into: persistence.container.viewContext)
         #endif
     }

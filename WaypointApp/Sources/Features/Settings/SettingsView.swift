@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     #if DEBUG
     @State private var showingDemoConfirm = false
+    @State private var showingFreshConfirm = false
     #endif
     /// Confirms the tap landed. The notes themselves won't reappear until the situation each
     /// one explains comes round again, so without this the button looks like it did nothing.
@@ -217,6 +218,25 @@ struct SettingsView: View {
                     }
 
                     Button {
+                        showingFreshConfirm = true
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Reset to a new install").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                                Text("Everything gone, including the trial clock")
+                                    .wpTypography(.micro)
+                                    .foregroundStyle(ColorTokens.textSecondary)
+                            }
+                            Spacer()
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(ColorTokens.textMuted)
+                        }
+                        .padding(14)
+                    }
+                    .buttonStyle(.wpRow)
+                    divider
+                    Button {
                         showingDemoConfirm = true
                     } label: {
                         row {
@@ -251,6 +271,22 @@ struct SettingsView: View {
         // about wiping their data, and the next person to add a second setter gets a live
         // destructive dialog in production without touching this file.
         #if DEBUG
+        .confirmationDialog(
+            "Reset to a new install?",
+            isPresented: $showingFreshConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Wipe everything", role: .destructive) {
+                FreshInstall.wipe(in: context)
+                // The trial clock restarts the moment anything asks again, so this has to be
+                // the last word — otherwise the next read re-begins it before the app relaunches
+                // and the first run starts on day one of a trial that was never reset.
+                exit(0)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Deletes every task, goal, commitment and setting, and clears the trial from the Keychain — the one thing deleting the app doesn't. Waypoint will quit; reopen it to see the first run.")
+        }
         .confirmationDialog(
             "Replace everything with demo data?",
             isPresented: $showingDemoConfirm,

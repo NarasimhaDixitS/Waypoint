@@ -134,10 +134,20 @@ and tap through to a screen, which is the gap that led to shipping cards nobody 
 | `-wpReseed` | Reloads the demo fixture (in `init`, deliberately — see `WaypointApp.swift`) |
 | `-wpPaper` / `-wpStandard` | Forces the palette |
 | `-wpFree` | Free tier, with `BetaAccess` off |
+| `-wpSearch <query>` | The search overlay, with that query typed |
+| `-wpGoal` / `-wpNoGoal` | Straight into a goal's page, or the No-goal list |
+| `-wpFresh` | **Wipes everything** and gives you a real first run |
 
 `-wpPaper`/`-wpStandard` are not a convenience: writing `themePalette` from the command line
 races the app's own preference flush and loses about as often as it wins, so a palette set that
 way can't be trusted to be the one on screen.
+
+`-wpFresh` is the one to reach for when testing onboarding, the empty Progress page or the
+trial. Loading the demo fixture is its opposite — forty-five days of history is exactly what a
+new user doesn't have — and deleting the app doesn't do it either, because the trial start
+lives in the Keychain on purpose (`TrialRecord`) and survives reinstalling. Settings' Developer
+section has the same thing as a button, which quits the app afterwards so the trial can't
+re-begin before the relaunch.
 
 There is **no flag for light/dark** — `appearanceMode` lives in `UserDefaults`, which the
 cfprefsd gotcha below makes unwritable from the CLI. Ask the user to tap the sun/moon toggle.

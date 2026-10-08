@@ -90,6 +90,7 @@
 		9FAA7DF2F3D0B94F7929F1BC /* CardBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B7584D86923F2172B5800B8 /* CardBackground.swift */; };
 		A53FFB0471686FC364842675 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13F66EB6BA064C5E76B26FB6 /* Assets.xcassets */; };
 		A6861E53E33C19A1FEB50025 /* WidgetTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19589A3FCACCABD0C0F7B841 /* WidgetTodayView.swift */; };
+		A9856DBBB7B590698FE5C4ED /* FreshInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = E39F1F92D762C06FB43C2A2A /* FreshInstall.swift */; };
 		A98BC6F7CF1B8C52BF7A8273 /* WidgetStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA01BD39222D9A6B3D807AFE /* WidgetStoreTests.swift */; };
 		AB1A284B2D3389B4A01559A6 /* Milestone.swift in Sources */ = {isa = PBXBuildFile; fileRef = A88F270B7F0F3974C05332C0 /* Milestone.swift */; };
 		AB49C1D3F0DCDC0E3D6A7AA2 /* TaskEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90667575439EB7F1720690EE /* TaskEvent.swift */; };
@@ -249,6 +250,7 @@
 		D91BCF81D1599398CA2A848F /* SearchResultsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultsTests.swift; sourceTree = "<group>"; };
 		DCCC2E97AF4EC6541D3BBD30 /* TaskRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRowView.swift; sourceTree = "<group>"; };
 		DE80DE7AC4078992019CFD76 /* GoalCenterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCenterTests.swift; sourceTree = "<group>"; };
+		E39F1F92D762C06FB43C2A2A /* FreshInstall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreshInstall.swift; sourceTree = "<group>"; };
 		E77987438EE104778D038C0B /* DatePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatePickerSheet.swift; sourceTree = "<group>"; };
 		EEFD29EA2188DDDA9BD3E675 /* NotificationSchedulingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSchedulingTests.swift; sourceTree = "<group>"; };
 		EF5B6B74E18146252DE5EECF /* ScheduleSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleSetupView.swift; sourceTree = "<group>"; };
@@ -540,6 +542,7 @@
 			isa = PBXGroup;
 			children = (
 				036EE9F351B7734A2F5AD935 /* DateNavigationStore.swift */,
+				E39F1F92D762C06FB43C2A2A /* FreshInstall.swift */,
 				3FB518A0FA9D4FFF75FBC21B /* MainTabView.swift */,
 				24ECA3D57DA1BDC6AAA0C1C7 /* RootView.swift */,
 				8850A4AD6D4B8CA9B911E947 /* WaypointApp.swift */,
@@ -746,6 +749,7 @@
 				D7FE8414B73861CA65EA2647 /* DatePickerSheet.swift in Sources */,
 				314212B747BA30BBAA823467 /* FirstRunNote.swift in Sources */,
 				3227E1A7B270863316DC1250 /* FocusSession.swift in Sources */,
+				A9856DBBB7B590698FE5C4ED /* FreshInstall.swift in Sources */,
 				62199AF7749394EEB34489C9 /* GoalCenterView.swift in Sources */,
 				8DC2D818FECF68F4351808F1 /* GoalCreateView.swift in Sources */,
 				96952B100095640D68BB1441 /* GoalDetailView.swift in Sources */,
