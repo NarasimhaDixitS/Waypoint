@@ -175,12 +175,18 @@ struct PomodoroView: View {
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
 
-                // Against the plan, not in isolation: "22 min focused" is a fact about a
-                // stopwatch, "22 of 40 min" is a fact about the task. Counts only stretches
+                // **"done" is load-bearing.** The clock above counts down and the water counts
+                // up, so two numbers sat stacked with opposite senses and nothing saying which
+                // was which — "14:54" over "45 of 60 min" with the screen three-quarters full
+                // reads as a bug unless you work out that 45 is the elapsed one. Naming the
+                // sense of the small number fixes the big one by implication.
+                //
+                // Against the plan, not in isolation: "45 min focused" is a fact about a
+                // stopwatch, "45 of 60 min" is a fact about the task. Counts only stretches
                 // that were actually running, so a timer left paused over lunch doesn't claim
                 // the lunch — see the session accounting above.
                 if focusedMinutes > 0 {
-                    Text("\(focusedMinutes) of \(activeMinutes) min")
+                    Text("\(focusedMinutes) of \(activeMinutes) min done")
                         .wpTypography(.body)
                         .foregroundStyle(ColorTokens.textSecondary)
                         .monospacedDigit()
