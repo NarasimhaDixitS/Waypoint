@@ -17,6 +17,45 @@ final class PaletteContrastTests: XCTestCase {
     }
 
     /// WCAG 2.1 relative luminance.
+    // MARK: - The focus timer's rising fill
+
+    /// Everything on the focus screen ends up inside the water. The wavy edge does nothing for
+    /// readability — the fill rises and stays — so what carries the text is the wash being
+    /// light enough to read through. This pins that down rather than leaving it to a judgement
+    /// made once by eye.
+    func testTextStaysReadableOnceTheFocusScreenHasFilled() {
+        for (palette, dark) in [(Palette.standard, false), (.standard, true), (.paper, false)] {
+            Palette.current = palette
+            let wash = palette == .paper ? WaveFill.paperWashOpacity : WaveFill.washOpacity
+
+            let page = resolved(ColorTokens.surface0, dark: dark)
+            let water = resolved(AccentSwatch.teal.markColor, dark: dark)
+            let filled = blend(water, over: page, alpha: wash)
+            let ink = resolved(ColorTokens.textPrimary, dark: dark)
+
+            let measured = ratio(ink, filled)
+            XCTAssertGreaterThanOrEqual(
+                measured, 4.5,
+                "\(palette) \(dark ? "dark" : "light"): text sitting in the fill measured \(measured):1"
+            )
+        }
+        Palette.current = .standard
+    }
+
+    private func blend(_ fg: UIColor, over bg: UIColor, alpha: Double) -> UIColor {
+        var fr: CGFloat = 0, fg_: CGFloat = 0, fb: CGFloat = 0, fa: CGFloat = 0
+        var br: CGFloat = 0, bg_: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
+        fg.getRed(&fr, green: &fg_, blue: &fb, alpha: &fa)
+        bg.getRed(&br, green: &bg_, blue: &bb, alpha: &ba)
+        let a = CGFloat(alpha)
+        return UIColor(
+            red: a * fr + (1 - a) * br,
+            green: a * fg_ + (1 - a) * bg_,
+            blue: a * fb + (1 - a) * bb,
+            alpha: 1
+        )
+    }
+
     private func luminance(_ color: UIColor) -> CGFloat {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         color.getRed(&r, green: &g, blue: &b, alpha: &a)

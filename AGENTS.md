@@ -138,6 +138,7 @@ and tap through to a screen, which is the gap that led to shipping cards nobody 
 | `-wpGoal` / `-wpNoGoal` | Straight into a goal's page, or the No-goal list |
 | `-wpFresh` | **Wipes everything** and gives you a real first run |
 | `-wpFocus` | The focus timer, on today's first task |
+| `-wpFocusFill <0-1>` | …already that far through, and running |
 
 `-wpPaper`/`-wpStandard` are not a convenience: writing `themePalette` from the command line
 races the app's own preference flush and loses about as often as it wins, so a palette set that
