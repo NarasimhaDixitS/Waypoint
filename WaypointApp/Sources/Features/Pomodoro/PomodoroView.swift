@@ -266,6 +266,7 @@ struct PomodoroView: View {
                 ColorTokens.surface0
                 WaveFill(
                     progress: progress,
+                    isRunning: isRunning,
                     tint: theme.accentSwatch.markColor,
                     line: theme.accentSwatch.markColor
                 )
