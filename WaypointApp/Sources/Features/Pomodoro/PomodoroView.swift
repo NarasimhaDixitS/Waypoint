@@ -241,7 +241,23 @@ struct PomodoroView: View {
             }
             .buttonStyle(.plain)
             .sensoryFeedback(.impact(weight: .medium), trigger: isRunning)
-            .padding(.bottom, 30)
+
+            // Only once something has been worked. Now that × leaves the session running,
+            // this is the only way to say "that's done" and have it counted — and the
+            // estimate chart is built from exactly these numbers.
+            if sessionStartedAt != nil {
+                Button {
+                    recordSession(ranToCompletion: false)
+                    dismiss()
+                } label: {
+                    Text("End session")
+                        .wpTypography(.body)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                        .frame(height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.horizontal, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -275,6 +291,7 @@ struct PomodoroView: View {
         .onAppear {
             if let taskMinutes { selectedMinutes = taskMinutes }
             remainingSeconds = selectedMinutes * 60
+            restoreOrStartFresh()
             #if DEBUG
             // `-wpFocusFill 0.6` opens the timer already six-tenths through, running. The fill
             // is the whole point of this screen and it starts empty, so without this the only
@@ -290,7 +307,12 @@ struct PomodoroView: View {
         }
         .onReceive(timer) { _ in tick() }
         .onChange(of: isRunning) { toggleRunning($1) }
-        .onDisappear { recordSession(ranToCompletion: false) }
+        // **Closing leaves it running.** This used to file the session and let the view die
+        // with all its state, so a mis-tap on × reset the clock to full and drained the water
+        // — and the screen you came back to claimed you'd never started. A session ends when
+        // it finishes, when you end it, or when you focus on something else. Not when you
+        // glance away.
+        .onDisappear { persist() }
         .sheet(isPresented: $showingCustomPicker) {
             CustomDurationSheet(minutes: $customMinutes) {
                 select(minutes: customMinutes)
@@ -345,6 +367,59 @@ struct PomodoroView: View {
         didRecord = false
     }
 
+    /// Writes the session out after anything that changes it, so closing the sheet — or the
+    /// app being killed — can't lose it.
+    private func persist() {
+        guard let startedAt = sessionStartedAt else { return }
+        ActiveFocusStore.current = ActiveFocusSession(
+            taskID: focusTaskID,
+            taskTitle: focusTitle,
+            selectedMinutes: selectedMinutes,
+            endsAt: endDate,
+            pausedRemaining: remainingSeconds,
+            bankedSeconds: bankedSeconds,
+            startedAt: startedAt
+        )
+    }
+
+    /// Picks up a session left running, if it's this task's.
+    ///
+    /// A stored session for a *different* task is finished and filed first — it ended the
+    /// moment attention moved, and leaving it in the store would mean the next screen resumed
+    /// somebody else's clock.
+    private func restoreOrStartFresh() {
+        guard let stored = ActiveFocusStore.current else { return }
+        guard stored.matches(taskID: focusTaskID) else {
+            FocusSessionLog.record(
+                taskID: stored.taskID,
+                taskTitle: stored.taskTitle,
+                startedAt: stored.startedAt,
+                endedAt: .now,
+                plannedSeconds: stored.selectedMinutes * 60,
+                actualSeconds: stored.focusedSeconds(totalMinutes: stored.selectedMinutes),
+                ranToCompletion: false,
+                in: context
+            )
+            try? context.save()
+            ActiveFocusStore.clear()
+            return
+        }
+
+        selectedMinutes = stored.selectedMinutes
+        bankedSeconds = stored.bankedSeconds
+        sessionStartedAt = stored.startedAt
+        remainingSeconds = stored.remaining()
+        if stored.isRunning, remainingSeconds > 0 {
+            endDate = stored.endsAt
+            // The run stretch resumes from now: the gap while the sheet was closed was still
+            // the clock running down, and `bankedSeconds` already holds what came before it.
+            runStartedAt = Date.now.addingTimeInterval(
+                -Double(stored.focusedSeconds(totalMinutes: stored.selectedMinutes) - stored.bankedSeconds)
+            )
+            isRunning = true
+        }
+    }
+
     private func toggleRunning(_ running: Bool) {
         if running {
             endDate = Date.now.addingTimeInterval(TimeInterval(remainingSeconds))
@@ -361,6 +436,7 @@ struct PomodoroView: View {
             endDate = nil
             NotificationManager.cancelPomodoroComplete()
         }
+        persist()
     }
 
     /// Moves the stretch just ended into `bankedSeconds`.
@@ -396,6 +472,7 @@ struct PomodoroView: View {
         remainingSeconds = remaining
         if remaining <= 0 {
             recordSession(ranToCompletion: true)
+            ActiveFocusStore.clear()
             isRunning = false
             self.endDate = nil
             onSessionComplete?()
