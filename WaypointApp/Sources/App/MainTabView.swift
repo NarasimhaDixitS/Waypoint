@@ -4,6 +4,7 @@ import UIKit
 
 struct MainTabView: View {
     @EnvironmentObject private var theme: ThemeManager
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var dateStore = DateNavigationStore()
     @EnvironmentObject private var subscription: SubscriptionManager
     @State private var showingPaywall = false
@@ -66,6 +67,52 @@ struct MainTabView: View {
     /// Bumped whenever the Today tab is selected; see `TodayView.returnToTodayTrigger`.
     @State private var returnToTodayTrigger = 0
 
+    /// Whether the Progress tab has a chart the user hasn't been shown yet.
+    ///
+    /// Recomputed on `scenePhase` rather than watched continuously: the charts that are ready
+    /// change on the scale of days, and a `@FetchRequest` over every task and event here to
+    /// catch it sooner would cost a fetch on this view for something that moves once a week.
+    @State private var progressHasNews = false
+
+    /// One fetch, on launch and on return to the foreground.
+    ///
+    /// Not a `@FetchRequest`: that would re-run on every task edit anywhere in the app, to
+    /// answer a question whose answer changes roughly once a week. A chart becoming readable
+    /// is not news that needs to arrive within the second.
+    private func markProgressSeen() {
+        ProgressNews.markSeen(currentlyReadyCharts())
+        progressHasNews = false
+    }
+
+    private func refreshProgressNews() {
+        progressHasNews = !ProgressNews.unseen(in: currentlyReadyCharts()).isEmpty
+    }
+
+    private func currentlyReadyCharts() -> Set<ProgressChart> {
+        let context = PersistenceController.shared.container.viewContext
+        let tasks = (try? context.fetch(TaskEntity.fetchRequest())) ?? []
+        let events = (try? context.fetch(TaskEventEntity.fetchRequest(kind: nil))) ?? []
+        let sessions = (try? context.fetch(NSFetchRequest<FocusSessionEntity>(entityName: "FocusSessionEntity"))) ?? []
+        let goals = (try? context.fetch(NSFetchRequest<GoalEntity>(entityName: "GoalEntity"))) ?? []
+
+        return ProgressReadiness.ready(
+            tasks: tasks,
+            events: events,
+            sessions: sessions,
+            goal: goals.first { !$0.sortedTasks.isEmpty },
+            effortWeeks: 6
+        )
+    }
+
+    /// What the Progress lock says, which depends on how much the person has actually built up.
+    private var progressLockMessage: String {
+        let days = TrialRecord.daysSinceStart()
+        guard days >= 3 else {
+            return "Waypoint keeps recording what you finish and what you put off. Subscribing is what lets you read it back."
+        }
+        return "You've built up \(days) days of patterns in here. Subscribing is what keeps reading them back."
+    }
+
     /// Combines both reasons `WeekView` might need a fresh fetch — a different month, or just
     /// revisiting the tab — into one identity so `.id()` rebuilds on either.
     private struct WeekIdentity: Hashable {
@@ -98,6 +145,13 @@ struct MainTabView: View {
                 }
             }
             weekRefreshTrigger += 1
+        } else if newValue == 3 {
+            // **Here, not in `ProgressAnalyticsView.onAppear`.** Every tab lives in the same
+            // `ZStack` and is hidden with `.opacity`, so that view appears at launch whether or
+            // not anyone opens it — which marked every chart seen before the badge had a chance
+            // to show, silently defeating the entire feature. Selecting the tab is the only
+            // event that actually means "looked at".
+            markProgressSeen()
         } else if newValue == 2, selectedTab == 2, !goalPath.isEmpty {
             // Already on Goals and already pushed in: the tap means "take me back out", the
             // same as every other iOS tab bar. Only when it's already the current tab — a tap
@@ -179,7 +233,10 @@ struct MainTabView: View {
                     .lockedBehindPaywall(
                         !subscription.status.canUseProgress,
                         title: "Your patterns",
-                        message: "Waypoint keeps recording what you finish and what you put off. Subscribing is what lets you read it back."
+                        // Names what they already own rather than listing features. A concrete
+                        // thing you've built up and stand to stop reading is a stronger reason
+                        // than a list of charts you've never seen.
+                        message: progressLockMessage
                     )
                     .opacity(selectedTab == 3 ? 1 : 0)
                     .allowsHitTesting(selectedTab == 3)
@@ -226,7 +283,8 @@ struct MainTabView: View {
             HStack(spacing: 14) {
                 CustomTabBar(
                     selectedTab: Binding(get: { selectedTab }, set: selectTab),
-                    searchActive: $searchActive
+                    searchActive: $searchActive,
+                    progressHasNews: progressHasNews
                 )
                 .frame(maxWidth: .infinity)
                 // A past day is a record, not a workspace: completion is locked to a task's
@@ -243,6 +301,12 @@ struct MainTabView: View {
             .padding(.horizontal, 20)
         }
         .animation(.easeInOut(duration: 0.22), value: searchActive)
+        .onAppear { refreshProgressNews() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshProgressNews() }
+        }
+        // Leaving Progress is when the dot should go, and `markSeen` has just run there.
+        .onChange(of: selectedTab) { _, _ in refreshProgressNews() }
         .wpTopFade()
         .environmentObject(dateStore)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
@@ -312,6 +376,8 @@ private struct CustomTabBar: View {
     @Environment(\.colorScheme) private var colorScheme
     @Binding var selectedTab: Int
     @Binding var searchActive: Bool
+    /// Progress has a chart it hasn't shown this person yet.
+    var progressHasNews: Bool = false
 
     // Day, week, goals, patterns, settings — widening scope left to right, with search last
     // because it isn't a place, it's a way of getting to one.
@@ -384,6 +450,18 @@ private struct CustomTabBar: View {
                                         // the reversed colour, so selection doesn't need the
                                         // unselected glyphs held that far back to read.
                                         .foregroundStyle(iconColor.opacity(0.85))
+                                        // A chart has started speaking since this tab was last
+                                        // opened. Only ever on Progress, and only when it isn't
+                                        // the tab you're already looking at — a dot on the page
+                                        // you're reading is a dot about nothing.
+                                        .overlay(alignment: .topTrailing) {
+                                            if index == 3, progressHasNews, activeIndex != 3 {
+                                                Circle()
+                                                    .fill(iconColor)
+                                                    .frame(width: 6, height: 6)
+                                                    .offset(x: 5, y: -3)
+                                            }
+                                        }
                                 }
                             }
                             .frame(width: slotWidth, height: barHeight)

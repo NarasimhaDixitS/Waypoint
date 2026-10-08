@@ -24,11 +24,16 @@ enum FirstRunHint: String, CaseIterable {
 
     var storageKey: String { "firstRunHint.\(rawValue)" }
 
-    /// Used by Settings' "Show the first-run tips again".
+    /// Used by Settings' "Show tips again".
+    ///
+    /// Clears the Progress tab's news too. Both are the same promise from the user's side —
+    /// "show me the things you only show once" — and a reset that brought back two of them and
+    /// quietly left the third is the kind of half-answer that makes a button look broken.
     static func resetAll() {
         for hint in allCases {
             UserDefaults.standard.removeObject(forKey: hint.storageKey)
         }
+        ProgressNews.reset()
     }
 }
 

@@ -78,6 +78,16 @@ enum TrialRecord {
         return SecItemAdd(insert as CFDictionary, nil) == errSecSuccess
     }
 
+    /// Whole days since the trial began, for copy that names what the user has accumulated.
+    ///
+    /// Zero when the trial hasn't started, which is also the right answer: nothing has been
+    /// recorded yet, so there is nothing to claim.
+    static func daysSinceStart(now: Date = .now, account: String = defaultAccount) -> Int {
+        guard let start = start(account: account) else { return 0 }
+        let days = Calendar.current.dateComponents([.day], from: start, to: now).day ?? 0
+        return max(0, days)
+    }
+
     static func clear(account: String = defaultAccount) {
         SecItemDelete(query(account: account) as CFDictionary)
     }

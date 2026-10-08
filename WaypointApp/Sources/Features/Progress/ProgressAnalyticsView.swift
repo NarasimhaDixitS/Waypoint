@@ -206,6 +206,61 @@ struct ProgressAnalyticsView: View {
 
     private var tasks: [TaskEntity] { Array(recentTasks) }
     private var allEvents: [TaskEventEntity] { Array(events) }
+    /// What's left to arrive — a count going up, not a page quietly getting shorter.
+    ///
+    /// Hiding the empty cards on their own would make Progress *look* like a thin feature
+    /// during exactly the fortnight someone is deciding whether to pay for it. A number that
+    /// climbs is a reason to come back; a blank card is a reason not to.
+    ///
+    /// On a genuinely new account it carries the pitch instead: three specific things the app
+    /// will be able to tell them, in the words it will use when it does. Three promises it can
+    /// keep beat eleven apologies.
+    @ViewBuilder
+    private var stillComing: some View {
+        let ready = readyCharts
+        let waiting = ProgressChart.allCases.filter { !ready.contains($0) }
+
+        if !waiting.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                if ready.isEmpty {
+                    Text("Waypoint is already recording this.")
+                        .wpTypography(.cardTitle)
+                        .foregroundStyle(ColorTokens.textPrimary)
+                    // Named promises rather than a feature list, and the same three every time
+                    // so the page doesn't reshuffle its pitch between launches.
+                    Text("Give it about a week and it can tell you \(waiting.prefix(3).map(\.promise).joined(separator: ", ")) — from what you actually do, not what you meant to.")
+                        .wpTypography(.body)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("\(ready.count) of \(ProgressChart.allCases.count) ready")
+                        .wpTypography(.cardTitle)
+                        .foregroundStyle(ColorTokens.textPrimary)
+                    Text(waiting.count == 1
+                         ? "One more appears once there's enough to read: \(waiting[0].promise)."
+                         : "\(waiting.count) more appear as you log more days — starting with \(waiting[0].promise).")
+                        .wpTypography(.body)
+                        .foregroundStyle(ColorTokens.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .wpCard()
+        }
+    }
+
+    private var readyCharts: Set<ProgressChart> {
+        ProgressReadiness.ready(
+            tasks: tasks,
+            events: allEvents,
+            sessions: Array(sessions),
+            goal: goals.first { !$0.sortedTasks.isEmpty },
+            effortWeeks: range.effortWeeks
+        )
+    }
+
+    private func isReady(_ chart: ProgressChart) -> Bool { readyCharts.contains(chart) }
+
     private var accent: Color { theme.accentSwatch.markColor }
 
     var body: some View {
@@ -226,23 +281,28 @@ struct ProgressAnalyticsView: View {
                 sectionPicker
                 headline
 
+                // **Only the charts that have something to say.** An empty card is a title, a
+                // paragraph explaining a chart, and a line admitting it isn't there — and a new
+                // user met four or five of them at once, none of which were about them.
                 switch section {
                 case .patterns:
-                    weekdayCard
-                    timeOfDayCard
-                    effortCard
-                    goalSplitCard
+                    if isReady(.weekday) { weekdayCard }
+                    if isReady(.timeOfDay) { timeOfDayCard }
+                    if isReady(.effort) { effortCard }
+                    if isReady(.goalSplit) { goalSplitCard }
                 case .friction:
-                    deferralCard
-                    underestimateCard
-                    slipCard
-                    priorityCard
-                    habitCard
+                    if isReady(.deferral) { deferralCard }
+                    if isReady(.underestimate) { underestimateCard }
+                    if isReady(.slip) { slipCard }
+                    if isReady(.priority) { priorityCard }
+                    if isReady(.habit) { habitCard }
                 case .goals:
                     goalOutcomeTiles
-                    burndownCard
-                    estimateCard
+                    if isReady(.burndown) { burndownCard }
+                    if isReady(.estimate) { estimateCard }
                 }
+
+                stillComing
             }
             .animation(.easeInOut(duration: 0.22), value: section)
             .padding(.horizontal, 20)
