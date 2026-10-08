@@ -12,6 +12,16 @@ struct SettingsView: View {
     /// Confirms the tap landed. The notes themselves won't reappear until the situation each
     /// one explains comes round again, so without this the button looks like it did nothing.
     @State private var tipsReset = false
+    private var versionLine: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        return "Waypoint \(version) (\(build))"
+    }
+
+    @State private var showingMailComposer = false
+    /// Shown when there's no Mail account to hand the draft to, which `canSendMail` reports
+    /// and nothing else can fix — so the address is offered as text instead of a dead button.
+    @State private var showingMailFallback = false
     @State private var showingPaywall = false
 
     var body: some View {
@@ -184,6 +194,32 @@ struct SettingsView: View {
                         }
                     }
                     .buttonStyle(.wpRow)
+                    divider
+                    // Hands the draft to Mail rather than posting it anywhere. See `Feedback`
+                    // for why: an app can't hold a mail-provider API key, and a form with a
+                    // mandatory email field would collect contact information — which this
+                    // app's privacy label currently, truthfully, says it doesn't.
+                    Button {
+                        if Feedback.canSend {
+                            showingMailComposer = true
+                        } else {
+                            showingMailFallback = true
+                        }
+                    } label: {
+                        row {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Send feedback").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                                Text("Opens your mail app — nothing is sent from here")
+                                    .wpTypography(.micro)
+                                    .foregroundStyle(ColorTokens.textSecondary)
+                            }
+                            Spacer()
+                            Image(systemName: "envelope")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(ColorTokens.textMuted)
+                        }
+                    }
+                    .buttonStyle(.wpRow)
                 }
                 .wpCard(padding: 0)
 
@@ -256,6 +292,15 @@ struct SettingsView: View {
                     .wpCard(padding: 0)
                 }
                 #endif
+                // The one line every bug report needs and nobody can find. Added because the
+                // feedback fallback told people to quote their build, and there was nowhere
+                // on this screen to read it.
+                Text(versionLine)
+                    .wpTypography(.micro)
+                    .foregroundStyle(ColorTokens.textMuted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 6)
+                    .textSelection(.enabled)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, ColorTokens.tabBarClearance)
@@ -263,6 +308,19 @@ struct SettingsView: View {
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
+        .sheet(isPresented: $showingMailComposer) { MailComposer() }
+        .confirmationDialog(
+            "No mail account set up",
+            isPresented: $showingMailFallback,
+            titleVisibility: .visible
+        ) {
+            Button("Copy \(Feedback.address)") {
+                UIPasteboard.general.string = Feedback.address
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Write to \(Feedback.address) from wherever you read mail. Including which build you're on helps — it's in Settings at the bottom of this screen.")
+        }
         // Inside the guard, with the button that raises it. It sat outside, so a Release
         // binary carried "Replace everything with demo data?" and a call to
         // `SampleData.loadDemo` — unreachable, because the only thing that sets

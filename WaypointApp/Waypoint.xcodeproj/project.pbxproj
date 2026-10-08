@@ -112,6 +112,7 @@
 		CF6EA76AFFA63BFCCC513572 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B6B74DE3D70181181BFF7E /* SampleData.swift */; };
 		D13C502840BF8A8063FFC353 /* CompletionBurst.swift in Sources */ = {isa = PBXBuildFile; fileRef = F91116B3A2600B6D867ECAD1 /* CompletionBurst.swift */; };
 		D1A937A27CF3CBDF80EB4312 /* WidgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790C566A25AB5F6FBB9DEDF6 /* WidgetStore.swift */; };
+		D37D228617B7CE609724E0FC /* FeedbackComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBE7D8187F179EBB91439109 /* FeedbackComposer.swift */; };
 		D578F0738C862DB4AD3C34E7 /* ProgressAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49825B536B5B5A7898A561B9 /* ProgressAnalyticsView.swift */; };
 		D7FE8414B73861CA65EA2647 /* DatePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E77987438EE104778D038C0B /* DatePickerSheet.swift */; };
 		DBD85E619AD25D3CAE81E191 /* TaskReplicatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB56D3F2D27B6CB75FD85E12 /* TaskReplicatorTests.swift */; };
@@ -254,6 +255,7 @@
 		D855D5B896342B8F85DC2FD6 /* FirstRunNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunNote.swift; sourceTree = "<group>"; };
 		D85917D87C1E0FD562F03FE3 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		D91BCF81D1599398CA2A848F /* SearchResultsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultsTests.swift; sourceTree = "<group>"; };
+		DBE7D8187F179EBB91439109 /* FeedbackComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackComposer.swift; sourceTree = "<group>"; };
 		DCCC2E97AF4EC6541D3BBD30 /* TaskRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRowView.swift; sourceTree = "<group>"; };
 		DE80DE7AC4078992019CFD76 /* GoalCenterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCenterTests.swift; sourceTree = "<group>"; };
 		E39F1F92D762C06FB43C2A2A /* FreshInstall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreshInstall.swift; sourceTree = "<group>"; };
@@ -445,6 +447,7 @@
 		A9AA760CC19577C18905E5F9 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				DBE7D8187F179EBB91439109 /* FeedbackComposer.swift */,
 				54604A4F20F4FF521D885078 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -758,6 +761,7 @@
 				26F8CD307627BD1AF8548EE3 /* CompletionView.swift in Sources */,
 				400FB0185E2D807FE75A4834 /* DateNavigationStore.swift in Sources */,
 				D7FE8414B73861CA65EA2647 /* DatePickerSheet.swift in Sources */,
+				D37D228617B7CE609724E0FC /* FeedbackComposer.swift in Sources */,
 				314212B747BA30BBAA823467 /* FirstRunNote.swift in Sources */,
 				3227E1A7B270863316DC1250 /* FocusSession.swift in Sources */,
 				A9856DBBB7B590698FE5C4ED /* FreshInstall.swift in Sources */,
