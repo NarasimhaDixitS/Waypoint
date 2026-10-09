@@ -98,13 +98,12 @@ enum SubscriptionStatus: Equatable {
 
     /// The single question every gate in the app asks.
     ///
-    /// `BetaAccess` short-circuits it while the purchase path is still a mock, so testers get
-    /// the whole app rather than a paywall quoting prices for products that do not exist. The
-    /// status itself stays truthful underneath — a lapsed trial still reports `.free`, so
-    /// Settings can say so — only the gates open. See `BetaAccess` for why it is detected from
-    /// the receipt rather than left as a flag somebody has to remember to turn off.
+    /// **No override any more.** `BetaAccess` held every gate open while the purchase path was
+    /// a mock, so testers met the app rather than a paywall quoting prices for products that
+    /// didn't exist. Purchases are real now, so the honest thing is the thing that ships: the
+    /// same trial and the same paywall for testers as for everybody else. A backdoor kept past
+    /// the moment it was needed is just a backdoor.
     var hasFullAccess: Bool {
-        if BetaAccess.grantsFullAccess { return true }
         switch self {
         case .trial, .subscribed: return true
         case .free: return false

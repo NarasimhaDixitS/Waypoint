@@ -365,10 +365,7 @@ struct SettingsView: View {
     }
 
 private var subscriptionCard: some View {
-        // No paywall while the beta is open — it would quote prices for products that do not
-        // exist yet. The row still reports the real state underneath, so a tester can see the
-        // trial counting down even though nothing is being withheld.
-        Button { if !BetaAccess.grantsFullAccess { showingPaywall = true } } label: {
+        Button { showingPaywall = true } label: {
             row {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(subscriptionTitle)
@@ -389,7 +386,6 @@ private var subscriptionCard: some View {
     }
 
     private var subscriptionTitle: String {
-        if BetaAccess.grantsFullAccess { return "Beta — everything unlocked" }
         switch subscription.status {
         case .trial: return "Free trial"
         case .subscribed(let plan, _): return "Waypoint \(plan.title)"
@@ -422,9 +418,6 @@ private var subscriptionCard: some View {
     }
 
     private var subscriptionDetail: String {
-        if BetaAccess.grantsFullAccess {
-            return "Subscriptions aren't switched on yet, so nothing is limited while you test."
-        }
         switch subscription.status {
         case .trial(let daysLeft):
             return daysLeft == 1 ? "Last day — tap to subscribe" : "\(daysLeft) days left — tap to subscribe"
