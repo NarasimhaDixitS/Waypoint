@@ -8,6 +8,7 @@ struct SettingsView: View {
     #if DEBUG
     @State private var showingDemoConfirm = false
     @State private var showingFreshConfirm = false
+    @State private var storeDiagnosis = "asking the store…"
     #endif
     /// Confirms the tap landed. The notes themselves won't reappear until the situation each
     /// one explains comes round again, so without this the button looks like it did nothing.
@@ -253,6 +254,22 @@ struct SettingsView: View {
                         stateButton("Subscribed", isCurrent: subscription.status.isSubscribed) { Task { _ = await subscription.purchase(.annual) } }
                     }
 
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Store").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                        Text(storeDiagnosis)
+                            .wpTypography(.micro)
+                            .foregroundStyle(ColorTokens.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .task {
+                        storeDiagnosis = await Store.diagnosis()
+                        // Also written out so it can be read without scrolling to it.
+                        UserDefaults.standard.set(storeDiagnosis, forKey: "debug.storeDiagnosis")
+                    }
+                    divider
                     Button {
                         showingFreshConfirm = true
                     } label: {

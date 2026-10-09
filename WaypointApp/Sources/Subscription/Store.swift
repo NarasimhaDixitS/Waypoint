@@ -53,6 +53,35 @@ enum Store {
         )
     }
 
+    /// What the store actually said, in one line, for a screen a human can read.
+    ///
+    /// **This separates two failures that look identical from the paywall.** Offerings come
+    /// over plain HTTP from RevenueCat and work anywhere; only the per-product StoreKit prices
+    /// need an App Store account, which a simulator doesn't have. So "no offering at all" means
+    /// the dashboard is wrong and is worth fixing now, while "offering present, prices missing"
+    /// means the configuration is fine and only a real device can finish the check.
+    static func diagnosis() async -> String {
+        do {
+            let offerings = try await Purchases.shared.offerings()
+            guard let current = offerings.current else {
+                let names = offerings.all.keys.sorted().joined(separator: ", ")
+                return names.isEmpty
+                    ? "No offerings at all. Nothing configured in the dashboard."
+                    : "No *current* offering. Found: \(names). One must be marked current."
+            }
+            let packages = current.availablePackages
+            guard !packages.isEmpty else {
+                return "Offering '\(current.identifier)' exists but has no packages StoreKit could load — expected on a simulator."
+            }
+            let lines = packages.map {
+                "\($0.storeProduct.productIdentifier) → \($0.storeProduct.localizedPriceString)"
+            }
+            return "Offering '\(current.identifier)': \(lines.joined(separator: " · "))"
+        } catch {
+            return "Error: \(error.localizedDescription)"
+        }
+    }
+
     static func customerInfo() async throws -> CustomerInfo {
         try await Purchases.shared.customerInfo()
     }
@@ -73,8 +102,22 @@ enum Store {
     /// This is what replaces `mockPrice`. The paywall used to hardcode "$1.99", which is both
     /// wrong everywhere outside the US and wrong here the moment a price changes in App Store
     /// Connect — the one number on that screen a person is deciding on, written down in Swift.
-    static func localisedPrice(for plan: SubscriptionPlan) async -> String? {
-        (try? await package(for: plan))?.storeProduct.localizedPriceString
+    /// Every plan's price, from **one** fetch.
+    ///
+    /// This was a loop calling `offerings()` once per plan — two network round trips for one
+    /// answer, and the second one didn't always land: the paywall showed a real price for
+    /// Monthly and an em dash for Annual, while a single fetch could see both. Asking twice
+    /// for the same thing and believing whichever reply arrived is not a race worth having.
+    static func allPrices() async -> [SubscriptionPlan: String] {
+        guard let current = try? await Purchases.shared.offerings().current else { return [:] }
+        var prices: [SubscriptionPlan: String] = [:]
+        for package in current.availablePackages {
+            guard let plan = SubscriptionPlan.allCases.first(
+                where: { $0.productID == package.storeProduct.productIdentifier }
+            ) else { continue }
+            prices[plan] = package.storeProduct.localizedPriceString
+        }
+        return prices
     }
 
     enum PurchaseOutcome {

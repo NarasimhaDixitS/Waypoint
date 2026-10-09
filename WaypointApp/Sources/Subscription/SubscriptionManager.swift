@@ -48,9 +48,11 @@ final class SubscriptionManager: ObservableObject {
             entitled = Store.activeSubscription(from: info)
             refresh()
         }
-        for plan in SubscriptionPlan.allCases {
-            if let price = await Store.localisedPrice(for: plan) { prices[plan] = price }
-        }
+        let fetched = await Store.allPrices()
+        // Only overwrite when the store actually answered. An empty reply is "ask again
+        // later", not "these products have no price" — blanking a price already on screen
+        // because one request timed out is strictly worse than showing the last true one.
+        if !fetched.isEmpty { prices = fetched }
     }
 
     /// Recomputed rather than stored: a trial ends by the clock moving, and nothing fires an
