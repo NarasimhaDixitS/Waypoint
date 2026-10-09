@@ -226,25 +226,61 @@ enum SampleData {
             notes: "Agenda layout for the expanded card."
         )
 
-        TaskEntity.create(
-            in: context, title: "Review PR backlog", date: today,
-            startTime: laterToday(hours: 2, fallbackHour: 19), durationMinutes: 45,
-            priority: .high, goal: goals[1]
+        // **Placed around the running task, not blindly after it.** These used to be
+        // `laterToday(hours:fallbackHour:)` — now plus an offset, falling back to a fixed hour
+        // when that overflowed the day. Run the fixture at nine in the evening and every
+        // fallback landed on top of the in-progress task, so the demo showed two things
+        // running at once: the app failing at the one thing it exists to prevent, in the
+        // screenshots used to sell it.
+        //
+        // `freeHours` walks a list of sensible slots and skips any that collide with the
+        // window above, so the seeded day is honest whatever time it's generated at.
+        let busy = (
+            start: Date.now.addingTimeInterval(-20 * 60),
+            end: Date.now.addingTimeInterval(40 * 60)
         )
-        TaskEntity.create(
-            in: context, title: "Read — 30 pages", date: today,
-            startTime: laterToday(hours: 4, fallbackHour: 20), durationMinutes: 30,
-            priority: .low, goal: goals[2],
-            notes: "Chapter 7 onward; skim the appendix."
-        )
-        // Not "Vocab drill — 20 min": that title belongs to `seedRepeatSeries`, and a loose
-        // copy of it sitting on today next to its own repeating twin is the collision
-        // `testNoTitleIsBothARepeatAndNotARepeat` exists to prevent.
-        TaskEntity.create(
-            in: context, title: "Listening practice", date: today,
-            startTime: laterToday(hours: 6, fallbackHour: 21), durationMinutes: 20,
-            priority: .medium, goal: goals[3]
-        )
+        let remaining: [(title: String, minutes: Int, goal: GoalEntity, notes: String?)] = [
+            ("Review PR backlog", 45, goals[1], nil),
+            ("Read — 30 pages", 30, goals[2], "Chapter 7 onward; skim the appendix."),
+            // Not "Vocab drill — 20 min": that title belongs to `seedRepeatSeries`, and a
+            // loose copy beside its own repeating twin is the collision that
+            // `testNoTitleIsBothARepeatAndNotARepeat` exists to prevent.
+            ("Listening practice", 20, goals[3], nil),
+        ]
+        var slots = freeHours(avoiding: busy, on: today, count: remaining.count).makeIterator()
+        for item in remaining {
+            guard let start = slots.next() else { continue }
+            TaskEntity.create(
+                in: context, title: item.title, date: today,
+                startTime: start, durationMinutes: item.minutes,
+                priority: item.title == "Review PR backlog" ? .high : (item.minutes == 30 ? .low : .medium),
+                goal: item.goal, notes: item.notes
+            )
+        }
+    }
+
+    /// Start times on `day` that don't overlap `avoiding`, drawn from ordinary working hours.
+    ///
+    /// Deliberately a fixed candidate list rather than arithmetic on `now`: the fixture has to
+    /// produce the same shape of day whether it runs at 7am or 11pm, and anything anchored to
+    /// the current hour drifts off the end of the day and lands back on top of itself.
+    private static func freeHours(
+        avoiding busy: (start: Date, end: Date),
+        on day: Date,
+        count: Int
+    ) -> [Date] {
+        let candidates = [9, 11, 13, 15, 17, 19, 21, 8, 10, 12, 14, 16, 18, 20]
+        var chosen: [Date] = []
+        for hour in candidates where chosen.count < count {
+            let start = at(hour: hour, on: day)
+            // An hour's clearance either side, so nothing seeded butts up against the running
+            // task and reads as a collision even when it technically isn't one.
+            let end = start.addingTimeInterval(3600)
+            guard end <= busy.start || start >= busy.end else { continue }
+            guard !chosen.contains(where: { abs($0.timeIntervalSince(start)) < 3600 }) else { continue }
+            chosen.append(start)
+        }
+        return chosen.sorted()
     }
 
     private static func seedUpcoming(
