@@ -12,8 +12,9 @@ it from scratch or re-asking the user.
 
 ## What stage this is at
 
-**The app is in TestFlight and being prepared for the App Store.** Build 1.0 (2) is with
-with real purchases in it. Subscriptions exist as real products in App Store Connect
+**The app is in TestFlight and being prepared for the App Store.** Builds through 1.0 (4) are
+uploaded and the public TestFlight link is live; build 4 is the first with real purchases in it.
+Subscriptions exist as real products in App Store Connect
 (`waypoint.pro.monthly` $1.99/mo, `waypoint.pro.annual` $19.99/yr, group "Waypoint Pro"), and
 the free tier is real, gated code — not a mockup.
 
