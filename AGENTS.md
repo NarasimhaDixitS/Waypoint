@@ -13,7 +13,7 @@ it from scratch or re-asking the user.
 ## What stage this is at
 
 **The app is in TestFlight and being prepared for the App Store.** Build 1.0 (2) is with
-external testers. Subscriptions exist as real products in App Store Connect
+with real purchases in it. Subscriptions exist as real products in App Store Connect
 (`waypoint.pro.monthly` $1.99/mo, `waypoint.pro.annual` $19.99/yr, group "Waypoint Pro"), and
 the free tier is real, gated code — not a mockup.
 
@@ -23,18 +23,23 @@ Still deliberate non-goals right now:
   handling any backend separately, outside this repo.
 - **AI planning**: removed. `AIPlanningStub` is gone — do not reintroduce it.
 
-**The one real gap is RevenueCat.** `SubscriptionManager.purchase` currently writes to
-`UserDefaults`; no money changes hands and no StoreKit is involved. Until that's replaced, the
-app cannot be submitted for App Store review. Integration touches exactly three function
-bodies — `refresh`, `purchase`, `restore` — and must not change the gates
-(`canViewDay`, `canEditDay`, `canUseWeekTab`, `canUseProgress`, `canCreateGoal`).
+**Subscriptions are real and wired up.** RevenueCat is integrated: `Sources/Subscription/Store.swift`
+is the only thing that talks to the SDK, and `SubscriptionManager`'s `refresh`/`purchase`/`restore`
+go through it. The gates — `canViewDay`, `canEditDay`, `canUseWeekTab`, `canUseProgress`,
+`canCreateGoal` — are tested against `SubscriptionStatus` rather than against a network, which is
+the whole reason the SDK sits behind a seam. Don't change a gate to accommodate the store.
 
-**`BetaAccess.swift` is what makes that safe to ship to testers.** It detects
-`embedded.mobileprovision` — present in TestFlight and development builds, stripped by the App
-Store — and unlocks everything, with a 2027-03-01 date backstop because the check fails in the
-dangerous direction if it fails at all. It is a `var` only so tests can disable it: ten
-free-tier tests went green for the wrong reason the moment it was added. **Delete the whole
-file when RevenueCat lands.**
+`BetaAccess.swift` is **deleted**. It unlocked everything in TestFlight builds while purchases were
+a `UserDefaults` mock; keeping it after RevenueCat landed would mean no tester ever exercised the
+real path. Do not reintroduce it — `-wpFree` is how you get the free tier now.
+
+**The one unverified path is a real purchase.** The chain is confirmed as far as the simulator can
+take it (offering → both products → real localized prices → paywall), but no money has moved
+through it. That needs a sandbox Apple ID on hardware; it is not something the simulator can answer.
+
+**Launch state** — listing, screenshots, privacy label, the website repo and the TestFlight public
+link — lives in the session memory rather than here, because it changes daily and this file
+shouldn't rot behind it.
 
 ## Design philosophy
 
@@ -87,7 +92,7 @@ Build:
 xcodebuild -project Waypoint.xcodeproj -scheme Waypoint -configuration Debug -sdk iphonesimulator -destination 'platform=iOS Simulator,id=<UDID>' build
 ```
 
-Test — **run the full suite** (185 tests across 15 files in `Tests/`). Don't rely on a stale
+Test — **run the full suite** (244 tests across 23 files in `Tests/`). Don't rely on a stale
 `-only-testing` list carried over from a previous session's notes — it's easy for a new test
 file to get silently excluded:
 ```
@@ -133,7 +138,7 @@ and tap through to a screen, which is the gap that led to shipping cards nobody 
 | `-wpClash` | The collision sheet, staged against today's first task |
 | `-wpReseed` | Reloads the demo fixture (in `init`, deliberately — see `WaypointApp.swift`) |
 | `-wpPaper` / `-wpStandard` | Forces the palette |
-| `-wpFree` | Free tier, with `BetaAccess` off |
+| `-wpFree` | Free tier |
 | `-wpSearch <query>` | The search overlay, with that query typed |
 | `-wpGoal` / `-wpNoGoal` | Straight into a goal's page, or the No-goal list |
 | `-wpFresh` | **Wipes everything** and gives you a real first run |
@@ -248,7 +253,7 @@ Sources/DesignSystem/   Shared presentational views (TaskRowView, ProgressRing, 
                         PaywallLock, ...)
 Sources/Models/         Core Data entity extensions, TaskDraft, Priority/TaskState, SampleData
 Sources/Scheduling/     ScheduleEngine (collision resolution), TaskReplicator (recurring tasks)
-Sources/Subscription/   Subscription plans + gates, TrialRecord (Keychain), BetaAccess
+Sources/Subscription/   Subscription plans + gates, TrialRecord (Keychain), Store (RevenueCat)
 Sources/Theme/          ColorTokens, AccentSwatch, Palette, ThemeManager
 Sources/Persistence/    PersistenceController (Core Data stack, recovery)
 Sources/Notifications/  Local notification scheduling and the 64-slot budget
@@ -256,7 +261,6 @@ WaypointWidget/         Widget extension sources
 Resources/              Assets + PrivacyInfo.xcprivacy (both targets pull this)
 Generated/              Info.plists and the two separate entitlements files
 Tests/                  XCTest targets, one file per subsystem
-docs/privacy/           The published privacy policy (GitHub Pages, /docs on main)
 ```
 
 The trial start is in the **Keychain**, not `UserDefaults`, so deleting and reinstalling the
