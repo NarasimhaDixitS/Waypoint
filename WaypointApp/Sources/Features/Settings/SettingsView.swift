@@ -308,6 +308,13 @@ struct SettingsView: View {
         .background(ColorTokens.surface0.ignoresSafeArea())
         .navigationBarHidden(true)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
+        .onAppear {
+            #if DEBUG
+            // `-wpPaywall`. The paywall is three taps deep and its prices now come off the
+            // network, so "did the store answer" is a question only the real screen can settle.
+            if ProcessInfo.processInfo.arguments.contains("-wpPaywall") { showingPaywall = true }
+            #endif
+        }
         .sheet(isPresented: $showingMailComposer) { MailComposer() }
         .confirmationDialog(
             "No mail account set up",

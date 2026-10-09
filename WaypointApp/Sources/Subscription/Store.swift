@@ -16,8 +16,17 @@ enum Store {
     /// Must match the entitlement identifier in the RevenueCat dashboard exactly.
     static let entitlementID = "pro"
 
+    /// **Prices are `nil` on the simulator, always.** There's no App Store account signed into
+    /// it, so StoreKit returns no products however correct the RevenueCat dashboard is — which
+    /// means the simulator cannot answer "is the store wired up", and a paywall showing "—"
+    /// there is not evidence of anything. That question needs a real device with a sandbox
+    /// Apple ID signed in under Settings → App Store → Sandbox Account.
     static func configure() {
+        #if DEBUG
+        Purchases.logLevel = .debug
+        #else
         Purchases.logLevel = .error
+        #endif
         Purchases.configure(withAPIKey: apiKey)
     }
 
