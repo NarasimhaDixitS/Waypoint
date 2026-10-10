@@ -5,6 +5,11 @@ import SwiftUI
 /// Deliberately not a feature list. Every feature is in both plans, so a checklist would be
 /// padding — and by the time someone sees this they've used the app for a week and know what it
 /// does. What it says instead is what they lose and what they keep.
+///
+/// It also has to carry Apple's required disclosure and both legal links, which is a lot of
+/// small print for one screen, so the prose is kept to a line or two per state. The screen
+/// earns its space with the plan rows and the button; everything else is there to be read once
+/// and never again.
 struct PaywallView: View {
     @EnvironmentObject private var theme: ThemeManager
     @EnvironmentObject private var subscription: SubscriptionManager
@@ -192,30 +197,37 @@ struct PaywallView: View {
                             .frame(maxWidth: .infinity)
                     }
 
-                    // Apple requires the terms of an auto-renewing subscription to be visible at
-                    // the point of purchase — length, price, and that it renews until cancelled.
-                    // Omitting it is a common review rejection.
-                    Text("Billed through your Apple ID. Renews automatically until cancelled; you can cancel any time in Settings.")
-                        .wpTypography(.micro)
-                        .foregroundStyle(ColorTokens.textMuted)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // One block, because it is one thing: the disclosure Apple requires at the
+                    // point of purchase and the two links that go with it. They used to sit a
+                    // full gap apart and read as two separate paragraphs of small print.
+                    //
+                    // "Billed through your Apple ID" is gone — informative, but not required,
+                    // and this screen had too many words. "Automatically" stays: that is the
+                    // word doing the disclosing, and length and price are already on the rows
+                    // above. Omitting any of the three is a common review rejection.
+                    VStack(spacing: 6) {
+                        Text("Renews automatically until cancelled. Cancel any time in Settings.")
+                            .wpTypography(.micro)
+                            .foregroundStyle(ColorTokens.textMuted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // The other half of 3.1.2, and the half that was missing: both links have
-                    // to be functional and in the binary, not only in the App Store listing.
-                    HStack(spacing: 8) {
-                        if let terms = AppLinks.terms {
-                            Link("Terms of Use", destination: terms)
+                        HStack(spacing: 8) {
+                            if let terms = AppLinks.terms {
+                                Link("Terms of Use", destination: terms)
+                            }
+                            if AppLinks.terms != nil && AppLinks.privacy != nil {
+                                Text("·").foregroundStyle(ColorTokens.textMuted)
+                            }
+                            if let privacy = AppLinks.privacy {
+                                Link("Privacy Policy", destination: privacy)
+                            }
                         }
-                        if AppLinks.terms != nil && AppLinks.privacy != nil {
-                            Text("·").foregroundStyle(ColorTokens.textMuted)
-                        }
-                        if let privacy = AppLinks.privacy {
-                            Link("Privacy Policy", destination: privacy)
-                        }
+                        .wpTypography(.micro)
+                        .tint(ColorTokens.textSecondary)
+                        .frame(maxWidth: .infinity)
                     }
-                    .wpTypography(.micro)
-                    .tint(ColorTokens.textSecondary)
-                    .frame(maxWidth: .infinity)
+                    .padding(.top, 2)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 32)
@@ -225,6 +237,16 @@ struct PaywallView: View {
             // subscriber landing on a preselected "Switch to Annual" reads as the app having
             // forgotten what they bought.
             .onAppear { if let currentPlan { selected = currentPlan } }
+            // Ask again if we arrived without prices.
+            //
+            // They are fetched once at launch, and that one request can lose: a slow network, a
+            // cold start, airplane mode on the train. The fallback is an em dash, which is
+            // honest but useless — and a paywall showing no price at all is both the worst
+            // possible conversion and something an App Store reviewer can reasonably reject,
+            // since the price has to be visible at the point of purchase. Opening this screen
+            // is the one moment it is certainly worth another try. Costs nothing in the normal
+            // case, where the SDK answers from its own cache.
+            .task { if subscription.prices.isEmpty { await subscription.syncWithStore() } }
             .animation(.easeInOut(duration: 0.2), value: switchNote)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -255,17 +277,17 @@ struct PaywallView: View {
     private var blurb: String {
         switch subscription.status {
         case .trial, .free:
-            return "Today stays yours, free, forever — and so does everything you've already done. A subscription is what opens the week ahead, your progress, and more than one goal."
+            return "Today and your history stay free, always. A subscription opens the rest."
         case .subscribed(_, _, let renewal):
             switch renewal {
             case .renewing:
-                return "You have everything. You can change plan below, or manage the subscription itself in your Apple account."
+                return "Change plan below, or manage the subscription in your Apple account."
             case .cancelled:
                 // Nothing is being taken away early, and saying so plainly is the whole job of
                 // this line. The alternative reads as a countdown designed to panic somebody.
-                return "Nothing changes before then — you keep everything you have until the date. Resubscribe whenever you like and nothing is lost."
+                return "You keep everything until then. Resubscribe any time."
             case .billingProblem:
-                return "You still have full access while Apple retries the payment. Updating your payment method in your Apple account will sort it out."
+                return "You keep full access while Apple retries. Updating your payment method will fix it."
             }
         }
     }
