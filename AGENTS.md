@@ -145,10 +145,17 @@ and tap through to a screen, which is the gap that led to shipping cards nobody 
 | `-wpFresh` | **Wipes everything** and gives you a real first run |
 | `-wpFocus` | The focus timer, on today's first task |
 | `-wpFocusFill <0-1>` | …already that far through, and running |
+| `-wpRenewal <state>` | A forced subscription state: `renewing`, `cancelled`, `billing` |
 
 `-wpPaper`/`-wpStandard` are not a convenience: writing `themePalette` from the command line
 races the app's own preference flush and loses about as often as it wins, so a palette set that
 way can't be trusted to be the one on screen.
+
+`-wpRenewal` exists because the cancelled and payment-problem screens otherwise need a real
+purchase, a trip to iOS Settings, and — for the second — a card that declines to order. A real
+entitlement from the store always overrules it; "no subscription" deliberately does not, or the
+stream's first cached answer wipes the forced state milliseconds after launch. The Settings
+developer section has the same three as buttons.
 
 `-wpFresh` is the one to reach for when testing onboarding, the empty Progress page or the
 trial. Loading the demo fixture is its opposite — forty-five days of history is exactly what a
