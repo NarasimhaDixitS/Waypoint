@@ -226,6 +226,8 @@ struct SettingsView: View {
                 }
                 .wpCard(padding: 0)
 
+                yourDataCard
+
                 // Debug builds only. Everything in here is destructive or dishonest in a
                 // tester's hands: "Load demo data" deletes every task and goal they own, and
                 // the state buttons hand out a paid subscription for nothing. Useful on a
@@ -413,6 +415,36 @@ private var subscriptionCard: some View {
             }
         }
         .buttonStyle(.plain)
+        .wpCard(padding: 0)
+    }
+
+    /// What having no server actually costs the person using the app, said plainly.
+    ///
+    /// **Not a disclaimer.** Waypoint keeps everything on the device, which is why its privacy
+    /// label can say what it says — but the same fact means a new iPhone set up from scratch
+    /// starts empty, and somebody deserves to learn that before they're standing in a shop
+    /// rather than after. The fix is one sentence of advice and it genuinely works: a direct
+    /// transfer during setup copies the app's storage wholesale, with no dependence on iCloud
+    /// Backup being switched on or on there being room in a 5GB account.
+    ///
+    /// The subscription line is here because it is the thing people actually worry about, and
+    /// the answer is reassuring: it belongs to the Apple Account, not to the handset.
+    private var yourDataCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Your data is on this iPhone")
+                .wpTypography(.cardTitle)
+                .foregroundStyle(ColorTokens.textPrimary)
+            Text("There's no account and no server, so nothing you write here leaves the device.")
+                .wpTypography(.body)
+                .foregroundStyle(ColorTokens.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Getting a new iPhone? Transfer straight from your old one while setting it up, or restore it from a backup, and your tasks and history come with it. Your subscription is tied to your Apple Account, so that always comes back — tap Restore Purchases if it doesn't.")
+                .wpTypography(.body)
+                .foregroundStyle(ColorTokens.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
         .wpCard(padding: 0)
     }
 
