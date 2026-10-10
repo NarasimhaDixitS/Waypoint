@@ -2,14 +2,10 @@ import Foundation
 
 /// What the user is entitled to, and the plans on offer.
 ///
-/// **Mock.** No StoreKit, no payment, no receipt — `purchase` simply writes the result a real
-/// purchase would have produced. That is deliberate: the gate, the paywall and every screen that
-/// has to behave differently for a lapsed user can all be built and tested now, and swapping in
-/// StoreKit later touches `purchase`, `restore` and nothing else.
-///
-/// Prices are stated here only so the mock paywall can show something. Real prices come from
-/// App Store Connect at runtime and are localised per storefront — a hardcoded "$1.99" shown to
-/// someone in India is both wrong and a review rejection, so these strings die with the mock.
+/// Purchases are real: `Store` talks to RevenueCat, which talks to StoreKit. What lives here is
+/// only what the app itself must know about a plan — its identifier, its name, how it reads.
+/// Prices are deliberately not among them: they come from the App Store at runtime, already
+/// converted and formatted for the viewer's storefront.
 enum SubscriptionPlan: String, CaseIterable, Identifiable {
     case monthly
     case annual
@@ -84,10 +80,68 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable {
     }
 }
 
+/// What happens when the paid period ends.
+///
+/// **This is the fact the app used to throw away.** RevenueCat reports both when a period ends
+/// and whether it will roll over; keeping only the date made a cancelled subscription and a
+/// renewing one identical. So Settings told somebody who had just cancelled that their
+/// subscription "Renews 10 Nov" — contradicting, on the screen they opened to check it had
+/// worked, a decision they had just made about money. The predictable results are a second
+/// cancellation, a support email, and a refund request.
+///
+/// All three states keep full access. Cancelling is not a punishment: the period is paid for.
+enum Renewal: Equatable {
+    /// Rolls over on the date, and is charged again.
+    case renewing
+    /// Auto-renew is off. Access runs to the date and then stops.
+    case cancelled
+    /// Apple cannot take payment and is retrying. Access continues while it does — taking the
+    /// app away the moment a card expires punishes a customer for their bank's timing, and
+    /// Apple recovers a good share of these on its own.
+    case billingProblem
+}
+
+extension Renewal {
+    /// Derived from the two facts Apple reports about a live subscription.
+    ///
+    /// A free function rather than inline in `Store` so it can be tested: `CustomerInfo` can't
+    /// reasonably be constructed in a unit test, and this decision — the one the old code got
+    /// wrong by not making it at all — is the part worth pinning down.
+    ///
+    /// Order matters. A declined card and a cancellation can coexist on a record, and the
+    /// actionable one must win the label: telling somebody "won't renew" when the truth is
+    /// "your card was declined" sends them to the wrong screen to fix it.
+    static func from(willRenew: Bool, billingIssueDetectedAt: Date?) -> Renewal {
+        if billingIssueDetectedAt != nil { return .billingProblem }
+        return willRenew ? .renewing : .cancelled
+    }
+}
+
+/// The three links the subscription screens need, in one place so they cannot drift apart.
+enum AppLinks {
+    /// Apple's standard EULA.
+    ///
+    /// **Guideline 3.1.2 requires a functional link to the terms of use and to the privacy
+    /// policy at the point of purchase, inside the binary** — not only in the App Store
+    /// listing. The paywall carried the renewal disclosure but neither link, which is one of
+    /// the most common reasons a subscription app is rejected. This is the standard EULA
+    /// because no custom one was supplied in App Store Connect; if one ever is, this changes.
+    static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")
+
+    static let privacy = URL(string: "https://narasimhadixits.github.io/privacy.html")
+
+    /// Apple's subscription management page. The only place a plan can actually be cancelled,
+    /// resumed, or have its payment method replaced — none of which an app can do itself.
+    static let manageSubscription = URL(string: "https://apps.apple.com/account/subscriptions")
+}
+
 /// Where someone stands right now.
 enum SubscriptionStatus: Equatable {
     case trial(daysLeft: Int)
-    case subscribed(plan: SubscriptionPlan, renewsAt: Date)
+    /// `until` is the end of the paid period — a renewal date or an expiry date, depending on
+    /// `renewal`. Deliberately no longer called `renewsAt`: that name admitted one meaning and
+    /// was wrong in two of the three cases.
+    case subscribed(plan: SubscriptionPlan, until: Date, renewal: Renewal)
     /// The trial ended and nothing was bought. Not "expired" — the app still works, with less
     /// of it. The name matters because the old one described a lockout, and a lockout is what
     /// this deliberately isn't.
@@ -165,11 +219,12 @@ enum SubscriptionPolicy {
     static func resolve(
         trialStartedAt: Date?,
         plan: SubscriptionPlan?,
-        renewsAt: Date?,
+        until: Date?,
+        renewal: Renewal = .renewing,
         now: Date = .now
     ) -> SubscriptionStatus {
-        if let plan, let renewsAt, renewsAt > now {
-            return .subscribed(plan: plan, renewsAt: renewsAt)
+        if let plan, let until, until > now {
+            return .subscribed(plan: plan, until: until, renewal: renewal)
         }
         // No trial on record means it hasn't started yet, not that it's over — a fresh install
         // that somehow reaches this before the trial is stamped should not be locked out.

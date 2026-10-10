@@ -87,7 +87,7 @@ final class TrialRecordTests: XCTestCase {
 
         let status = SubscriptionPolicy.resolve(
             trialStartedAt: TrialRecord.start(account: account),
-            plan: nil, renewsAt: nil, now: instant
+            plan: nil, until: nil, now: instant
         )
         XCTAssertEqual(status, .free)
     }

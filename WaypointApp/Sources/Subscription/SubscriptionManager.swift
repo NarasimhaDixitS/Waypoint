@@ -12,30 +12,78 @@ final class SubscriptionManager: ObservableObject {
 
     @Published private(set) var status: SubscriptionStatus = .free
 
-    /// The trial start deliberately isn't here — see `TrialRecord`. `UserDefaults` is deleted
-    /// with the app, so storing it there handed out a fresh trial on every reinstall.
-    ///
-    /// The purchase keys can stay: an actual subscription is tied to the Apple ID, and
-    /// "Restore purchases" brings it back on a new install or a new phone without the app
-    /// having to remember anything. Only the trial — which Apple knows nothing about — needs
-    /// somewhere durable of its own.
-    private enum Keys {
-        static let plan = "subscription.plan"
-        static let renewsAt = "subscription.renewsAt"
-    }
-
     /// Set once RevenueCat has answered. `nil` before the first reply, and after a failure —
     /// the same thing from here, deliberately: both mean "no confirmed subscription", and both
     /// fall through to the trial clock, which is local and always available.
-    private var entitled: (plan: SubscriptionPlan, renewsAt: Date)?
+    private var entitled: Store.Entitlement?
 
     /// Real prices, once the store has sent them. The paywall reads these and falls back to
     /// nothing rather than to an invented number — a wrong price is worse than a missing one.
     @Published private(set) var prices: [SubscriptionPlan: String] = [:]
 
+    #if DEBUG
+    /// A forced renewal state, so the cancelled and payment-problem screens can be looked at.
+    ///
+    /// Reaching them for real takes a purchase, a trip to iOS Settings and, for the second one,
+    /// a card that declines on demand. Copy that can't be looked at is copy that ships unread —
+    /// which is exactly how "Renews 10 Nov" ended up in front of somebody who had just
+    /// cancelled. Set by `-wpRenewal` or the Settings developer panel; a real push from the
+    /// store clears it.
+    private var previewRenewal: Renewal?
+
+    func preview(_ renewal: Renewal?) {
+        previewRenewal = renewal
+        refresh()
+    }
+
+    /// Whether the panel is currently forcing this state — marked so it's obvious which button
+    /// you already pressed. Reads the status rather than the override, so a real subscription
+    /// lights the matching button too.
+    func isPreviewing(_ renewal: Renewal) -> Bool {
+        if case .subscribed(_, _, let current) = status { return current == renewal }
+        return false
+    }
+    #endif
+
     private init() {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-wpRenewal"), i + 1 < args.count {
+            switch args[i + 1] {
+            case "cancelled": previewRenewal = .cancelled
+            case "billing": previewRenewal = .billingProblem
+            case "renewing": previewRenewal = .renewing
+            default: break
+            }
+        }
+        #endif
         refresh()
         Task { await syncWithStore() }
+        observeStore()
+    }
+
+    /// Keeps `entitled` current for the life of the process.
+    ///
+    /// A subscription changes without the app being involved at all — it is cancelled in iOS
+    /// Settings, it renews overnight, a card is declined, Apple grants a refund. None of those
+    /// pass through any code here, so an app that only asks at launch is wrong from the first
+    /// one onward. The SDK already holds this connection open for its own cache; this listens
+    /// to it rather than adding a timer.
+    private func observeStore() {
+        Task { [weak self] in
+            for await entitlement in Store.entitlementUpdates {
+                guard let self else { return }
+                #if DEBUG
+                // Only a *real* entitlement overrules a preview. The stream yields its cached
+                // answer the instant you subscribe to it, and on a simulator that answer is
+                // "no subscription" — which was wiping the forced state a few milliseconds
+                // after launch and making `-wpRenewal` look like it did nothing.
+                if entitlement != nil { self.previewRenewal = nil }
+                #endif
+                self.entitled = entitlement
+                self.refresh()
+            }
+        }
     }
 
     /// Asks RevenueCat what it knows, then recomputes.
@@ -58,7 +106,6 @@ final class SubscriptionManager: ObservableObject {
     /// Recomputed rather than stored: a trial ends by the clock moving, and nothing fires an
     /// event when that happens. Anything showing entitlement has to ask again, not remember.
     func refresh(now: Date = .now) {
-        let defaults = UserDefaults.standard
         let trialStartedAt = TrialRecord.startOrBegin(now: now)
         #if DEBUG
         // `-wpFree` forces the lapsed state, same family as `-wpTab`. The Settings toggle for
@@ -66,6 +113,14 @@ final class SubscriptionManager: ObservableObject {
         // script, which is the difference between looking at the free tier and not.
         if ProcessInfo.processInfo.arguments.contains("-wpFree") {
             status = .free
+            return
+        }
+        if let previewRenewal {
+            status = .subscribed(
+                plan: .annual,
+                until: Calendar.current.date(byAdding: .day, value: 300, to: now) ?? now,
+                renewal: previewRenewal
+            )
             return
         }
         #endif
@@ -76,8 +131,9 @@ final class SubscriptionManager: ObservableObject {
         // more generous than the truth, never less.
         status = SubscriptionPolicy.resolve(
             trialStartedAt: trialStartedAt,
-            plan: entitled?.plan ?? (defaults.string(forKey: Keys.plan)).flatMap(SubscriptionPlan.init(rawValue:)),
-            renewsAt: entitled?.renewsAt ?? defaults.object(forKey: Keys.renewsAt) as? Date,
+            plan: entitled?.plan,
+            until: entitled?.until,
+            renewal: entitled?.renewal ?? .renewing,
             now: now
         )
     }
@@ -124,9 +180,13 @@ final class SubscriptionManager: ObservableObject {
     /// Developer affordance so the lapsed state can actually be looked at — a seven-day wait is
     /// not a testing strategy.
     func expireNow() {
-        let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: Keys.plan)
-        defaults.removeObject(forKey: Keys.renewsAt)
+        #if DEBUG
+        previewRenewal = nil
+        #endif
+        // Must drop the entitlement too, or a real subscription on the device simply overrules
+        // the button and the lapsed state stays unlookable — which was the whole complaint
+        // this affordance exists to answer. The next push from the store puts it back.
+        entitled = nil
         TrialRecord.setStart(
             Calendar.current.date(byAdding: .day, value: -(SubscriptionPolicy.trialDays + 1), to: .now) ?? .now
         )
@@ -134,9 +194,10 @@ final class SubscriptionManager: ObservableObject {
     }
 
     func resetTrial() {
-        let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: Keys.plan)
-        defaults.removeObject(forKey: Keys.renewsAt)
+        #if DEBUG
+        previewRenewal = nil
+        #endif
+        entitled = nil
         TrialRecord.setStart(.now)
         refresh()
     }

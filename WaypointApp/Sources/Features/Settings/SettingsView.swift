@@ -5,6 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject private var subscription: SubscriptionManager
     @Environment(\.managedObjectContext) private var context
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
     #if DEBUG
     @State private var showingDemoConfirm = false
     @State private var showingFreshConfirm = false
@@ -34,6 +35,7 @@ struct SettingsView: View {
                     .padding(.top, 8)
 
                 subscriptionCard
+                manageSubscriptionRow
 
                 VStack(spacing: 0) {
                     // Both of these are gone in paper rather than disabled. The first attempt
@@ -251,7 +253,12 @@ struct SettingsView: View {
                     HStack(spacing: 10) {
                         stateButton("Trial", isCurrent: subscription.status.isTrial) { subscription.resetTrial() }
                         stateButton("Free tier", isCurrent: !subscription.status.hasFullAccess) { subscription.expireNow() }
-                        stateButton("Subscribed", isCurrent: subscription.status.isSubscribed) { Task { _ = await subscription.purchase(.annual) } }
+                        // Was `purchase(.annual)`, which on a simulator with no App Store
+                        // account simply fails — so the one state the panel exists to show was
+                        // the one it couldn't reach.
+                        stateButton("Renewing", isCurrent: subscription.isPreviewing(.renewing)) { subscription.preview(.renewing) }
+                        stateButton("Cancelled", isCurrent: subscription.isPreviewing(.cancelled)) { subscription.preview(.cancelled) }
+                        stateButton("Card failed", isCurrent: subscription.isPreviewing(.billingProblem)) { subscription.preview(.billingProblem) }
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -409,10 +416,37 @@ private var subscriptionCard: some View {
         .wpCard(padding: 0)
     }
 
+    /// The route to Apple's own subscription management, which is the only place a plan can
+    /// actually be cancelled, resumed, or have its payment method changed.
+    ///
+    /// Shown whenever there is a subscription at all — including cancelled and payment-problem,
+    /// which are the two states somebody is most likely to be hunting for it from.
+    @ViewBuilder private var manageSubscriptionRow: some View {
+        if case .subscribed = subscription.status {
+            Button {
+                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                    openURL(url)
+                }
+            } label: {
+                row {
+                    Text("Manage subscription")
+                        .wpTypography(.cardTitle)
+                        .foregroundStyle(ColorTokens.textPrimary)
+                    Spacer()
+                    Image(systemName: "arrow.up.forward")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(ColorTokens.textMuted)
+                }
+            }
+            .buttonStyle(.plain)
+            .wpCard(padding: 0)
+        }
+    }
+
     private var subscriptionTitle: String {
         switch subscription.status {
         case .trial: return "Free trial"
-        case .subscribed(let plan, _): return "Waypoint \(plan.title)"
+        case .subscribed(let plan, _, _): return "Waypoint \(plan.title)"
         case .free: return "Trial ended"
         }
     }
@@ -420,7 +454,12 @@ private var subscriptionCard: some View {
     private var subscriptionStateName: String {
         switch subscription.status {
         case .trial(let daysLeft): "trial, \(daysLeft)d left"
-        case .subscribed: "subscribed"
+        case .subscribed(_, _, let renewal):
+            switch renewal {
+            case .renewing: "subscribed, renewing"
+            case .cancelled: "subscribed, cancelled"
+            case .billingProblem: "subscribed, card failed"
+            }
         case .free: "free tier"
         }
     }
@@ -445,8 +484,15 @@ private var subscriptionCard: some View {
         switch subscription.status {
         case .trial(let daysLeft):
             return daysLeft == 1 ? "Last day — tap to subscribe" : "\(daysLeft) days left — tap to subscribe"
-        case .subscribed(_, let renewsAt):
-            return "Renews \(renewsAt.formatted(.dateTime.day().month(.abbreviated).year()))"
+        case .subscribed(_, let until, let renewal):
+            let date = until.formatted(.dateTime.day().month(.abbreviated).year())
+            switch renewal {
+            case .renewing: return "Renews \(date)"
+            // Never the word "renews" here. Somebody who has just cancelled opens this screen
+            // precisely to check that it took.
+            case .cancelled: return "Ends \(date) · won't renew"
+            case .billingProblem: return "Payment problem — update your payment method"
+            }
         case .free:
             return "Today and your history stay free. Subscribe to plan ahead, see the week and track progress."
         }

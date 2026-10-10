@@ -14,7 +14,7 @@ final class SubscriptionPolicyTests: XCTestCase {
 
     func testAFreshTrialHasTheFullRun() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: nil, renewsAt: nil, now: trialStart
+            trialStartedAt: trialStart, plan: nil, until: nil, now: trialStart
         )
         XCTAssertEqual(status, .trial(daysLeft: SubscriptionPolicy.trialDays))
     }
@@ -30,7 +30,7 @@ final class SubscriptionPolicyTests: XCTestCase {
 
     func testTheLastHoursStillReadAsOneDay() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: nil, renewsAt: nil,
+            trialStartedAt: trialStart, plan: nil, until: nil,
             now: trialEnds.addingTimeInterval(-6 * 3600)
         )
         XCTAssertEqual(status, .trial(daysLeft: 1))
@@ -38,7 +38,7 @@ final class SubscriptionPolicyTests: XCTestCase {
 
     func testTheTrialIsStillLiveOneSecondBeforeItEnds() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: nil, renewsAt: nil,
+            trialStartedAt: trialStart, plan: nil, until: nil,
             now: trialEnds.addingTimeInterval(-1)
         )
         XCTAssertEqual(status, .trial(daysLeft: 1))
@@ -47,7 +47,7 @@ final class SubscriptionPolicyTests: XCTestCase {
 
     func testTheTrialIsOverExactlyOnTheBoundary() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: nil, renewsAt: nil, now: trialEnds
+            trialStartedAt: trialStart, plan: nil, until: nil, now: trialEnds
         )
         XCTAssertEqual(status, .free)
         XCTAssertFalse(status.hasFullAccess)
@@ -57,23 +57,23 @@ final class SubscriptionPolicyTests: XCTestCase {
     func testALapsedUserCannotCreateButIsNeverLockedOut() {
         XCTAssertFalse(SubscriptionStatus.free.hasFullAccess)
         XCTAssertTrue(SubscriptionStatus.trial(daysLeft: 3).hasFullAccess)
-        XCTAssertTrue(SubscriptionStatus.subscribed(plan: .annual, renewsAt: .now).hasFullAccess)
+        XCTAssertTrue(SubscriptionStatus.subscribed(plan: .annual, until: .now, renewal: .renewing).hasFullAccess)
     }
 
     func testAnActiveSubscriptionOutranksAnExpiredTrial() {
         let renews = date(2027, 9, 1)
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: .annual, renewsAt: renews,
+            trialStartedAt: trialStart, plan: .annual, until: renews,
             now: date(2026, 12, 1)
         )
-        XCTAssertEqual(status, .subscribed(plan: .annual, renewsAt: renews))
+        XCTAssertEqual(status, .subscribed(plan: .annual, until: renews, renewal: .renewing))
     }
 
     /// A lapsed subscription falls back to the trial rules rather than staying entitled —
     /// otherwise a cancelled subscriber keeps everything forever.
     func testALapsedSubscriptionExpires() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: .monthly, renewsAt: date(2026, 10, 1),
+            trialStartedAt: trialStart, plan: .monthly, until: date(2026, 10, 1),
             now: date(2026, 11, 1)
         )
         XCTAssertEqual(status, .free)
@@ -83,7 +83,7 @@ final class SubscriptionPolicyTests: XCTestCase {
     /// here would lock out a fresh install that reached this before the stamp was written.
     func testAMissingTrialStampIsTreatedAsNotStarted() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: nil, plan: nil, renewsAt: nil, now: .now
+            trialStartedAt: nil, plan: nil, until: nil, now: .now
         )
         XCTAssertEqual(status, .trial(daysLeft: SubscriptionPolicy.trialDays))
     }
@@ -125,7 +125,7 @@ final class SubscriptionPolicyTests: XCTestCase {
     func testPayingLiftsEveryDayLimit() {
         let now = day(2026, 10, 1)
         for status in [SubscriptionStatus.trial(daysLeft: 3),
-                       .subscribed(plan: .annual, renewsAt: day(2027, 10, 1))] {
+                       .subscribed(plan: .annual, until: day(2027, 10, 1), renewal: .renewing)] {
             XCTAssertTrue(status.canViewDay(day(2026, 12, 25), now: now))
             XCTAssertTrue(status.canEditDay(day(2026, 12, 25), now: now))
             XCTAssertTrue(status.canUseWeekTab)
@@ -170,10 +170,10 @@ final class SubscriptionPolicyTests: XCTestCase {
         XCTAssertEqual(SubscriptionPolicy.trialDays, 14)
         let started = day(2026, 10, 1)
         let onLastDay = SubscriptionPolicy.resolve(
-            trialStartedAt: started, plan: nil, renewsAt: nil, now: day(2026, 10, 14)
+            trialStartedAt: started, plan: nil, until: nil, now: day(2026, 10, 14)
         )
         let afterwards = SubscriptionPolicy.resolve(
-            trialStartedAt: started, plan: nil, renewsAt: nil, now: day(2026, 10, 16)
+            trialStartedAt: started, plan: nil, until: nil, now: day(2026, 10, 16)
         )
         XCTAssertEqual(onLastDay, .trial(daysLeft: 1))
         XCTAssertEqual(afterwards, .free)

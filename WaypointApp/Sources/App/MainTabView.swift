@@ -332,11 +332,16 @@ struct MainTabView: View {
                 selectTab(tab)
             }
         }
-        // A trial ends by the clock moving, and nothing fires an event when it does. Without
-        // this, an app left open across the boundary would keep letting someone create work
-        // until they happened to relaunch it.
+        // Two different clocks, both of which move while the app is away.
+        //
+        // The trial ends by time passing and nothing fires an event when it does, so the status
+        // has to be recomputed — that is `refresh`, and it was all this used to do. But a
+        // subscription can also have changed in iOS Settings while the app was backgrounded,
+        // and `refresh` only re-reads what the app already believes. `syncWithStore` asks.
+        // It is cheap: the SDK answers from its own cache unless that cache is stale.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             subscription.refresh()
+            Task { await subscription.syncWithStore() }
         }
     }
 
