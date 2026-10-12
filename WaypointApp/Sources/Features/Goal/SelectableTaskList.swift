@@ -43,7 +43,6 @@ struct SelectableTaskList: View {
     @State private var showingBulkPriority = false
     @State private var showingBulkGoal = false
     @State private var bulkGoalBinding: GoalEntity?
-    @State private var pendingDeletion: PendingBulkDeletion?
     /// Which groups are open. Done starts closed — on any goal with history it's the biggest
     /// group by far, and it's a record rather than a workload, so leaving it open means
     /// scrolling past three weeks of ticks to reach the one thing that still needs doing.
@@ -51,17 +50,17 @@ struct SelectableTaskList: View {
     @State private var expanded: Set<TaskGroup.Kind> = [.overdue, .today, .upcoming]
     @State private var bulkDelete: BulkDeletePlan?
     @State private var seriesConfirm: BulkDeletePlan?
-    @State private var hiddenTaskIDs: Set<NSManagedObjectID> = []
+    /// The pending delete and the tasks it hides. Shared with Today and with
+    /// `ScheduleEngine` — see `PendingDeletions` for why this isn't local state.
+    @EnvironmentObject private var pendingDeletions: PendingDeletions
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \GoalEntity.createdAt, ascending: false)]
     )
     private var goals: FetchedResults<GoalEntity>
 
-    private static let undoWindow: TimeInterval = 4
-
     private var visibleTasks: [TaskEntity] {
-        tasks.filter { !hiddenTaskIDs.contains($0.objectID) }
+        tasks.filter { !pendingDeletions.hiddenIDs.contains($0.objectID) }
     }
 
     /// Can this one task be selected? Asked per task, not per screen.
@@ -108,8 +107,8 @@ struct SelectableTaskList: View {
                 .padding(.bottom, ColorTokens.tabBarClearance + barClearance)
             }
 
-            if let pendingDeletion {
-                UndoToast(title: pendingDeletion.title, onUndo: undoDelete)
+            if let pending = pendingDeletions.pending {
+                UndoToast(title: pending.title, onUndo: { pendingDeletions.undo() })
                     .padding(.bottom, ColorTokens.tabBarClearance)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -130,7 +129,7 @@ struct SelectableTaskList: View {
         .toolbar(.hidden, for: .navigationBar)
         .animation(.easeInOut(duration: 0.22), value: isEditing)
         .animation(.easeInOut(duration: 0.22), value: selectedTaskIDs.isEmpty)
-        .animation(.easeInOut(duration: 0.22), value: pendingDeletion != nil)
+        .animation(.easeInOut(duration: 0.22), value: pendingDeletions.pending != nil)
         .sheet(item: $bulkDelete) { plan in
             BulkDeleteSheet(
                 plan: plan,
@@ -361,38 +360,11 @@ struct SelectableTaskList: View {
         exitEditMode()
     }
 
-    /// One batch, one toast, one undo — the same shape as Today's, for the same reason.
+    /// One batch, one toast, one undo — literally the same mechanism as Today's now, rather
+    /// than a second copy of it. The copy had already drifted: its undo never restored the
+    /// reminders its delete had cancelled.
     private func requestDelete(tasks: [TaskEntity], title: String) {
-        if let previous = pendingDeletion { finalizeDeletion(previous) }
-        for task in tasks {
-            if let id = task.id { NotificationManager.cancelReminder(taskID: id) }
-        }
-        hiddenTaskIDs.formUnion(tasks.map(\.objectID))
-        let pending = PendingBulkDeletion(tasks: tasks, title: title)
-        pendingDeletion = pending
-        let token = pending.id
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.undoWindow) {
-            guard pendingDeletion?.id == token else { return }
-            finalizeDeletion(pending)
-        }
-    }
-
-    private func finalizeDeletion(_ pending: PendingBulkDeletion) {
-        hiddenTaskIDs.subtract(pending.tasks.map(\.objectID))
-        if pendingDeletion?.id == pending.id { pendingDeletion = nil }
-        for task in pending.tasks {
-            // Same as Today: logged at the point the delete becomes real, never when it's
-            // merely pending, so an undone delete isn't counted as a failure that happened.
-            TaskEventLog.recordAbandonmentIfNeeded(task: task, in: context)
-            context.delete(task)
-        }
-        try? context.save()
-    }
-
-    private func undoDelete() {
-        guard let pending = pendingDeletion else { return }
-        hiddenTaskIDs.subtract(pending.tasks.map(\.objectID))
-        pendingDeletion = nil
+        pendingDeletions.requestDelete(tasks, title: title, in: context)
     }
 
     private func applyBulkPriority(_ priority: Priority) {
@@ -415,12 +387,6 @@ struct SelectableTaskList: View {
         exitEditMode()
     }
 
-}
-
-struct PendingBulkDeletion {
-    let id = UUID()
-    let tasks: [TaskEntity]
-    let title: String
 }
 
 /// Tasks split into the four groups this screen shows, in the order it shows them.

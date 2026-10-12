@@ -29,18 +29,6 @@ private struct EditBumpInfo {
     let blockedBy: String
 }
 
-/// Tracks a delete (one task, or a whole series) that hasn't been finalized yet — every task
-/// involved stays in Core Data, just hidden from view, until the undo window elapses. Only one
-/// pending deletion at a time: starting a new one immediately finalizes whichever was already
-/// pending, matching the common "next toast replaces the last" pattern. `title` is the full
-/// display phrase ("\u{201C}Task name\u{201D}" for one, "12 tasks" for a series) so the toast
-/// itself doesn't need to know which case it's in.
-private struct PendingDeletion {
-    let id = UUID()
-    let tasks: [TaskEntity]
-    let title: String
-}
-
 private struct CompletionInfo: Identifiable {
     let id = UUID()
     var streak: Int
@@ -695,12 +683,12 @@ struct TodayView: View {
     /// `selectedDate` so the transition direction matches the swipe/jump direction.
     @State private var dayTransitionEdge: Edge = .trailing
 
-    /// The delete currently showing its "Undo" toast, if any — see `requestDelete`.
-    @State private var pendingDeletion: PendingDeletion?
-    /// Every task hidden by an in-flight pending deletion, regardless of which day it's on —
-    /// kept separate from `pendingDeletion` (singular) so `DayTimelineView` has a simple set
-    /// to filter against without knowing about the toast itself.
-    @State private var hiddenTaskIDs: Set<NSManagedObjectID> = []
+    /// The delete currently showing its "Undo" toast, plus the set of tasks it is hiding.
+    ///
+    /// Shared rather than local `@State`: `ScheduleEngine` has to see the same set or it keeps
+    /// scheduling around tasks that have already left the screen, and the commit has to survive
+    /// this view going away. See `PendingDeletions`.
+    @EnvironmentObject private var pendingDeletions: PendingDeletions
     @State private var carouselPage = TodayView.todayPage
 
     /// Selection mode. Off by default and never sticky — see the `.onChange(of: selectedDate)`
@@ -795,8 +783,6 @@ struct TodayView: View {
     private var bulkBarClearance: CGFloat {
         isEditing && !selectedTaskIDs.isEmpty ? 88 : 0
     }
-
-    private static let undoWindow: TimeInterval = 4
 
     /// Drives both auto-complete and the screen's sense of time. Task state is derived from the
     /// clock, and a view can't re-render on a clock it never observes: before this, a task's row
@@ -1058,8 +1044,8 @@ struct TodayView: View {
             withAnimation(.easeInOut(duration: 0.3)) { carouselPage = Self.todayPage }
         }
 
-        if let pendingDeletion {
-            UndoToast(title: pendingDeletion.title, onUndo: undoDelete)
+        if let pending = pendingDeletions.pending {
+            UndoToast(title: pending.title, onUndo: { pendingDeletions.undo() })
                 // Fixed clearance for the custom tab bar (MainTabView.CustomTabBar) — a
                 // `.safeAreaInset` on the ancestor ZStack does NOT propagate through this view's
                 // `NavigationStack` boundary the way it would for a plain sibling view, so this
@@ -1083,7 +1069,7 @@ struct TodayView: View {
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
         }
-        .animation(.easeInOut(duration: 0.22), value: pendingDeletion != nil)
+        .animation(.easeInOut(duration: 0.22), value: pendingDeletions.pending != nil)
         .animation(.easeInOut(duration: 0.22), value: isEditing)
         .animation(.easeInOut(duration: 0.22), value: selectedTaskIDs.isEmpty)
     }
@@ -1107,7 +1093,7 @@ struct TodayView: View {
             isViewingToday: isViewingToday,
             now: clockTick,
             commitments: commitments,
-            hiddenTaskIDs: hiddenTaskIDs,
+            hiddenTaskIDs: pendingDeletions.hiddenIDs,
             sortMode: sortMode,
             isEditable: subscription.status.canEditDay(selectedDate),
             isSelecting: isEditing,
@@ -1330,7 +1316,7 @@ struct TodayView: View {
     private var goalSection: some View {
         TabView(selection: $carouselPage) {
             carouselPage {
-                TodaySummaryCard(now: clockTick, hiddenTaskIDs: hiddenTaskIDs)
+                TodaySummaryCard(now: clockTick, hiddenTaskIDs: pendingDeletions.hiddenIDs)
             }
             .tag(Self.todayPage)
 
@@ -1573,46 +1559,10 @@ struct TodayView: View {
 
     /// Shared by both the single-task delete and the whole-series delete — the mechanics
     /// (hide, start the undo window, cancel notifications up front so they don't fire during
-    /// it) don't depend on how many tasks are involved.
+    /// it) don't depend on how many tasks are involved, and now live in `PendingDeletions`
+    /// because they also have to outlive this view.
     private func requestDelete(tasks: [TaskEntity], title: String) {
-        if let previous = pendingDeletion {
-            finalizeDeletion(previous)
-        }
-        for task in tasks {
-            if let id = task.id { NotificationManager.cancelReminder(taskID: id) }
-        }
-        hiddenTaskIDs.formUnion(tasks.map(\.objectID))
-        let pending = PendingDeletion(tasks: tasks, title: title)
-        pendingDeletion = pending
-        let token = pending.id
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.undoWindow) {
-            guard pendingDeletion?.id == token else { return }
-            finalizeDeletion(pending)
-        }
-    }
-
-    private func finalizeDeletion(_ pending: PendingDeletion) {
-        hiddenTaskIDs.subtract(pending.tasks.map(\.objectID))
-        if pendingDeletion?.id == pending.id {
-            pendingDeletion = nil
-        }
-        for task in pending.tasks {
-            // Logged here rather than in `requestDelete` on purpose: this is the point the
-            // delete becomes real. A delete the user undid inside the toast window is a
-            // decision they reversed, and recording it would count a failure that didn't happen.
-            TaskEventLog.recordAbandonmentIfNeeded(task: task, in: context)
-            context.delete(task)
-        }
-        try? context.save()
-    }
-
-    private func undoDelete() {
-        guard let pending = pendingDeletion else { return }
-        hiddenTaskIDs.subtract(pending.tasks.map(\.objectID))
-        pendingDeletion = nil
-        for task in pending.tasks {
-            rescheduleReminder(for: task)
-        }
+        pendingDeletions.requestDelete(tasks, title: title, in: context)
     }
 
 

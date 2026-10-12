@@ -161,8 +161,7 @@ enum ScheduleEngine {
     /// check this replaced, it also catches sleep, not just other tasks. Fixed commitments
     /// like "Work" or "Gym" are informational only and never block a new task.
     static func resolveNewTask(start: Date, end: Date, on day: Date, context: NSManagedObjectContext) -> NewTaskResolution {
-        let request = TaskEntity.fetchRequest(on: day, context: context)
-        let dayTasks = (try? context.fetch(request)) ?? []
+        let dayTasks = tasks(on: day, context: context)
         let collidingTasks = dayTasks.filter { start < $0.endTime && end > $0.resolvedStartTime }
         let sleep = sleepWalls(on: day)
         let wallHit = sleep.first { start < $0.end && end > $0.start }
@@ -224,8 +223,7 @@ enum ScheduleEngine {
         notBefore: Date = .distantPast,
         context: NSManagedObjectContext
     ) -> [OpenSlot] {
-        let request = TaskEntity.fetchRequest(on: day, context: context)
-        let dayTasks = (try? context.fetch(request)) ?? []
+        let dayTasks = tasks(on: day, context: context)
         let sleep = sleepWalls(on: day)
 
         let cal = Calendar.current
@@ -265,8 +263,7 @@ enum ScheduleEngine {
     /// used by replication to silently skip occurrences that would land on top of another
     /// task or sleep. Fixed commitments don't block, so they're not checked here either.
     static func wouldCollide(start: Date, end: Date, on day: Date, context: NSManagedObjectContext) -> Bool {
-        let request = TaskEntity.fetchRequest(on: day, context: context)
-        let existing = (try? context.fetch(request)) ?? []
+        let existing = tasks(on: day, context: context)
         if existing.contains(where: { start < $0.endTime && end > $0.resolvedStartTime }) {
             return true
         }
@@ -275,10 +272,25 @@ enum ScheduleEngine {
 
     // MARK: - Helpers
 
-    private static func otherTasks(on day: Date, excluding task: TaskEntity, context: NSManagedObjectContext) -> [TaskEntity] {
+    /// Every task on a day that scheduling has to respect.
+    ///
+    /// **The single place this engine reads tasks from, deliberately.** A task whose delete is
+    /// mid-undo-window is gone from the screen and still sitting in Core Data, so a plain fetch
+    /// has it occupying its old slot: deleting a task and immediately creating another in the
+    /// same place used to raise the bump prompt, naming a task the user could no longer see.
+    /// Filtering here rather than at each of the five call sites — or behind a defaulted
+    /// `excluding:` parameter — is what makes that impossible to forget next time one is added.
+    /// See `PendingDeletions`.
+    private static func tasks(on day: Date, context: NSManagedObjectContext) -> [TaskEntity] {
         let request = TaskEntity.fetchRequest(on: day, context: context)
         let all = (try? context.fetch(request)) ?? []
-        return all.filter { $0.objectID != task.objectID }
+        let hidden = PendingDeletions.shared.hiddenIDs
+        guard !hidden.isEmpty else { return all }
+        return all.filter { !hidden.contains($0.objectID) }
+    }
+
+    private static func otherTasks(on day: Date, excluding task: TaskEntity, context: NSManagedObjectContext) -> [TaskEntity] {
+        tasks(on: day, context: context).filter { $0.objectID != task.objectID }
     }
 
     private static func sleepWalls(on day: Date) -> [Wall] {

@@ -93,7 +93,7 @@ Build:
 xcodebuild -project Waypoint.xcodeproj -scheme Waypoint -configuration Debug -sdk iphonesimulator -destination 'platform=iOS Simulator,id=<UDID>' build
 ```
 
-Test — **run the full suite** (244 tests across 23 files in `Tests/`). Don't rely on a stale
+Test — **run the full suite** (263 tests across 24 files in `Tests/`). Don't rely on a stale
 `-only-testing` list carried over from a previous session's notes — it's easy for a new test
 file to get silently excluded:
 ```
@@ -247,6 +247,25 @@ cfprefsd gotcha below makes unwritable from the CLI. Ask the user to tap the sun
   changes its goal's computed `completionFraction`, but Core Data won't notify the goal's
   observers. The established pattern is a manually-bumped `@State` counter
   (`goalRefreshTrigger`) passed to `.id()` on the affected view.
+
+- **Deleting a task does not delete it for four seconds, and `ScheduleEngine` has to be told.**
+  `PendingDeletions` holds the undo window: the row leaves the screen immediately, the real
+  `context.delete` happens when the window elapses. Anything that reasons about what occupies a
+  day must therefore read tasks through `ScheduleEngine.tasks(on:context:)`, the one private
+  helper that filters the pending set out — **never fetch `TaskEntity.fetchRequest(on:)`
+  directly inside the engine.** When the hidden set was `@State` on `TodayView` instead, the
+  engine kept scheduling around tasks that had already left the screen: deleting a task and
+  creating another in the same slot raised the bump prompt against an invisible task, and
+  `TaskReplicator` silently skipped recurring occurrences for colliding with ghosts. The store
+  is read as a singleton rather than passed as a defaulted `excluding:` argument precisely so a
+  new call site can't opt back into that by omission.
+
+  The same window is why `WaypointApp` calls `finalize()` on `scenePhase == .background`. The
+  commit used to be a bare `DispatchQueue.main.asyncAfter` with nothing watching the lifecycle,
+  so a process killed inside those four seconds lost the delete and the task came back — and
+  iOS terminates suspended apps constantly, which made "delete a task, leave the app" a
+  reliable way to resurrect it. `.background`, not `.inactive`: inactive fires for a pulled-down
+  notification banner, and committing there would snatch Undo away mid-look.
 
 - **`strings -F` misses strings containing an em-dash.** Use `strings -a` when checking whether
   something was stripped from a built binary. And remember it proves presence, not absence.

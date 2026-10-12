@@ -5,6 +5,7 @@ import WidgetKit
 struct WaypointApp: App {
     @StateObject private var theme = ThemeManager.shared
     @StateObject private var subscription = SubscriptionManager.shared
+    @StateObject private var pendingDeletions = PendingDeletions.shared
     let persistence = PersistenceController.shared
     @State private var showingRecoveryNotice = false
     @Environment(\.scenePhase) private var scenePhase
@@ -72,6 +73,7 @@ struct WaypointApp: App {
                     .environment(\.managedObjectContext, persistence.container.viewContext)
                     .environmentObject(theme)
                     .environmentObject(subscription)
+                    .environmentObject(pendingDeletions)
                     .onAppear {
                         // Only prime the real system permission prompt for users who already
                         // completed onboarding in a previous launch — a first-time user hasn't
@@ -117,6 +119,17 @@ struct WaypointApp: App {
             // to catch every individual edit — WidgetKit coalesces these anyway.
             .onChange(of: scenePhase) { _, phase in
                 let context = persistence.container.viewContext
+                // **Last chance to make a pending delete real.** Deleting is two-phase so
+                // "Undo" has something to undo, and the second phase was a bare four-second
+                // timer — so a process killed inside that window lost the delete entirely, and
+                // the task came back. iOS terminates suspended apps constantly, which made
+                // "delete a task, leave the app" a reliable way to resurrect it.
+                //
+                // `.background`, not `.inactive`: the inactive phase fires for a pulled-down
+                // notification banner or a swipe toward the switcher, and committing there
+                // would snatch Undo away while the user is still looking at it. Background is
+                // the last phase the app is guaranteed to be told about before it is killed.
+                if phase == .background { pendingDeletions.finalize() }
                 if phase == .active {
                     AppSessionLog.begin(in: context)
                     // Catches anything that became true while the app wasn't running — a goal
