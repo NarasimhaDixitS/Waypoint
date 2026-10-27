@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 2,
+  "appName": "Waypoint",
+  "themeId": "swiss-grid-bold",
+  "connectedCanvas": true,
+  "locales": [
+    "en"
+  ],
+  "locale": "en",
+  "device": "iphone",
+  "orientation": "portrait",
+  "appIcon": "/app-icon.png",
+  "scene": {
+    "backdrop": "grid",
+    "span": true,
+    "decoration": "none",
+    "shadow": 34,
+    "glow": 0,
+    "tilt": 0,
+    "headlineWeight": 800,
+    "headlineCase": "as-typed",
+    "captionAlign": "left"
+  },
+  "slidesByDevice": {
+    "iphone": [
+      {
+        "id": "s_wp_1",
+        "layout": "device-bottom",
+        "label": {
+          "en": "01 / THE DAY"
+        },
+        "headline": {
+          "en": "Plans around\nyour real day."
+        },
+        "screenshot": "/screenshots/1-today.png",
+        "inverted": false
+      },
+      {
+        "id": "s_wp_2",
+        "layout": "device-top",
+        "label": {
+          "en": "02 / CLASHES"
+        },
+        "headline": {
+          "en": "It catches\nthe clash."
+        },
+        "screenshot": "/screenshots/6-clash.png",
+        "inverted": true
+      },
+      {
+        "id": "s_wp_3",
+        "layout": "device-bottom",
+        "label": {
+          "en": "03 / ACCOUNTABILITY"
+        },
+        "headline": {
+          "en": "Misses stay\nvisible."
+        },
+        "screenshot": "/screenshots/2-week.png",
+        "inverted": false
+      },
+      {
+        "id": "s_wp_4",
+        "layout": "device-top",
+        "label": {
+          "en": "04 / GOALS"
+        },
+        "headline": {
+          "en": "A goal,\nday by day."
+        },
+        "screenshot": "/screenshots/3-goals.png",
+        "inverted": true
+      },
+      {
+        "id": "s_wp_5",
+        "layout": "device-bottom",
+        "label": {
+          "en": "05 / PROGRESS"
+        },
+        "headline": {
+          "en": "What you did,\nnot what you\nplanned."
+        },
+        "screenshot": "/screenshots/4-progress.png",
+        "inverted": false
+      },
+      {
+        "id": "s_wp_6",
+        "layout": "no-device",
+        "label": {
+          "en": "06 / PRIVATE"
+        },
+        "headline": {
+          "en": "Nothing leaves\nyour iPhone."
+        },
+        "screenshot": "",
+        "inverted": true
+      }
+    ]
+  }
+}
