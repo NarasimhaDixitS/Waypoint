@@ -34,9 +34,27 @@ the whole reason the SDK sits behind a seam. Don't change a gate to accommodate 
 a `UserDefaults` mock; keeping it after RevenueCat landed would mean no tester ever exercised the
 real path. Do not reintroduce it — `-wpFree` is how you get the free tier now.
 
-**The one unverified path is a real purchase.** The chain is confirmed as far as the simulator can
-take it (offering → both products → real localized prices → paywall), but no money has moved
-through it. That needs a sandbox Apple ID on hardware; it is not something the simulator can answer.
+**Purchases are verified on real hardware.** A sandbox purchase of the annual plan was completed
+on an iPhone on 2026-10-27, and a tester's RevenueCat history before that covers purchase,
+cancel, resubscribe, renewal and a plan change with real amounts. The simulator still cannot
+answer this question — it has no App Store account, so StoreKit returns no products however
+correct the dashboard is, and a paywall showing "—" there is evidence of nothing. **What is
+still screen-deep is plan switching**: monthly↔annual has never been driven through a real
+store, only rendered.
+
+**Apple's subscription disclosure list is four items, not three** — title of the subscription,
+its length, its price, and working links to the Terms of Use (EULA) and privacy policy, all at
+the point of purchase. Build 5 was rejected under 3.1.2(c) with the title missing: the plan rows
+said "Monthly" and "Annual", which are lengths, and nothing on the paywall named "Waypoint Pro".
+The metadata side is separate and also required: the privacy policy goes in the Privacy Policy
+field in App Store Connect, and the EULA link goes in the **App Description** (or the EULA
+field) — for every localization. Build 5 was rejected for that too.
+
+**Creating a subscription in App Store Connect does not submit it for review.** Both products
+sat at `READY_TO_SUBMIT` with complete metadata, prices and review screenshots while build 5
+went to review without them, which is an automatic 2.1(b) rejection: "the app includes
+references to subscriptions but the associated In-App Purchase products have not been
+submitted." They have to be added to the review submission alongside the version.
 
 **Launch state** — listing, screenshots, privacy label, the website repo and the TestFlight public
 link — lives in the session memory rather than here, because it changes daily and this file

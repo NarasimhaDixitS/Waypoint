@@ -106,7 +106,19 @@ struct PaywallView: View {
                     }
                     .padding(.top, 8)
 
-                    VStack(spacing: 10) {
+                    // **The subscription's own name, which Apple requires on this screen.**
+                    // Guideline 3.1.2 wants four things at the point of purchase: the title of
+                    // the auto-renewing subscription, its length, its price, and working links
+                    // to the terms and the privacy policy. The rows below carry length and
+                    // price and the block at the bottom carries the links — but nothing named
+                    // the product, so "Monthly" and "Annual" were the only titles on screen,
+                    // and those are lengths. Build 5 was rejected with a three-item checklist
+                    // in mind; this is the fourth.
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Waypoint Pro")
+                            .wpTypography(.micro)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(ColorTokens.textSecondary)
                         ForEach(SubscriptionPlan.allCases) { plan in
                             planRow(plan)
                         }
@@ -203,10 +215,17 @@ struct PaywallView: View {
                     //
                     // "Billed through your Apple ID" is gone — informative, but not required,
                     // and this screen had too many words. "Automatically" stays: that is the
-                    // word doing the disclosing, and length and price are already on the rows
-                    // above. Omitting any of the three is a common review rejection.
+                    // word doing the disclosing.
+                    //
+                    // **The required list is four items, not three.** Title, length, price,
+                    // and both links. This comment used to say three — counting length, price
+                    // and the links while forgetting the product's own name — and build 5 went
+                    // to review with the title missing on every state of this screen.
                     VStack(spacing: 6) {
-                        Text("Renews automatically until cancelled. Cancel any time in Settings.")
+                        // Named here as well as above the rows, deliberately. This block is
+                        // where a reviewer checks the 3.1.2 list off, because it is the one
+                        // place the disclosure and the two links sit together.
+                        Text("Waypoint Pro renews automatically until cancelled. Cancel any time in Settings.")
                             .wpTypography(.micro)
                             .foregroundStyle(ColorTokens.textMuted)
                             .fixedSize(horizontal: false, vertical: true)
