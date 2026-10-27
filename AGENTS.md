@@ -12,10 +12,11 @@ it from scratch or re-asking the user.
 
 ## What stage this is at
 
-**The app is in TestFlight and being prepared for the App Store.** Builds through 1.0 (8) are
-uploaded and the public TestFlight link is live. Version 1.0 was **rejected** on 2026-10-27
-(submission `d733a453`) under guidelines 2.1(b) and 3.1.2(c) — both causes are written up below,
-because both were avoidable and neither was a code bug.
+**The app is in TestFlight and being prepared for the App Store.** Builds through 1.0 (9) are
+uploaded and the public TestFlight link is live; build 9 is the one staged for review, and the
+monthly/annual products are gone from both App Store Connect and RevenueCat. Version 1.0 was
+**rejected** on 2026-10-27 (submission `d733a453`) under guidelines 2.1(b) and 3.1.2(c) — both
+causes are written up below, because both were avoidable and neither was a code bug.
 
 **Waypoint is sold once, not rented.** One non-consumable in App Store Connect:
 `waypoint.pro.lifetime`, $5.99, id `6827496691`, display name "Waypoint Pro". It replaces
@@ -46,13 +47,14 @@ the whole reason the SDK sits behind a seam. Don't change a gate to accommodate 
 a `UserDefaults` mock; keeping it after RevenueCat landed would mean no tester ever exercised the
 real path. Do not reintroduce it — `-wpFree` is how you get the free tier now.
 
-**The purchase path is verified on real hardware, but not this product.** A sandbox purchase of
-the old annual plan was completed on an iPhone on 2026-10-27, which proves the RevenueCat wiring,
-the entitlement read and the gate flip all work end to end. **`waypoint.pro.lifetime` itself has
-never been bought** — build 8 is the first containing it, and the one thing to check on device is
-that a completed purchase says nothing anywhere about renewing or expiring. The simulator cannot
-answer that: with no App Store account signed in, a purchase cannot complete there however correct
-the dashboard is. **Fetching prices is a separate matter and does work** — product metadata comes
+**The purchase path is verified on real hardware, on this product.** `waypoint.pro.lifetime` was
+bought in the sandbox on an iPhone on 2026-10-27, against build 9. RevenueCat recorded it as active
+with unlimited duration, the gates opened, and nothing in Settings or on the paywall said anything
+about renewing or expiring — which was the one thing that could not be checked anywhere but on
+device, because a lifetime entitlement arrives with `willRenew == false` and `expirationDate == nil`
+and the pre-lifetime code would have drawn that as "Ends 1 Jan 4001 — won't renew". The simulator
+cannot answer it: with no App Store account signed in, a purchase cannot complete there however
+correct the dashboard is. **Fetching prices is a separate matter and does work** — product metadata comes
 back from the App Store without an account, so the simulator paywall shows the genuine localized
 price (verified: `-wpPaywall` rendered $5.99 the same day the product was created, and the old
 products it could have been caching were $1.99 and $19.99). That makes a simulator capture valid
@@ -326,6 +328,19 @@ cfprefsd gotcha below makes unwritable from the CLI. Ask the user to tap the sun
   a marketing screenshot of the Progress tab, not by a test. Grep string *literals* — not
   identifiers, which are full of legitimate `subscription` — after any change to what the app
   sells.
+
+- **To re-lock a sandbox entitlement, detach the product from the entitlement in RevenueCat.**
+  Testing a purchase needs the gates shut, and once anything has been bought they stay open. Nothing
+  on the device reopens them: RevenueCat identifies the buyer by an anonymous app user ID in
+  `UserDefaults`, so signing in as a different sandbox Apple Account changes nothing, and deleting
+  the app costs the local tasks while the trial survives in the Keychain regardless. The API is no
+  help either — `POST /v2/sandboxTesters` is 403 (`GET_COLLECTION` and `UPDATE` only), so testers
+  are web-UI only. The lever is the dashboard, because entitlements are mapped server-side from
+  purchased products: detach the bought product from `pro` (Product catalog → **Entitlements** →
+  `pro`, *not* the offering, which only controls what is offered) and the receipt grants nothing.
+  This is how the leftover annual subscription was cleared so the lifetime purchase could be tested
+  at all. Force-quit before looking — `customerInfo` is cached on device for a few minutes, so a
+  plain background-and-return hands back the stale "you have Pro". Reattaching restores it.
 
 - **Verify the exported IPA, never the `.xcarchive`.** The archive's `.app` is signed for
   development and carries `get-task-allow: true`; export re-signs it for distribution and flips
