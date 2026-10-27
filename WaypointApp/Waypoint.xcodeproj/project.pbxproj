@@ -902,7 +902,7 @@
 				ASSETSCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Generated/Waypoint.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Generated/Info.plist;
@@ -923,7 +923,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Generated/WaypointWidget.entitlements;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Generated/WidgetInfo.plist;
@@ -1036,7 +1036,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Generated/WaypointWidget.entitlements;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Generated/WidgetInfo.plist;
@@ -1124,7 +1124,7 @@
 				ASSETSCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Generated/Waypoint.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = 23495RS836;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Generated/Info.plist;

@@ -126,9 +126,9 @@ struct MainTabView: View {
     private var progressLockMessage: String {
         let days = TrialRecord.daysSinceStart()
         guard days >= 3 else {
-            return "Waypoint keeps recording what you finish and what you put off. Subscribing is what lets you read it back."
+            return "Waypoint keeps recording what you finish and what you put off. Waypoint Pro is what lets you read it back."
         }
-        return "You've built up \(days) days of patterns in here. Subscribing is what keeps reading them back."
+        return "You've built up \(days) days of patterns in here. Waypoint Pro is what keeps reading them back."
     }
 
     /// Combines both reasons `WeekView` might need a fresh fetch — a different month, or just
@@ -238,7 +238,7 @@ struct MainTabView: View {
                 .lockedBehindPaywall(
                     !subscription.status.canUseWeekTab,
                     title: "Your week",
-                    message: "Seeing the week as a whole, and moving work around inside it, is part of the subscription."
+                    message: "Seeing the week as a whole, and moving work around inside it, is part of Waypoint Pro."
                 )
                 .opacity(selectedTab == 1 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 1)

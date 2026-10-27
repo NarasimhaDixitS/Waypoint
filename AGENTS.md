@@ -177,7 +177,7 @@ and tap through to a screen, which is the gap that led to shipping cards nobody 
 | `-wpNewTask` | Task editor, open |
 | `-wpEditTask` | Task editor on today's first task |
 | `-wpClash` | The collision sheet, staged against today's first task |
-| `-wpReseed` | Reloads the demo fixture (in `init`, deliberately — see `WaypointApp.swift`) |
+| `-wpReseed` | Reloads the demo fixture, and clears both onboarding gates |
 | `-wpPaper` / `-wpStandard` | Forces the palette |
 | `-wpFree` | Free tier |
 | `-wpSearch <query>` | The search overlay, with that query typed |
@@ -186,10 +186,20 @@ and tap through to a screen, which is the gap that led to shipping cards nobody 
 | `-wpFocus` | The focus timer, on today's first task |
 | `-wpFocusFill <0-1>` | …already that far through, and running |
 | `-wpPaywall` | The paywall, open |
+| `-wpTrial` | A fresh 14-day trial (the mirror of `-wpFree`) |
 
 `-wpPaper`/`-wpStandard` are not a convenience: writing `themePalette` from the command line
 races the app's own preference flush and loses about as often as it wins, so a palette set that
 way can't be trusted to be the one on screen.
+
+`-wpTrial` exists because the trial deliberately survives everything — it lives in the Keychain
+so deleting the app can't buy a second one, which also means nothing outside the app can put it
+back. Without it the only ways to see an unlocked Week or Progress are to wait out a real
+fortnight, tap the Settings button, or run `-wpFresh` and lose the data that made the screen
+worth looking at. **`-wpReseed` now clears `hasSeenWelcome` *and* `hasCompletedOnboarding`** —
+`RootView` has two gates, not one, and setting only the second leaves the fixture stuck on the
+welcome screen. The fixture is an established user with forty-five days of history; landing that
+person on onboarding contradicts the thing being staged.
 
 `-wpPaywall` exists because the purchase screen is otherwise behind a lapsed trial or a tap into
 a locked feature, and because App Store Connect wants a review screenshot of it. It is good for
@@ -306,6 +316,16 @@ cfprefsd gotcha below makes unwritable from the CLI. Ask the user to tap the sun
   iOS terminates suspended apps constantly, which made "delete a task, leave the app" a
   reliable way to resurrect it. `.background`, not `.inactive`: inactive fires for a pulled-down
   notification banner, and committing there would snatch Undo away mid-look.
+
+- **Changing what is sold leaves copy behind in the gates.** The lifetime rewrite moved every
+  file in `Sources/Subscription/` and the paywall, and still shipped four strings telling people
+  to *subscribe*: the two Progress lock messages in `MainTabView`, the Week lock message, and the
+  new-iPhone card in Settings. They were invisible because a gate message only renders while
+  locked, and development runs unlocked. Build 8 went to TestFlight saying "Subscribing is what
+  keeps reading them back" under a store listing promising a one-time purchase. It was caught by
+  a marketing screenshot of the Progress tab, not by a test. Grep string *literals* — not
+  identifiers, which are full of legitimate `subscription` — after any change to what the app
+  sells.
 
 - **Verify the exported IPA, never the `.xcarchive`.** The archive's `.app` is signed for
   development and carries `get-task-allow: true`; export re-signs it for distribution and flips

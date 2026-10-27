@@ -1110,7 +1110,7 @@ struct TodayView: View {
             .lockedBehindPaywall(
                 !subscription.status.canViewDay(selectedDate),
                 title: "Plan ahead",
-                message: "Scheduling work beyond today is part of the subscription. Today, and everything you've already done, stay free."
+                message: "Scheduling work beyond today is part of Waypoint Pro. Today, and everything you've already done, stay free."
             )
     }
 

@@ -33,6 +33,17 @@ struct WaypointApp: App {
         }
         guard args.contains("-wpReseed") else { return }
         SampleData.loadDemo(into: persistence.container.viewContext)
+        // The fixture *is* an established user — forty-five days of history, goals part-done.
+        // Landing that person on the welcome screen contradicts the thing being staged, and
+        // onboarding can only be cleared by tapping through it, which is exactly what these
+        // flags exist to avoid. (`hasCompletedOnboarding` lives in UserDefaults, which the
+        // simulator's cfprefsd makes unwritable from the command line, so it has to happen
+        // in-process.)
+        // Both gates, not one: `RootView` shows the welcome screen until `hasSeenWelcome`,
+        // and the setup flow until `hasCompletedOnboarding`. Setting only the second leaves
+        // the fixture stuck on the welcome screen, which is how this was first got wrong.
+        UserDefaults.standard.set(true, forKey: "hasSeenWelcome")
+        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
         #endif
     }
 

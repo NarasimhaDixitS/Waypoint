@@ -238,7 +238,7 @@ struct SettingsView: View {
                         .foregroundStyle(ColorTokens.textSecondary)
                     row {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Subscription state").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
+                            Text("Access state").wpTypography(.cardTitle).foregroundStyle(ColorTokens.textPrimary)
                             // Waiting two weeks is not a testing strategy. All three states are
                             // reachable from here because all three have to be *looked* at —
                             // the free tier blurs whole screens, and nothing about that can be
@@ -435,7 +435,7 @@ private var subscriptionCard: some View {
                 .wpTypography(.body)
                 .foregroundStyle(ColorTokens.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Getting a new iPhone? Transfer straight from your old one while setting it up, or restore it from a backup, and your tasks and history come with it. Your subscription is tied to your Apple Account, so that always comes back — tap Restore Purchases if it doesn't.")
+            Text("Getting a new iPhone? Transfer straight from your old one while setting it up, or restore it from a backup, and your tasks and history come with it. Waypoint Pro is tied to your Apple Account, so that always comes back — tap Restore Purchases if it doesn't.")
                 .wpTypography(.body)
                 .foregroundStyle(ColorTokens.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)

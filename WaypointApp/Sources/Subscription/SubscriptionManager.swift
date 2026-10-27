@@ -24,6 +24,19 @@ final class SubscriptionManager: ObservableObject {
     @Published private(set) var price: String?
 
     private init() {
+        #if DEBUG
+        // `-wpTrial` restarts the fourteen days, the mirror of `-wpFree`.
+        //
+        // Needed because the trial deliberately survives everything: it lives in the Keychain
+        // so that deleting the app can't buy a second one, which also means nothing outside the
+        // app can put it back. The only other route is the Settings button, and reaching that
+        // is a tap. Capturing unlocked screens, or looking at any gated tab, otherwise means
+        // either waiting out a real fortnight or wiping the device and losing the data that
+        // made the screen worth looking at.
+        if ProcessInfo.processInfo.arguments.contains("-wpTrial") {
+            TrialRecord.setStart(.now)
+        }
+        #endif
         refresh()
         Task { await syncWithStore() }
         observeStore()
