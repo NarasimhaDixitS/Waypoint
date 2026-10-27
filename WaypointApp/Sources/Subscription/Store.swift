@@ -8,12 +8,20 @@ import RevenueCat
 /// whatever happens to the billing layer, and they are tested against `SubscriptionStatus`
 /// rather than against a network. Keeping the SDK behind one small type means the tests never
 /// need a store, and swapping the store later never touches a gate.
+///
+/// That claim was tested for real in Oct 2026, when Waypoint stopped selling a monthly and an
+/// annual subscription and started selling one permanent unlock. Six files changed. **Not one
+/// gate did**, because none of them had ever known what was being sold.
 enum Store {
     /// The public SDK key. Safe to ship — it identifies the app to RevenueCat and authorises
     /// nothing on its own; the secret key lives in the dashboard and never leaves it.
     private static let apiKey = "appl_HLgGkGhbEfEAtlWZxXpLEUTjQMu"
 
     /// Must match the entitlement identifier in the RevenueCat dashboard exactly.
+    ///
+    /// Deliberately still `pro` after the move to a one-time purchase. The lifetime product is
+    /// attached to this same entitlement in the dashboard, so every gate in the app keeps
+    /// asking the one question it always asked.
     static let entitlementID = "pro"
 
     /// **Prices are `nil` on the simulator, always.** There's no App Store account signed into
@@ -30,66 +38,45 @@ enum Store {
         Purchases.configure(withAPIKey: apiKey)
     }
 
-    /// An active entitlement, in the app's own vocabulary.
-    struct Entitlement: Equatable {
-        let plan: SubscriptionPlan
-        /// The end of the paid period. What happens then is `renewal`'s business.
-        let until: Date
-        let renewal: Renewal
-    }
-
-    /// What RevenueCat currently believes, translated into the app's own vocabulary.
+    /// Whether this customer owns Waypoint Pro.
     ///
-    /// `nil` means "no active subscription", not "something went wrong" — a lapsed subscriber
-    /// and an unreachable network look identical from here, which is deliberate: the caller
-    /// falls back to the trial clock either way, and the trial clock is local. A person offline
-    /// on a plane does not lose access they paid for, because `CustomerInfo` is cached by the
-    /// SDK and served from disk.
-    static func activeSubscription(from info: CustomerInfo) -> Entitlement? {
-        guard let entitlement = info.entitlements[entitlementID], entitlement.isActive else { return nil }
-
-        // Matched on the product identifier rather than on the package type: the identifier is
-        // the one string App Store Connect, RevenueCat and this app all have to agree on, and
-        // it's the one `SubscriptionPlan` already owns.
-        let plan = SubscriptionPlan.allCases.first { $0.productID == entitlement.productIdentifier }
-
-        // **`willRenew` used to be dropped on the floor here**, which is what made a cancelled
-        // subscription indistinguishable from a live one everywhere downstream.
-        //
-        // Order matters. A billing problem is something the customer can go and fix, and a
-        // cancellation is not, so when a record somehow carries both, the actionable one wins
-        // the label — telling someone "won't renew" when the real answer is "your card was
-        // declined" sends them to the wrong screen.
-        let renewal = Renewal.from(
-            willRenew: entitlement.willRenew,
-            billingIssueDetectedAt: entitlement.billingIssueDetectedAt
-        )
-
-        return Entitlement(
-            plan: plan ?? .monthly,
-            // No expiry on a lifetime or a sandbox grant. Far-future rather than `nil` so the
-            // status enum doesn't need a third case for a situation nobody will meet.
-            until: entitlement.expirationDate ?? Date.distantFuture,
-            renewal: renewal
-        )
+    /// **A `Bool`, and the shrinking is the point.** This used to return an `Entitlement` with
+    /// a plan, an end date and a renewal state derived from `willRenew` and
+    /// `billingIssueDetectedAt` — three facts a subscription has and a purchase does not.
+    ///
+    /// Carrying that shape into a one-time product would have shipped a bug on day one: a
+    /// lifetime entitlement arrives from RevenueCat with `willRenew == false` and
+    /// `expirationDate == nil`, so the old derivation would have read it as *cancelled* and
+    /// Settings would have told a paying customer "Ends 1 Jan 4001 · won't renew". The fix is
+    /// the deletion, not a special case.
+    ///
+    /// `false` means "no purchase on record", not "something went wrong" — a customer who never
+    /// bought and an unreachable network look identical from here, which is deliberate: the
+    /// caller falls back to the trial clock either way, and the trial clock is local. Someone
+    /// offline on a plane does not lose access they paid for, because `CustomerInfo` is cached
+    /// by the SDK and served from disk.
+    static func owns(from info: CustomerInfo) -> Bool {
+        info.entitlements[entitlementID]?.isActive == true
     }
 
-    /// Every change RevenueCat sees for this customer, pushed as it happens: a renewal, an
-    /// expiry, a refund, a cancellation made over in iOS Settings where the app cannot watch.
+    /// Every change RevenueCat sees for this customer, pushed as it happens.
     ///
     /// **This is what replaces polling, and its absence was a real bug.** `syncWithStore` was
     /// the only thing that ever asked, and it ran once in `init` — so for the whole life of the
-    /// process the app believed whatever had been true at launch. Someone who cancelled went on
-    /// being told their subscription renews, and iOS keeps an app suspended for days, so "until
-    /// the next cold launch" is in practice "never". The SDK already maintains this connection
-    /// for its own cache; listening to it costs nothing and no timer.
-    /// Yields `Entitlement?` rather than `CustomerInfo` so that no RevenueCat type escapes this
-    /// file — the seam this whole enum exists to maintain.
-    static var entitlementUpdates: AsyncStream<Entitlement?> {
+    /// process the app believed whatever had been true at launch. The SDK already maintains
+    /// this connection for its own cache; listening to it costs nothing and no timer.
+    ///
+    /// It matters less than it did, because a purchase cannot lapse on its own the way a
+    /// subscription could. It is kept for the cases that remain: a refund Apple grants, and a
+    /// purchase made on another device under the same Apple ID.
+    ///
+    /// Yields `Bool` rather than `CustomerInfo` so that no RevenueCat type escapes this file —
+    /// the seam this whole enum exists to maintain.
+    static var ownershipUpdates: AsyncStream<Bool> {
         AsyncStream { continuation in
             let task = Task {
                 for await info in Purchases.shared.customerInfoStream {
-                    continuation.yield(activeSubscription(from: info))
+                    continuation.yield(owns(from: info))
                 }
                 continuation.finish()
             }
@@ -130,38 +117,28 @@ enum Store {
         try await Purchases.shared.customerInfo()
     }
 
-    /// The package for a plan, from the current offering.
+    /// The lifetime package from the current offering.
     ///
-    /// Looked up by product identifier rather than by `.monthly` / `.annual` package type,
-    /// because the package type depends on how the offering was configured in a dashboard and
-    /// the product identifier doesn't.
-    static func package(for plan: SubscriptionPlan) async throws -> Package? {
+    /// Looked up by product identifier rather than by `.lifetime` package type, because the
+    /// package type depends on how the offering was configured in a dashboard and the product
+    /// identifier doesn't.
+    static func package() async throws -> Package? {
         let offerings = try await Purchases.shared.offerings()
         guard let current = offerings.current else { return nil }
-        return current.availablePackages.first { $0.storeProduct.productIdentifier == plan.productID }
+        return current.availablePackages.first {
+            $0.storeProduct.productIdentifier == WaypointPro.productID
+        }
     }
 
-    /// Localised price, straight from the App Store.
+    /// The localised price, straight from the App Store.
     ///
-    /// This is what replaces `mockPrice`. The paywall used to hardcode "$1.99", which is both
-    /// wrong everywhere outside the US and wrong here the moment a price changes in App Store
-    /// Connect — the one number on that screen a person is deciding on, written down in Swift.
-    /// Every plan's price, from **one** fetch.
-    ///
-    /// This was a loop calling `offerings()` once per plan — two network round trips for one
-    /// answer, and the second one didn't always land: the paywall showed a real price for
-    /// Monthly and an em dash for Annual, while a single fetch could see both. Asking twice
-    /// for the same thing and believing whichever reply arrived is not a race worth having.
-    static func allPrices() async -> [SubscriptionPlan: String] {
-        guard let current = try? await Purchases.shared.offerings().current else { return [:] }
-        var prices: [SubscriptionPlan: String] = [:]
-        for package in current.availablePackages {
-            guard let plan = SubscriptionPlan.allCases.first(
-                where: { $0.productID == package.storeProduct.productIdentifier }
-            ) else { continue }
-            prices[plan] = package.storeProduct.localizedPriceString
-        }
-        return prices
+    /// Never hardcoded. A price written down in Swift is wrong everywhere outside one
+    /// storefront and wrong here the moment it changes in App Store Connect — and it is the one
+    /// number on that screen a person is deciding on. `nil` means the store hasn't answered;
+    /// the paywall shows nothing rather than a guess.
+    static func price() async -> String? {
+        guard let package = try? await package() else { return nil }
+        return package.storeProduct.localizedPriceString
     }
 
     enum PurchaseOutcome {
@@ -170,8 +147,8 @@ enum Store {
         case unavailable
     }
 
-    static func purchase(_ plan: SubscriptionPlan) async throws -> PurchaseOutcome {
-        guard let package = try await package(for: plan) else { return .unavailable }
+    static func purchase() async throws -> PurchaseOutcome {
+        guard let package = try await package() else { return .unavailable }
         let result = try await Purchases.shared.purchase(package: package)
         // Cancelling is not an error and must not be shown as one. It's the single most common
         // outcome of opening a paywall.

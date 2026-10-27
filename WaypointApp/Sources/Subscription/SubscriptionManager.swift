@@ -5,102 +5,58 @@ import SwiftUI
 ///
 /// The trial is stamped on first run rather than at install, because there's no install hook to
 /// hang it on — and stamping it lazily means someone who downloads the app and opens it a month
-/// later still gets their seven days.
+/// later still gets their fourteen days.
 @MainActor
 final class SubscriptionManager: ObservableObject {
     static let shared = SubscriptionManager()
 
     @Published private(set) var status: SubscriptionStatus = .free
 
-    /// Set once RevenueCat has answered. `nil` before the first reply, and after a failure —
-    /// the same thing from here, deliberately: both mean "no confirmed subscription", and both
-    /// fall through to the trial clock, which is local and always available.
-    private var entitled: Store.Entitlement?
-
-    /// Real prices, once the store has sent them. The paywall reads these and falls back to
-    /// nothing rather than to an invented number — a wrong price is worse than a missing one.
-    @Published private(set) var prices: [SubscriptionPlan: String] = [:]
-
-    #if DEBUG
-    /// A forced renewal state, so the cancelled and payment-problem screens can be looked at.
+    /// Whether RevenueCat has confirmed a purchase.
     ///
-    /// Reaching them for real takes a purchase, a trip to iOS Settings and, for the second one,
-    /// a card that declines on demand. Copy that can't be looked at is copy that ships unread —
-    /// which is exactly how "Renews 10 Nov" ended up in front of somebody who had just
-    /// cancelled. Set by `-wpRenewal` or the Settings developer panel; a real push from the
-    /// store clears it.
-    private var previewRenewal: Renewal?
+    /// `false` before the first reply and after a failure — the same thing from here,
+    /// deliberately: both mean "no confirmed purchase", and both fall through to the trial
+    /// clock, which is local and always available.
+    private var owned = false
 
-    func preview(_ renewal: Renewal?) {
-        previewRenewal = renewal
-        refresh()
-    }
-
-    /// Whether the panel is currently forcing this state — marked so it's obvious which button
-    /// you already pressed. Reads the status rather than the override, so a real subscription
-    /// lights the matching button too.
-    func isPreviewing(_ renewal: Renewal) -> Bool {
-        if case .subscribed(_, _, let current) = status { return current == renewal }
-        return false
-    }
-    #endif
+    /// The real price, once the store has sent it. The paywall reads this and falls back to
+    /// nothing rather than to an invented number — a wrong price is worse than a missing one.
+    @Published private(set) var price: String?
 
     private init() {
-        #if DEBUG
-        let args = ProcessInfo.processInfo.arguments
-        if let i = args.firstIndex(of: "-wpRenewal"), i + 1 < args.count {
-            switch args[i + 1] {
-            case "cancelled": previewRenewal = .cancelled
-            case "billing": previewRenewal = .billingProblem
-            case "renewing": previewRenewal = .renewing
-            default: break
-            }
-        }
-        #endif
         refresh()
         Task { await syncWithStore() }
         observeStore()
     }
 
-    /// Keeps `entitled` current for the life of the process.
+    /// Keeps `owned` current for the life of the process.
     ///
-    /// A subscription changes without the app being involved at all — it is cancelled in iOS
-    /// Settings, it renews overnight, a card is declined, Apple grants a refund. None of those
-    /// pass through any code here, so an app that only asks at launch is wrong from the first
-    /// one onward. The SDK already holds this connection open for its own cache; this listens
-    /// to it rather than adding a timer.
+    /// **This mattered more when Waypoint sold subscriptions**, which could be cancelled in iOS
+    /// Settings, renew overnight, or fall into a card-declined retry loop without the app being
+    /// involved at all. A purchase cannot lapse on its own, so the remaining cases are narrow:
+    /// a refund Apple grants, and a purchase made on another device under the same Apple ID.
+    /// Both are real, and the SDK already holds this connection open for its own cache, so
+    /// listening costs nothing and needs no timer.
     private func observeStore() {
         Task { [weak self] in
-            for await entitlement in Store.entitlementUpdates {
+            for await owns in Store.ownershipUpdates {
                 guard let self else { return }
-                #if DEBUG
-                // Only a *real* entitlement overrules a preview. The stream yields its cached
-                // answer the instant you subscribe to it, and on a simulator that answer is
-                // "no subscription" — which was wiping the forced state a few milliseconds
-                // after launch and making `-wpRenewal` look like it did nothing.
-                if entitlement != nil { self.previewRenewal = nil }
-                #endif
-                self.entitled = entitlement
+                self.owned = owns
                 self.refresh()
             }
         }
     }
 
     /// Asks RevenueCat what it knows, then recomputes.
-    ///
-    /// Not on a timer: an entitlement changes when somebody buys, cancels or renews, and the
-    /// SDK's cached `CustomerInfo` already survives being offline — polling would add network
-    /// traffic to answer a question whose answer is usually already on disk.
     func syncWithStore() async {
         if let info = try? await Store.customerInfo() {
-            entitled = Store.activeSubscription(from: info)
+            owned = Store.owns(from: info)
             refresh()
         }
-        let fetched = await Store.allPrices()
-        // Only overwrite when the store actually answered. An empty reply is "ask again
-        // later", not "these products have no price" — blanking a price already on screen
-        // because one request timed out is strictly worse than showing the last true one.
-        if !fetched.isEmpty { prices = fetched }
+        // Only overwrite when the store actually answered. A nil reply is "ask again later",
+        // not "this product has no price" — blanking a price already on screen because one
+        // request timed out is strictly worse than showing the last true one.
+        if let fetched = await Store.price() { price = fetched }
     }
 
     /// Recomputed rather than stored: a trial ends by the clock moving, and nothing fires an
@@ -115,25 +71,15 @@ final class SubscriptionManager: ObservableObject {
             status = .free
             return
         }
-        if let previewRenewal {
-            status = .subscribed(
-                plan: .annual,
-                until: Calendar.current.date(byAdding: .day, value: 300, to: now) ?? now,
-                renewal: previewRenewal
-            )
-            return
-        }
         #endif
-        // **The store wins when it has an answer.** A confirmed entitlement is a fact about
-        // money that changed hands; the trial clock is a local guess about someone who hasn't
-        // paid. When RevenueCat hasn't replied — offline, first launch, an error — `entitled`
-        // is nil and the trial decides, which is the right way to fail: it can only ever be
-        // more generous than the truth, never less.
+        // **The store wins when it has an answer.** A confirmed purchase is a fact about money
+        // that changed hands; the trial clock is a local guess about someone who hasn't paid.
+        // When RevenueCat hasn't replied — offline, first launch, an error — `owned` is false
+        // and the trial decides, which is the right way to fail: it can only ever be more
+        // generous than the truth, never less.
         status = SubscriptionPolicy.resolve(
             trialStartedAt: trialStartedAt,
-            plan: entitled?.plan,
-            until: entitled?.until,
-            renewal: entitled?.renewal ?? .renewing,
+            hasPurchased: owned,
             now: now
         )
     }
@@ -144,11 +90,11 @@ final class SubscriptionManager: ObservableObject {
     ///
     /// Cancelling is returned, not thrown. It is the most common way a paywall ends, and
     /// showing it as an error tells someone their deliberate choice went wrong.
-    func purchase(_ plan: SubscriptionPlan) async -> PurchaseResult {
+    func purchase() async -> PurchaseResult {
         do {
-            switch try await Store.purchase(plan) {
+            switch try await Store.purchase() {
             case .bought(let info):
-                entitled = Store.activeSubscription(from: info)
+                owned = Store.owns(from: info)
                 refresh()
                 return .bought
             case .cancelled:
@@ -156,7 +102,7 @@ final class SubscriptionManager: ObservableObject {
             case .unavailable:
                 // No package for this product in the current offering — a dashboard problem,
                 // not the customer's, and worth saying rather than failing silently.
-                return .failed("That plan isn't available right now.")
+                return .failed("Waypoint Pro isn't available right now.")
             }
         } catch {
             return .failed(error.localizedDescription)
@@ -165,28 +111,27 @@ final class SubscriptionManager: ObservableObject {
 
     /// Replays Apple's transaction history for this Apple ID.
     ///
-    /// Required by Apple on any app selling a subscription, and genuinely needed here: the
-    /// entitlement lives with the Apple ID and nothing in this app is synced.
+    /// Required by Apple on any app selling a purchase, and it carries more weight here than it
+    /// used to. A one-time unlock is the kind of thing somebody buys once and expects on every
+    /// phone they ever own, and there is no account in this app to look them up by — the Apple
+    /// ID is the only thread connecting a new device to a purchase made years earlier.
     func restore() async -> PurchaseResult {
         do {
-            entitled = Store.activeSubscription(from: try await Store.restore())
+            owned = Store.owns(from: try await Store.restore())
             refresh()
-            return entitled != nil ? .bought : .failed("No previous purchase found on this Apple ID.")
+            return owned ? .bought : .failed("No previous purchase found on this Apple ID.")
         } catch {
             return .failed(error.localizedDescription)
         }
     }
 
-    /// Developer affordance so the lapsed state can actually be looked at — a seven-day wait is
-    /// not a testing strategy.
+    /// Developer affordance so the lapsed state can actually be looked at — a fourteen-day wait
+    /// is not a testing strategy.
     func expireNow() {
-        #if DEBUG
-        previewRenewal = nil
-        #endif
-        // Must drop the entitlement too, or a real subscription on the device simply overrules
-        // the button and the lapsed state stays unlookable — which was the whole complaint
-        // this affordance exists to answer. The next push from the store puts it back.
-        entitled = nil
+        // Must drop the purchase too, or a real one on the device simply overrules the button
+        // and the lapsed state stays unlookable — which was the whole complaint this affordance
+        // exists to answer. The next push from the store puts it back.
+        owned = false
         TrialRecord.setStart(
             Calendar.current.date(byAdding: .day, value: -(SubscriptionPolicy.trialDays + 1), to: .now) ?? .now
         )
@@ -194,10 +139,7 @@ final class SubscriptionManager: ObservableObject {
     }
 
     func resetTrial() {
-        #if DEBUG
-        previewRenewal = nil
-        #endif
-        entitled = nil
+        owned = false
         TrialRecord.setStart(.now)
         refresh()
     }

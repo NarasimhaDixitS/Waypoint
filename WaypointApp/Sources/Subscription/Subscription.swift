@@ -1,154 +1,64 @@
 import Foundation
 
-/// What the user is entitled to, and the plans on offer.
+/// The one thing there is to buy.
 ///
-/// Purchases are real: `Store` talks to RevenueCat, which talks to StoreKit. What lives here is
-/// only what the app itself must know about a plan — its identifier, its name, how it reads.
-/// Prices are deliberately not among them: they come from the App Store at runtime, already
-/// converted and formatted for the viewer's storefront.
-enum SubscriptionPlan: String, CaseIterable, Identifiable {
-    case monthly
-    case annual
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .monthly: "Monthly"
-        case .annual: "Annual"
-        }
-    }
-
-    /// The identifier this plan has in App Store Connect.
-    ///
+/// **Waypoint sold a monthly and an annual subscription until Oct 2026, and now sells a single
+/// one-time unlock.** The reasoning was partly commercial and partly honest: there is no server
+/// and no account here, so there is no recurring cost to fund and nothing a renewal pays for.
+/// Charging rent for software that runs entirely on someone's own phone is the objection that
+/// gets levelled at local-first apps, and it is a fair one.
+///
+/// It also deleted a whole category of bug. A subscription can lapse, be cancelled, be refunded,
+/// or sit in a retry loop behind a declined card, and each of those is a state the app has to
+/// detect, name and draw — six bugs came out of exactly that in a single afternoon. A thing you
+/// own has one state.
+///
+/// The type names here still say "subscription" because the folder, the manager and every gate
+/// are named that way and renaming them is churn with no behaviour change. What they mean is
+/// *entitlement to the paid features*.
+enum WaypointPro {
+    /// The identifier App Store Connect, RevenueCat and this app must all agree on exactly.
     /// Fixed for the life of the product — Apple does not allow it to be changed once created,
-    /// and a subscriber's purchase is tied to it. This is the one string the app and App Store
-    /// Connect must agree on exactly.
-    var productID: String {
-        switch self {
-        case .monthly: "waypoint.pro.monthly"
-        case .annual: "waypoint.pro.annual"
-        }
-    }
+    /// and a purchase is tied to it.
+    static let productID = "waypoint.pro.lifetime"
 
-    /// Only so the mock paywall has something to draw.
-    ///
-    /// There is no introductory offer: the launch price *is* the price. An introductory offer
-    /// in Apple's sense is "pay this for N periods, then the standard price", and it needs a
-    /// standard price to revert to — so a low launch price with nothing above it is simply a
-    /// low price, which is also the version that leaves every option open. Raising it later
-    /// can preserve existing subscribers at what they signed up for.
-    ///
-    /// Dies with the mock. Real prices arrive from Apple at runtime, already converted and
-    /// formatted for the viewer's storefront — a hardcoded "$1.99" shown to someone in India is
-    /// both wrong and a review rejection.
-    var mockPrice: String {
-        switch self {
-        case .monthly: "$1.99"
-        case .annual: "$19.99"
-        }
-    }
-
-    var cadence: String {
-        switch self {
-        case .monthly: "per month"
-        case .annual: "per year"
-        }
-    }
-
-    /// Deliberately not a number.
-    ///
-    /// This said "4 months free", which is true of the *standard* prices — $39.99 against twelve
-    /// months at $4.99. Sitting beside "$19.99, introductory offer" it reads as a claim about
-    /// the introductory price instead, and that one isn't true. Two prices on a row can only
-    /// carry one comparison before the reader has to guess which, and a savings claim nobody can
-    /// resolve is exactly what paywalls get rejected and complained about for.
-    ///
-    /// The row already states both numbers plainly. This only has to point at the better one.
-    var savingNote: String? {
-        switch self {
-        case .monthly: nil
-        case .annual: "Best value"
-        }
-    }
-
-    var renewalInterval: DateComponents {
-        switch self {
-        case .monthly: DateComponents(month: 1)
-        case .annual: DateComponents(year: 1)
-        }
-    }
+    /// Shown wherever the product has to be named, and deliberately a constant rather than a
+    /// literal in a view: Apple requires the product's title at the point of purchase, and
+    /// build 5 was rejected because the paywall named the *lengths* ("Monthly", "Annual") and
+    /// never the product. One source for it means that cannot recur.
+    static let name = "Waypoint Pro"
 }
 
-/// What happens when the paid period ends.
+/// The two links the paid screens need, in one place so they cannot drift apart.
 ///
-/// **This is the fact the app used to throw away.** RevenueCat reports both when a period ends
-/// and whether it will roll over; keeping only the date made a cancelled subscription and a
-/// renewing one identical. So Settings told somebody who had just cancelled that their
-/// subscription "Renews 10 Nov" — contradicting, on the screen they opened to check it had
-/// worked, a decision they had just made about money. The predictable results are a second
-/// cancellation, a support email, and a refund request.
-///
-/// All three states keep full access. Cancelling is not a punishment: the period is paid for.
-enum Renewal: Equatable {
-    /// Rolls over on the date, and is charged again.
-    case renewing
-    /// Auto-renew is off. Access runs to the date and then stops.
-    case cancelled
-    /// Apple cannot take payment and is retrying. Access continues while it does — taking the
-    /// app away the moment a card expires punishes a customer for their bank's timing, and
-    /// Apple recovers a good share of these on its own.
-    case billingProblem
-}
-
-extension Renewal {
-    /// Derived from the two facts Apple reports about a live subscription.
-    ///
-    /// A free function rather than inline in `Store` so it can be tested: `CustomerInfo` can't
-    /// reasonably be constructed in a unit test, and this decision — the one the old code got
-    /// wrong by not making it at all — is the part worth pinning down.
-    ///
-    /// Order matters. A declined card and a cancellation can coexist on a record, and the
-    /// actionable one must win the label: telling somebody "won't renew" when the truth is
-    /// "your card was declined" sends them to the wrong screen to fix it.
-    static func from(willRenew: Bool, billingIssueDetectedAt: Date?) -> Renewal {
-        if billingIssueDetectedAt != nil { return .billingProblem }
-        return willRenew ? .renewing : .cancelled
-    }
-}
-
-/// The three links the subscription screens need, in one place so they cannot drift apart.
+/// Guideline 3.1.2's checklist — title, length, price and both links at the point of purchase —
+/// applies to *auto-renewable* subscriptions, so a one-time unlock is not bound by it. Both
+/// links stay anyway: the privacy policy is the one claim this app makes about itself that a
+/// person might reasonably want to read before paying, and removing something a reviewer has
+/// already been shown invites the question of why.
 enum AppLinks {
-    /// Apple's standard EULA.
-    ///
-    /// **Guideline 3.1.2 requires a functional link to the terms of use and to the privacy
-    /// policy at the point of purchase, inside the binary** — not only in the App Store
-    /// listing. The paywall carried the renewal disclosure but neither link, which is one of
-    /// the most common reasons a subscription app is rejected. This is the standard EULA
-    /// because no custom one was supplied in App Store Connect; if one ever is, this changes.
+    /// Apple's standard EULA. There is no custom one in App Store Connect; if one is ever
+    /// added, this changes.
     static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")
 
     static let privacy = URL(string: "https://narasimhadixits.github.io/privacy.html")
-
-    /// Apple's subscription management page. The only place a plan can actually be cancelled,
-    /// resumed, or have its payment method replaced — none of which an app can do itself.
-    static let manageSubscription = URL(string: "https://apps.apple.com/account/subscriptions")
 }
 
 /// Where someone stands right now.
 enum SubscriptionStatus: Equatable {
     case trial(daysLeft: Int)
-    /// `until` is the end of the paid period — a renewal date or an expiry date, depending on
-    /// `renewal`. Deliberately no longer called `renewsAt`: that name admitted one meaning and
-    /// was wrong in two of the three cases.
-    case subscribed(plan: SubscriptionPlan, until: Date, renewal: Renewal)
+    /// Bought, permanently. **No date and no renewal state, and that absence is the point.**
+    /// The old `.subscribed(plan:until:renewal:)` carried an end date and whether it would roll
+    /// over, because a subscription has both and the app got it wrong when it tried to carry
+    /// only one of them. A purchase has neither.
+    case purchased
     /// The trial ended and nothing was bought. Not "expired" — the app still works, with less
     /// of it. The name matters because the old one described a lockout, and a lockout is what
     /// this deliberately isn't.
     case free
 
     var isTrial: Bool { if case .trial = self { true } else { false } }
-    var isSubscribed: Bool { if case .subscribed = self { true } else { false } }
+    var isPurchased: Bool { if case .purchased = self { true } else { false } }
 
     /// The single question every gate in the app asks.
     ///
@@ -159,7 +69,7 @@ enum SubscriptionStatus: Equatable {
     /// the moment it was needed is just a backdoor.
     var hasFullAccess: Bool {
         switch self {
-        case .trial, .subscribed: return true
+        case .trial, .purchased: return true
         case .free: return false
         }
     }
@@ -172,12 +82,16 @@ enum SubscriptionStatus: Equatable {
 /// one nobody tests — which on a paywall means either giving the product away or locking out
 /// someone who paid.
 ///
+/// **Untouched by the move from subscriptions to a one-time purchase**, which is the whole
+/// reason the store sits behind a seam: these read `hasFullAccess` and have never known what
+/// was being sold.
+///
 /// The shape of the free tier, in one sentence: **you can always look back, and today is always
 /// yours; paying is what lets you plan forward and see the patterns.**
 extension SubscriptionStatus {
     /// Nothing is ever hidden retroactively. Work already finished belongs to the person who
-    /// did it, and holding their own history behind glass to sell a subscription is the move
-    /// that earns refund requests and one-star reviews.
+    /// did it, and holding their own history behind glass to sell an upgrade is the move that
+    /// earns refund requests and one-star reviews.
     func canViewDay(_ day: Date, now: Date = .now) -> Bool {
         guard !hasFullAccess else { return true }
         let cal = Calendar.current
@@ -207,6 +121,11 @@ extension SubscriptionStatus {
 enum SubscriptionPolicy {
     /// Two weeks rather than one. A planner is judged over a week of real use, and a trial that
     /// ends before the second Monday never gets the chance to be judged at all.
+    ///
+    /// Kept after the move to a one-time purchase, and worth more now than it was: a person who
+    /// has used the app for a fortnight is not buying on faith, which is what makes asking for
+    /// a single payment at the end of it reasonable. It is a local clock in the Keychain, not a
+    /// StoreKit introductory offer, so Apple has no part in it and nothing has to be disclosed.
     static let trialDays = 14
 
     static let freeGoalLimit = 1
@@ -216,16 +135,17 @@ enum SubscriptionPolicy {
     /// Days left rounds **up**: someone six hours from the end is told "1 day left", not "0".
     /// Zero is a number that means the trial is over, and showing it while the app still works
     /// reads as a bug.
+    ///
+    /// **A purchase outranks the trial and can never expire.** The old signature took a plan,
+    /// an end date and a renewal state and had to decide whether the date was still in the
+    /// future; getting that wrong in either direction either locked out a payer or gave the app
+    /// away. There is nothing left to get wrong.
     static func resolve(
         trialStartedAt: Date?,
-        plan: SubscriptionPlan?,
-        until: Date?,
-        renewal: Renewal = .renewing,
+        hasPurchased: Bool,
         now: Date = .now
     ) -> SubscriptionStatus {
-        if let plan, let until, until > now {
-            return .subscribed(plan: plan, until: until, renewal: renewal)
-        }
+        if hasPurchased { return .purchased }
         // No trial on record means it hasn't started yet, not that it's over — a fresh install
         // that somehow reaches this before the trial is stamped should not be locked out.
         guard let trialStartedAt else { return .trial(daysLeft: trialDays) }

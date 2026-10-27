@@ -14,7 +14,7 @@ final class SubscriptionPolicyTests: XCTestCase {
 
     func testAFreshTrialHasTheFullRun() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: nil, until: nil, now: trialStart
+            trialStartedAt: trialStart, hasPurchased: false, now: trialStart
         )
         XCTAssertEqual(status, .trial(daysLeft: SubscriptionPolicy.trialDays))
     }
@@ -30,7 +30,7 @@ final class SubscriptionPolicyTests: XCTestCase {
 
     func testTheLastHoursStillReadAsOneDay() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: nil, until: nil,
+            trialStartedAt: trialStart, hasPurchased: false,
             now: trialEnds.addingTimeInterval(-6 * 3600)
         )
         XCTAssertEqual(status, .trial(daysLeft: 1))
@@ -38,7 +38,7 @@ final class SubscriptionPolicyTests: XCTestCase {
 
     func testTheTrialIsStillLiveOneSecondBeforeItEnds() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: nil, until: nil,
+            trialStartedAt: trialStart, hasPurchased: false,
             now: trialEnds.addingTimeInterval(-1)
         )
         XCTAssertEqual(status, .trial(daysLeft: 1))
@@ -47,7 +47,7 @@ final class SubscriptionPolicyTests: XCTestCase {
 
     func testTheTrialIsOverExactlyOnTheBoundary() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: nil, until: nil, now: trialEnds
+            trialStartedAt: trialStart, hasPurchased: false, now: trialEnds
         )
         XCTAssertEqual(status, .free)
         XCTAssertFalse(status.hasFullAccess)
@@ -57,40 +57,37 @@ final class SubscriptionPolicyTests: XCTestCase {
     func testALapsedUserCannotCreateButIsNeverLockedOut() {
         XCTAssertFalse(SubscriptionStatus.free.hasFullAccess)
         XCTAssertTrue(SubscriptionStatus.trial(daysLeft: 3).hasFullAccess)
-        XCTAssertTrue(SubscriptionStatus.subscribed(plan: .annual, until: .now, renewal: .renewing).hasFullAccess)
+        XCTAssertTrue(SubscriptionStatus.purchased.hasFullAccess)
     }
 
-    func testAnActiveSubscriptionOutranksAnExpiredTrial() {
-        let renews = date(2027, 9, 1)
+    func testAPurchaseOutranksAnExpiredTrial() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: .annual, until: renews,
+            trialStartedAt: trialStart, hasPurchased: true,
             now: date(2026, 12, 1)
         )
-        XCTAssertEqual(status, .subscribed(plan: .annual, until: renews, renewal: .renewing))
+        XCTAssertEqual(status, .purchased)
     }
 
-    /// A lapsed subscription falls back to the trial rules rather than staying entitled —
-    /// otherwise a cancelled subscriber keeps everything forever.
-    func testALapsedSubscriptionExpires() {
+    /// **A purchase cannot expire, and that is the whole reason for the change.** The old model
+    /// carried an end date, so this test's ancestor checked that a lapsed subscription fell back
+    /// to the free tier. Here the clock is pushed absurdly far forward instead: a hundred years
+    /// after the trial ended, the person who paid still owns it.
+    func testAPurchaseNeverExpires() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: trialStart, plan: .monthly, until: date(2026, 10, 1),
-            now: date(2026, 11, 1)
+            trialStartedAt: trialStart, hasPurchased: true,
+            now: date(2126, 11, 1)
         )
-        XCTAssertEqual(status, .free)
+        XCTAssertEqual(status, .purchased)
+        XCTAssertTrue(status.hasFullAccess)
     }
 
     /// No trial stamped yet means it hasn't started, not that it's over. Defaulting to expired
     /// here would lock out a fresh install that reached this before the stamp was written.
     func testAMissingTrialStampIsTreatedAsNotStarted() {
         let status = SubscriptionPolicy.resolve(
-            trialStartedAt: nil, plan: nil, until: nil, now: .now
+            trialStartedAt: nil, hasPurchased: false, now: .now
         )
         XCTAssertEqual(status, .trial(daysLeft: SubscriptionPolicy.trialDays))
-    }
-
-    func testOnlyTheAnnualPlanClaimsASaving() {
-        XCTAssertNil(SubscriptionPlan.monthly.savingNote)
-        XCTAssertNotNil(SubscriptionPlan.annual.savingNote)
     }
 
     // MARK: - Free tier
@@ -124,8 +121,7 @@ final class SubscriptionPolicyTests: XCTestCase {
     /// that accidentally applies to a subscriber is worse than one that leaks.
     func testPayingLiftsEveryDayLimit() {
         let now = day(2026, 10, 1)
-        for status in [SubscriptionStatus.trial(daysLeft: 3),
-                       .subscribed(plan: .annual, until: day(2027, 10, 1), renewal: .renewing)] {
+        for status in [SubscriptionStatus.trial(daysLeft: 3), .purchased] {
             XCTAssertTrue(status.canViewDay(day(2026, 12, 25), now: now))
             XCTAssertTrue(status.canEditDay(day(2026, 12, 25), now: now))
             XCTAssertTrue(status.canUseWeekTab)
@@ -170,30 +166,26 @@ final class SubscriptionPolicyTests: XCTestCase {
         XCTAssertEqual(SubscriptionPolicy.trialDays, 14)
         let started = day(2026, 10, 1)
         let onLastDay = SubscriptionPolicy.resolve(
-            trialStartedAt: started, plan: nil, until: nil, now: day(2026, 10, 14)
+            trialStartedAt: started, hasPurchased: false, now: day(2026, 10, 14)
         )
         let afterwards = SubscriptionPolicy.resolve(
-            trialStartedAt: started, plan: nil, until: nil, now: day(2026, 10, 16)
+            trialStartedAt: started, hasPurchased: false, now: day(2026, 10, 16)
         )
         XCTAssertEqual(onLastDay, .trial(daysLeft: 1))
         XCTAssertEqual(afterwards, .free)
     }
 
-    /// There is no introductory offer any more, so there is no second price to disclose and
-    /// nothing to be deceptive about. What has to stay true is the one claim the paywall still
-    /// makes: that annual is the better value.
-    func testTheAnnualPlanIsActuallyTheBetterValue() {
-        let monthly = Double(SubscriptionPlan.monthly.mockPrice.dropFirst())!
-        let annual = Double(SubscriptionPlan.annual.mockPrice.dropFirst())!
-        XCTAssertLessThan(annual, monthly * 12, "a yearly plan costing more than paying monthly is not a plan")
-    }
-
     /// Product identifiers cannot be changed once App Store Connect has them, and a subscriber's
     /// purchase is tied to the string. A typo here is unrecoverable, so it is pinned.
-    func testProductIdentifiersMatchAppStoreConnect() {
-        XCTAssertEqual(SubscriptionPlan.monthly.productID, "waypoint.pro.monthly")
-        XCTAssertEqual(SubscriptionPlan.annual.productID, "waypoint.pro.annual")
-        XCTAssertEqual(Set(SubscriptionPlan.allCases.map(\.productID)).count, SubscriptionPlan.allCases.count)
+    func testTheProductIdentifierMatchesAppStoreConnect() {
+        XCTAssertEqual(WaypointPro.productID, "waypoint.pro.lifetime")
+    }
+
+    /// The product's name has to exist and be used, because build 5 was rejected for its
+    /// absence: Apple requires the product's title at the point of purchase, and the paywall
+    /// showed only "Monthly" and "Annual", which are durations.
+    func testTheProductHasAName() {
+        XCTAssertEqual(WaypointPro.name, "Waypoint Pro")
     }
 
 }
