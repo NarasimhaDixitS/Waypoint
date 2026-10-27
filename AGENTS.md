@@ -307,6 +307,13 @@ cfprefsd gotcha below makes unwritable from the CLI. Ask the user to tap the sun
   reliable way to resurrect it. `.background`, not `.inactive`: inactive fires for a pulled-down
   notification banner, and committing there would snatch Undo away mid-look.
 
+- **Verify the exported IPA, never the `.xcarchive`.** The archive's `.app` is signed for
+  development and carries `get-task-allow: true`; export re-signs it for distribution and flips
+  that to false. Checking the archive therefore reports a problem that isn't real — and, worse,
+  would report "Apple Distribution" missing on a perfectly good build. Unzip
+  `export<n>/Waypoint.ipa` and inspect `Payload/Waypoint.app`. On build 8 the archive said
+  `get-task-allow: true` and the shipped IPA said false, which is the expected pair, not a bug.
+
 - **`strings -F` misses strings containing an em-dash.** Use `strings -a` when checking whether
   something was stripped from a built binary. And remember it proves presence, not absence.
 
