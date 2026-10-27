@@ -7,7 +7,7 @@ struct MainTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var dateStore = DateNavigationStore()
     @EnvironmentObject private var subscription: SubscriptionManager
-    @State private var showingPaywall = false
+    @State private var showingPaywall = MainTabView.launchPaywall
     @State private var selectedTab = MainTabView.launchTab
     /// The goals tab is the only one that pushes anything, so it's the only one that needs a
     /// path. Re-tapping a tab you're already on should return you to its root — standard
@@ -31,6 +31,24 @@ struct MainTabView: View {
         return 0
         #endif
     }
+    /// `-wpPaywall` opens the paywall on launch.
+    ///
+    /// Same family as `-wpTab`, and added for a specific job: App Store Connect wants a review
+    /// screenshot of the purchase screen, and the only ways to reach it otherwise are to let a
+    /// trial run out or to tap into a locked feature.
+    ///
+    /// The real price does render here, which is worth knowing because the obvious assumption is
+    /// that it can't: the simulator has no App Store account, so a *purchase* cannot complete.
+    /// Fetching a product's metadata is a different request and it succeeds, so the paywall shows
+    /// the genuine store price and this capture is usable as the submitted screenshot.
+    static var launchPaywall: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-wpPaywall")
+        #else
+        return false
+        #endif
+    }
+
     /// The first-of-month anchor for whichever month is currently browsed in the Week tab —
     /// persists across tab switches (browsing to next month, checking Today, coming back to
     /// Week keeps you on next month), separate from `weekRefreshTrigger` below.

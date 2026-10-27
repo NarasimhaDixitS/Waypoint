@@ -12,11 +12,20 @@ it from scratch or re-asking the user.
 
 ## What stage this is at
 
-**The app is in TestFlight and being prepared for the App Store.** Builds through 1.0 (4) are
-uploaded and the public TestFlight link is live; build 4 is the first with real purchases in it.
-Subscriptions exist as real products in App Store Connect
-(`waypoint.pro.monthly` $1.99/mo, `waypoint.pro.annual` $19.99/yr, group "Waypoint Pro"), and
-the free tier is real, gated code — not a mockup.
+**The app is in TestFlight and being prepared for the App Store.** Builds through 1.0 (8) are
+uploaded and the public TestFlight link is live. Version 1.0 was **rejected** on 2026-10-27
+(submission `d733a453`) under guidelines 2.1(b) and 3.1.2(c) — both causes are written up below,
+because both were avoidable and neither was a code bug.
+
+**Waypoint is sold once, not rented.** One non-consumable in App Store Connect:
+`waypoint.pro.lifetime`, $5.99, id `6827496691`, display name "Waypoint Pro". It replaces
+`waypoint.pro.monthly` and `waypoint.pro.annual`, which were only ever bought in sandbox and are
+not being submitted — so there was nobody to migrate. There is no server and no account here, so
+no recurring cost existed for a renewal to fund, and a 14-day trial means nobody buys on faith
+either. It also deleted a category of bug rather than fixing one: lapsed, cancelled, refunded and
+card-declined were each a state the app had to detect, name and draw, and six bugs came out of
+exactly that in one afternoon. **Do not reintroduce a subscription** without re-reading that
+commit (`e1338cc`) first. The free tier is real, gated code — not a mockup.
 
 Still deliberate non-goals right now:
 
@@ -24,9 +33,12 @@ Still deliberate non-goals right now:
   handling any backend separately, outside this repo.
 - **AI planning**: removed. `AIPlanningStub` is gone — do not reintroduce it.
 
-**Subscriptions are real and wired up.** RevenueCat is integrated: `Sources/Subscription/Store.swift`
+**The purchase is real and wired up.** RevenueCat is integrated: `Sources/Subscription/Store.swift`
 is the only thing that talks to the SDK, and `SubscriptionManager`'s `refresh`/`purchase`/`restore`
-go through it. The gates — `canViewDay`, `canEditDay`, `canUseWeekTab`, `canUseProgress`,
+go through it. Dashboard side: entitlement `pro`, offering `default`, one `$rc_lifetime` package
+holding `waypoint.pro.lifetime`. A lifetime entitlement arrives with `willRenew == false` and
+`expirationDate == nil`, which is why nothing reads either field any more — the old derivation
+would have told every paying customer "won't renew" on day one. The gates — `canViewDay`, `canEditDay`, `canUseWeekTab`, `canUseProgress`,
 `canCreateGoal` — are tested against `SubscriptionStatus` rather than against a network, which is
 the whole reason the SDK sits behind a seam. Don't change a gate to accommodate the store.
 
@@ -34,27 +46,37 @@ the whole reason the SDK sits behind a seam. Don't change a gate to accommodate 
 a `UserDefaults` mock; keeping it after RevenueCat landed would mean no tester ever exercised the
 real path. Do not reintroduce it — `-wpFree` is how you get the free tier now.
 
-**Purchases are verified on real hardware.** A sandbox purchase of the annual plan was completed
-on an iPhone on 2026-10-27, and a tester's RevenueCat history before that covers purchase,
-cancel, resubscribe, renewal and a plan change with real amounts. The simulator still cannot
-answer this question — it has no App Store account, so StoreKit returns no products however
-correct the dashboard is, and a paywall showing "—" there is evidence of nothing. **What is
-still screen-deep is plan switching**: monthly↔annual has never been driven through a real
-store, only rendered.
+**The purchase path is verified on real hardware, but not this product.** A sandbox purchase of
+the old annual plan was completed on an iPhone on 2026-10-27, which proves the RevenueCat wiring,
+the entitlement read and the gate flip all work end to end. **`waypoint.pro.lifetime` itself has
+never been bought** — build 8 is the first containing it, and the one thing to check on device is
+that a completed purchase says nothing anywhere about renewing or expiring. The simulator cannot
+answer that: with no App Store account signed in, a purchase cannot complete there however correct
+the dashboard is. **Fetching prices is a separate matter and does work** — product metadata comes
+back from the App Store without an account, so the simulator paywall shows the genuine localized
+price (verified: `-wpPaywall` rendered $5.99 the same day the product was created, and the old
+products it could have been caching were $1.99 and $19.99). That makes a simulator capture valid
+as the App Store Connect review screenshot, and the em dash is a network failure, not a baseline.
 
-**Apple's subscription disclosure list is four items, not three** — title of the subscription,
-its length, its price, and working links to the Terms of Use (EULA) and privacy policy, all at
-the point of purchase. Build 5 was rejected under 3.1.2(c) with the title missing: the plan rows
-said "Monthly" and "Annual", which are lengths, and nothing on the paywall named "Waypoint Pro".
-The metadata side is separate and also required: the privacy policy goes in the Privacy Policy
-field in App Store Connect, and the EULA link goes in the **App Description** (or the EULA
-field) — for every localization. Build 5 was rejected for that too.
+**Apple's subscription disclosure list is four items, not three** — title, length, price, and
+working links to the Terms of Use (EULA) and privacy policy, all at the point of purchase. Build 5
+was rejected under 3.1.2(c) with the title missing: the plan rows said "Monthly" and "Annual",
+which are lengths, and nothing on the paywall named "Waypoint Pro". A source comment in
+`PaywallView` claiming the list had three items is what made that a blind spot. Guideline 3.1.2
+governs auto-renewable subscriptions and so no longer applies to a non-consumable — but the
+paywall still names the product, shows its price, and carries both links, because removing
+something a reviewer has already been shown invites the question of why. The metadata side was
+separate and also required, and is already fixed: the privacy policy in the Privacy Policy field,
+the EULA link in the **App Description** (or the EULA field), for every localization.
 
-**Creating a subscription in App Store Connect does not submit it for review.** Both products
-sat at `READY_TO_SUBMIT` with complete metadata, prices and review screenshots while build 5
-went to review without them, which is an automatic 2.1(b) rejection: "the app includes
-references to subscriptions but the associated In-App Purchase products have not been
-submitted." They have to be added to the review submission alongside the version.
+**Creating a product in App Store Connect does not submit it for review.** Both subscriptions sat
+at `READY_TO_SUBMIT` with complete metadata, prices and review screenshots while build 5 went to
+review without them, which is an automatic 2.1(b) rejection: "the app includes references to
+subscriptions but the associated In-App Purchase products have not been submitted." A product has
+to be a line item **inside** the version's review submission. Note that the API will not do this:
+`reviewSubmissionItems` accepts `appStoreVersion`, custom product pages, app events and
+experiments, and returns 409 `ENTITY_ERROR.RELATIONSHIP.UNKNOWN` for a purchase — it is a
+checkbox on the version page in the ASC web UI.
 
 **Launch state** — listing, screenshots, privacy label, the website repo and the TestFlight public
 link — lives in the session memory rather than here, because it changes daily and this file
@@ -111,7 +133,7 @@ Build:
 xcodebuild -project Waypoint.xcodeproj -scheme Waypoint -configuration Debug -sdk iphonesimulator -destination 'platform=iOS Simulator,id=<UDID>' build
 ```
 
-Test — **run the full suite** (263 tests across 24 files in `Tests/`). Don't rely on a stale
+Test — **run the full suite** (253 tests across 24 files in `Tests/`). Don't rely on a stale
 `-only-testing` list carried over from a previous session's notes — it's easy for a new test
 file to get silently excluded:
 ```
@@ -163,17 +185,17 @@ and tap through to a screen, which is the gap that led to shipping cards nobody 
 | `-wpFresh` | **Wipes everything** and gives you a real first run |
 | `-wpFocus` | The focus timer, on today's first task |
 | `-wpFocusFill <0-1>` | …already that far through, and running |
-| `-wpRenewal <state>` | A forced subscription state: `renewing`, `cancelled`, `billing` |
+| `-wpPaywall` | The paywall, open |
 
 `-wpPaper`/`-wpStandard` are not a convenience: writing `themePalette` from the command line
 races the app's own preference flush and loses about as often as it wins, so a palette set that
 way can't be trusted to be the one on screen.
 
-`-wpRenewal` exists because the cancelled and payment-problem screens otherwise need a real
-purchase, a trip to iOS Settings, and — for the second — a card that declines to order. A real
-entitlement from the store always overrules it; "no subscription" deliberately does not, or the
-stream's first cached answer wipes the forced state milliseconds after launch. The Settings
-developer section has the same three as buttons.
+`-wpPaywall` exists because the purchase screen is otherwise behind a lapsed trial or a tap into
+a locked feature, and because App Store Connect wants a review screenshot of it. It is good for
+looking at the layout and not for that screenshot — see the hardware note above. There is no
+`-wpRenewal` any more: it forced `renewing`/`cancelled`/`billing`, and a purchase has none of
+those states.
 
 `-wpFresh` is the one to reach for when testing onboarding, the empty Progress page or the
 trial. Loading the demo fixture is its opposite — forty-five days of history is exactly what a
