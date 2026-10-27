@@ -41,36 +41,36 @@
         "id": "s_wp_3",
         "layout": "device-bottom",
         "label": {
-          "en": "03 / ACCOUNTABILITY"
+          "en": "03 / PROGRESS"
         },
         "headline": {
-          "en": "Misses stay\nvisible."
+          "en": "What you did,\nnot what you\nplanned."
         },
-        "screenshot": "/screenshots/2-week.png",
+        "screenshot": "/screenshots/4-progress.png",
         "inverted": false
       },
       {
         "id": "s_wp_4",
         "layout": "device-bottom",
         "label": {
-          "en": "04 / GOALS"
+          "en": "04 / ACCOUNTABILITY"
         },
         "headline": {
-          "en": "A goal,\nday by day."
+          "en": "Misses stay\nvisible."
         },
-        "screenshot": "/screenshots/3-goals.png",
+        "screenshot": "/screenshots/2-week.png",
         "inverted": true
       },
       {
         "id": "s_wp_5",
         "layout": "device-bottom",
         "label": {
-          "en": "05 / PROGRESS"
+          "en": "05 / GOALS"
         },
         "headline": {
-          "en": "What you did,\nnot what you\nplanned."
+          "en": "A goal,\nday by day."
         },
-        "screenshot": "/screenshots/4-progress.png",
+        "screenshot": "/screenshots/3-goals.png",
         "inverted": false
       },
       {
