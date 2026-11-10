@@ -76,7 +76,7 @@ struct PaywallView: View {
                                 .background(theme.accentSwatch.color)
                                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.wpRow)
                     }
 
                     // **This used to be set and never drawn.** Both the purchase and the
@@ -95,7 +95,15 @@ struct PaywallView: View {
                     // thing someone buys once and expects on every phone they ever own, and
                     // there is no account here to look them up by — the Apple Account is the
                     // only thread joining a new device to a purchase made years ago.
-                    Button("Restore purchase") {
+                    // The label carries the frame, not the button.
+                    //
+                    // `Button("…") { }.frame(maxWidth: .infinity)` widens the *button*, while
+                    // hit testing still follows the two words it draws — so the row looked
+                    // full-width and was tappable only across the text in the middle. Giving
+                    // the label the frame and the padding, and letting `.wpRow` declare the
+                    // shape, makes the whole strip live. Same bug as the Settings rows that
+                    // cost build 9 its review.
+                    Button {
                         errorMessage = nil
                         Task {
                             switch await subscription.restore() {
@@ -104,10 +112,14 @@ struct PaywallView: View {
                             case .failed(let message): errorMessage = message
                             }
                         }
+                    } label: {
+                        Text("Restore purchase")
+                            .wpTypography(.body)
+                            .foregroundStyle(ColorTokens.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
                     }
-                    .wpTypography(.body)
-                    .foregroundStyle(ColorTokens.textSecondary)
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.wpRow)
 
                     legalBlock
                 }
@@ -115,6 +127,13 @@ struct PaywallView: View {
                 .padding(.bottom, 32)
             }
             .background(ColorTokens.surface0.ignoresSafeArea())
+            // A purchase that didn't go through, felt rather than read.
+            //
+            // The success side deliberately isn't here: this sheet dismisses the moment the
+            // entitlement arrives, and a haptic fired into a view being torn down is a
+            // coin toss. It lives on `MainTabView` instead, which outlives every one of the
+            // six places that can present this screen.
+            .sensoryFeedback(.error, trigger: errorMessage) { _, new in new != nil }
             // Ask again if we arrived without a price.
             //
             // It's fetched once at launch, and that one request can lose: a slow network, a

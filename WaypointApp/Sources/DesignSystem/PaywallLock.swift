@@ -61,7 +61,7 @@ private struct PaywallLock: ViewModifier {
                     .background(ColorTokens.textPrimary)
                     .clipShape(Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
             .padding(.top, 2)
         }
         .padding(24)

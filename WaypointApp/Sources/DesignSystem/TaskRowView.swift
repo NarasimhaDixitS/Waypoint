@@ -66,7 +66,7 @@ struct TaskRowView: View {
                         .foregroundStyle(theme.accentSwatch.inProgressColor)
                         .frame(width: 36, height: 36)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
                 .accessibilityLabel("Start focus session")
             }
 
@@ -77,7 +77,7 @@ struct TaskRowView: View {
                         .foregroundStyle(ColorTokens.warning)
                         .frame(width: 26, height: 26)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
                 .accessibilityLabel("Reschedule this task")
             }
 
@@ -121,7 +121,7 @@ struct TaskRowView: View {
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
             .disabled(isCompletionLocked)
             .accessibilityLabel(isCompletionLocked ? "Only completable on its scheduled day" : (state == .done ? "Mark as not done" : "Mark as done"))
         }
@@ -145,7 +145,15 @@ struct TaskRowView: View {
         .clipShape(RoundedRectangle(cornerRadius: isInProgress ? 22 : 18, style: .continuous))
         .shadow(color: shadowColor, radius: elevation?.radius ?? 0, x: 0, y: elevation?.y ?? 0)
         .animation(.easeInOut(duration: 0.25), value: state == .done)
-        .sensoryFeedback(.success, trigger: task.isDone) { old, new in new }
+        // Quiet when this tick was the one that finished a goal.
+        //
+        // `toggleDone` has already run by the time this is evaluated, so the celebration is
+        // pending and `GoalCompletionView` is about to play its own success. Two of them a
+        // few milliseconds apart doesn't read as emphasis, it reads as a stutter — and the
+        // bigger moment is the one that should land.
+        .sensoryFeedback(.success, trigger: task.isDone) { _, new in
+            new && !GoalCelebrations.shared.isCelebrating
+        }
         .sensoryFeedback(.impact(weight: .light), trigger: task.isDone) { old, new in !new }
     }
 

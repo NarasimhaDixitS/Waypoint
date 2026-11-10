@@ -25,6 +25,18 @@ struct WaypointApp: App {
     private func reseedIfRequested() {
         #if DEBUG
         let args = ProcessInfo.processInfo.arguments
+
+        // `-wpGoalDone` stages the celebration without making anyone finish a goal.
+        //
+        // Same reason the rest of this family exists. Reaching this screen honestly means
+        // creating a goal, creating its tasks and ticking every one of them, and it can only
+        // be reached once per goal — so without a flag, looking at it twice means building a
+        // second goal. Independent of the seeding below, so it composes with `-wpReseed`.
+        if args.contains("-wpGoalDone") {
+            GoalCelebrations.shared.pending = GoalCelebration(
+                id: "staged", name: "Learn Spanish", days: 45, tasksDone: 38
+            )
+        }
         // `-wpFresh` runs first and wins: asking for both is asking for a new install, and a
         // new install with forty-five days of history isn't one.
         if args.contains("-wpFresh") {

@@ -135,6 +135,16 @@ extension TaskEntity {
         isDone.toggle()
         completedAt = isDone ? now : nil
         autoCompleted = false
+
+        // Finishing a goal is noticed here rather than at the four call sites that can do it.
+        //
+        // Same reasoning as `PendingDeletions`: a fifth list that ticks a task gets this
+        // without knowing it exists. It has to be *this* method and not `isDone` itself —
+        // `SampleData` and `markAutoCompleted` both set the flag directly, and neither is
+        // somebody finishing something. See `GoalCelebrations`.
+        if isDone {
+            GoalCelebrations.shared.noteCompletion(of: goal)
+        }
     }
 
     /// Marks a task finished because its window elapsed, not because anyone said so.

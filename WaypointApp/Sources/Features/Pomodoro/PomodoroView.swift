@@ -245,7 +245,7 @@ struct PomodoroView: View {
                     .scaleEffect(isRunning ? 0.94 : 1)
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isRunning)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
             .sensoryFeedback(.impact(weight: .medium), trigger: isRunning)
 
             // Only once something has been worked. Now that × leaves the session running,
@@ -262,7 +262,7 @@ struct PomodoroView: View {
                         .frame(height: 44)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
             }
         }
         .padding(.horizontal, 24)
@@ -290,7 +290,7 @@ struct PomodoroView: View {
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
             .padding(.trailing, 4)
             .accessibilityLabel("Close")
         }

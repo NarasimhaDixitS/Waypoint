@@ -338,7 +338,7 @@ private var sectionPicker: some View {
                         .clipShape(Capsule())
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
             }
         }
         .padding(3)

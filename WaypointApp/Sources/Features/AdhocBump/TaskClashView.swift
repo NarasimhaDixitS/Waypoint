@@ -37,6 +37,8 @@ struct TaskClashView: View {
 
     @State private var detent: PresentationDetent = .large
     @State private var contentHeight: CGFloat = 0
+    /// Latched on first appearance, purely so the warning haptic has an edge to fire on.
+    @State private var hasAppeared = false
 
     /// The sheet's own chrome around the scrolling content — the outer inset, top and bottom.
     private static let chrome: CGFloat = 32
@@ -103,7 +105,7 @@ struct TaskClashView: View {
                                         .background(ColorTokens.textPrimary)
                                         .clipShape(Capsule())
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(.wpRow)
                             }
                         }
                         .padding(.vertical, 2)
@@ -165,6 +167,14 @@ struct TaskClashView: View {
         }
         .presentationDragIndicator(.visible)
         .presentationBackground(ColorTokens.surface0)
+        // The one thing the app does that nobody asked it to do.
+        //
+        // Every other sheet in Waypoint opens because a finger asked for it. This one
+        // interrupts: the time you picked is taken, and the app is saying so before you can
+        // commit. `.warning` rather than `.error` — nothing has gone wrong, and the next
+        // screen is a list of ways out, cheapest first.
+        .onAppear { hasAppeared = true }
+        .sensoryFeedback(.warning, trigger: hasAppeared) { _, new in new }
     }
 
     /// A fill *and* a border, which is what the app's secondary buttons have always been.
@@ -198,7 +208,7 @@ struct TaskClashView: View {
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 
     private func label(_ text: String) -> some View {

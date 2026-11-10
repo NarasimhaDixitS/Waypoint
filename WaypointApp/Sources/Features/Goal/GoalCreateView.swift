@@ -38,7 +38,7 @@ struct GoalCreateView: View {
                         .foregroundStyle(ColorTokens.textSecondary)
                         .frame(width: 32, height: 32)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
             }
         }
         .padding(.horizontal, 20)
@@ -88,7 +88,7 @@ struct GoalCreateView: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
         }
     }
 
@@ -105,7 +105,7 @@ struct GoalCreateView: View {
                     .background(ColorTokens.surface0)
                     .clipShape(Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
 
             Button {
                 createGoal()
@@ -121,7 +121,7 @@ struct GoalCreateView: View {
                     .clipShape(Capsule())
                     .opacity(name.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
             .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.horizontal, 20)

@@ -6,6 +6,7 @@ struct MainTabView: View {
     @EnvironmentObject private var theme: ThemeManager
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var dateStore = DateNavigationStore()
+    @StateObject private var celebrations = GoalCelebrations.shared
     @EnvironmentObject private var subscription: SubscriptionManager
     @State private var showingPaywall = MainTabView.launchPaywall
     @State private var selectedTab = MainTabView.launchTab
@@ -328,6 +329,24 @@ struct MainTabView: View {
         .wpTopFade()
         .environmentObject(dateStore)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
+        // Presented here, not from the list the last task was ticked in.
+        //
+        // Four screens can finish a goal and all four can be dismissed by the same tap that
+        // finishes it — closing a sheet while asking it to present another is how the
+        // `queuedSheet` dance in `TodayView` came about. This view is underneath all of them
+        // and goes nowhere, so the celebration has somewhere stable to appear from.
+        .fullScreenCover(item: $celebrations.pending) { celebration in
+            GoalCompletionView(celebration: celebration)
+                .environmentObject(theme)
+        }
+        // The one moment in the app where money changed hands.
+        //
+        // It lives here rather than on `PaywallView` because that sheet dismisses itself the
+        // instant the entitlement lands, and a haptic fired into a view mid-teardown may
+        // never play. This view outlives all six presentation sites, and watching the
+        // entitlement itself means a purchase, a restore on a new iPhone, or anything else
+        // that flips the gate all land the same confirmation.
+        .sensoryFeedback(.success, trigger: subscription.status.isPurchased) { old, new in !old && new }
         // waypoint://today, ://week, ://goals, ://progress, ://settings — one route per tab.
         //
         // The widget only ever asks for `today`, which it does so the app opens on today rather
@@ -377,7 +396,7 @@ struct MainTabView: View {
                 .clipShape(Circle())
                 .shadow(color: ColorTokens.ShadowTier.raised.color, radius: ColorTokens.ShadowTier.raised.radius, x: 0, y: ColorTokens.ShadowTier.raised.y)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
         .accessibilityLabel("New task")
         // CustomTabBar's own frame is barHeight + badgeLift tall (extra room reserved above the
         // pill for the selected badge to pop up into), which shifts the *pill's* visual center
@@ -488,7 +507,19 @@ private struct CustomTabBar: View {
                                 }
                             }
                             .frame(width: slotWidth, height: barHeight)
+                            // The slot is the target, not the glyph inside it.
+                            //
+                            // Without this the bar is hit-tested against the drawn icon —
+                            // about 22pt of symbol in a slot a fifth of the screen wide —
+                            // so most of the tab bar did nothing, and the misses read as a
+                            // tap that didn't register rather than as a tap that landed in
+                            // a gap. Same defect that cost build 9 its review, in the one
+                            // control the app is used through all day.
+                            .contentShape(Rectangle())
                         }
+                        // Still `.plain`, deliberately: `.wpRow` would scale the slot, and
+                        // this bar already runs a spring on `activeIndex`. Two animations on
+                        // the same frame is how the badge bugs started.
                         .buttonStyle(.plain)
                     }
                 }
@@ -712,7 +743,7 @@ private struct GlobalSearchOverlay: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(ColorTokens.textMuted)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
                 }
             }
             .padding(12)

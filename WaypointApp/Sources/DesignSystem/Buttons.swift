@@ -29,9 +29,19 @@ struct PrimaryButtonStyle: ButtonStyle {
 /// Scale is smaller than `PrimaryButtonStyle`'s because the target is bigger — the same 2%
 /// on a full-width row is a much larger movement, and it reads as a wobble rather than a
 /// press. Same light haptic, so every button in the app answers a finger the same way.
+///
+/// **`contentShape` is the whole reason this style is worth migrating to, and it cost a
+/// rejection to learn.** A button whose label is a transparent stack — an `HStack` of some
+/// text, a `Spacer`, and a chevron — is hit-tested against what it actually *draws*. The
+/// padding isn't tappable, and neither is the gap the `Spacer` opens up, so on a wide row
+/// the only live targets are the words at one end and the glyph at the other and the whole
+/// middle is dead. Build 9 was rejected under 2.1(b) for exactly that: the reviewer tapped
+/// the centre of Settings' "tap to unlock" row, nothing happened, and they wrote down that
+/// the purchase button was unresponsive. Declaring the shape makes the frame the target.
 struct PressableRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            .contentShape(Rectangle())
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .opacity(configuration.isPressed ? 0.9 : 1)
             .animation(.easeOut(duration: 0.14), value: configuration.isPressed)

@@ -16,6 +16,7 @@
 		0A486CE868C5538D3BC75F2C /* Priority.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37C69C067FEC19CC0D353A2 /* Priority.swift */; };
 		0A824A02868B79111A8A83CD /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6700B3531ED099A170D79DBA /* WelcomeView.swift */; };
 		0FB1B42E983A00343B16C2DC /* CommitmentEntity+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B296A9CCFF099A42AA51B3 /* CommitmentEntity+Extensions.swift */; };
+		102B1BDB9CB2196225506A94 /* GoalCelebrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97783377BC95C90F0F9A8F1C /* GoalCelebrations.swift */; };
 		108D4C03526B8E2A3AF5B287 /* DaySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B0B19A96711C34C8AF1A8E /* DaySnapshot.swift */; };
 		116C5DCD2ED5586EC1099096 /* TaskDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 852BCE3589044E4C173DE674 /* TaskDraft.swift */; };
 		1A881EBB0C58FEFAF5FB9101 /* SampleDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46587CE13756D4E953FA227 /* SampleDataTests.swift */; };
@@ -31,6 +32,7 @@
 		282DF72FF66F505186DF4381 /* ScheduleSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5B6B74E18146252DE5EECF /* ScheduleSetupView.swift */; };
 		2BF8609A5C0D5C8E8B5056FB /* BulkDeletePlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0AD7DD407E061FA944521B0 /* BulkDeletePlanTests.swift */; };
 		2D0430BE7A28C26195FC73B6 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112534D7A78B7F3D6D0C94C2 /* AppSession.swift */; };
+		312291A1BA73B19BF033C257 /* GoalCelebrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97783377BC95C90F0F9A8F1C /* GoalCelebrations.swift */; };
 		314212B747BA30BBAA823467 /* FirstRunNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = D855D5B896342B8F85DC2FD6 /* FirstRunNote.swift */; };
 		3227E1A7B270863316DC1250 /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6326291AAE39E4AFCD24CCE /* FocusSession.swift */; };
 		335C7D833C6FD10CDF6DD338 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C82A719BF4F9099FF5D61725 /* SubscriptionManager.swift */; };
@@ -48,6 +50,7 @@
 		4C58570D19F446605A5BD6CE /* WaypointWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C7BF4FDD2AD1881B9290A991 /* WaypointWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4C8D379DE0F0CE0B4DDC5618 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BB739F7A123220EB294F242F /* PrivacyInfo.xcprivacy */; };
 		510306EE10A3497E53D04019 /* SelectableTaskList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36626374EC9E501B2BC2B9AF /* SelectableTaskList.swift */; };
+		51F1EADA4A8F562E62446DBE /* GoalCompletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2872D6D8655654BC401B2EDD /* GoalCompletionView.swift */; };
 		533DFC6751B97B99250FF265 /* PaletteContrastTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0C3EEC73458DD77030433B2 /* PaletteContrastTests.swift */; };
 		546CE458B0DC4EBF63EBEFB5 /* BulkEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B04BCD065D66177775BAEC3 /* BulkEditTests.swift */; };
 		5C435AF590790E4CDDF3DFB1 /* Buttons.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97861208E25D18FD4EDA1C3 /* Buttons.swift */; };
@@ -86,6 +89,7 @@
 		937180B7A0CB7A32E4A6638E /* MilestoneEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66D58C32D596421CB3A30F7F /* MilestoneEvaluator.swift */; };
 		94B83FE2C93D697C288130A0 /* BulkDeleteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B864C5B9573746A0751D6852 /* BulkDeleteSheet.swift */; };
 		96952B100095640D68BB1441 /* GoalDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD855111609613CF8664261 /* GoalDetailView.swift */; };
+		9788CE51E1A404D62EF01466 /* GoalCelebrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A474A73783965F67F63B89A /* GoalCelebrationTests.swift */; };
 		97DE7E2B503F26DD7E9107AC /* TaskEventLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18A03E31C5BF860FF284FE9 /* TaskEventLogTests.swift */; };
 		9A298FB8971C2D477B76A165 /* UndoToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56062E7C9E1045C542450BB6 /* UndoToast.swift */; };
 		9F13CB9AC82D9B32A2EFD6D3 /* BulkEditPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80E17A9241B0FF5C23ACEC1 /* BulkEditPolicy.swift */; };
@@ -189,6 +193,8 @@
 		1FA0A1BEACD65026BD0B1E3B /* ColorTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTokens.swift; sourceTree = "<group>"; };
 		20053870B085F4E0A2992460 /* GoalCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCreateView.swift; sourceTree = "<group>"; };
 		24ECA3D57DA1BDC6AAA0C1C7 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		2872D6D8655654BC401B2EDD /* GoalCompletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCompletionView.swift; sourceTree = "<group>"; };
+		2A474A73783965F67F63B89A /* GoalCelebrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCelebrationTests.swift; sourceTree = "<group>"; };
 		36626374EC9E501B2BC2B9AF /* SelectableTaskList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableTaskList.swift; sourceTree = "<group>"; };
 		37E074FA3AF1BBB691783155 /* WaypointTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WaypointTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B7584D86923F2172B5800B8 /* CardBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardBackground.swift; sourceTree = "<group>"; };
@@ -224,6 +230,7 @@
 		90667575439EB7F1720690EE /* TaskEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEvent.swift; sourceTree = "<group>"; };
 		93C01144EA82905973FDAC5B /* PomodoroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroView.swift; sourceTree = "<group>"; };
 		964A24658EDB3CFCD37A6C71 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		97783377BC95C90F0F9A8F1C /* GoalCelebrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCelebrations.swift; sourceTree = "<group>"; };
 		9B5784FCD4778E2792CEFCB7 /* PendingDeletions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingDeletions.swift; sourceTree = "<group>"; };
 		9BCFF2BAB2A576AEC7181EA5 /* TopFade.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopFade.swift; sourceTree = "<group>"; };
 		A08FEFA7026F5EE220D69588 /* Subscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Subscription.swift; sourceTree = "<group>"; };
@@ -334,6 +341,7 @@
 				D80E17A9241B0FF5C23ACEC1 /* BulkEditPolicy.swift */,
 				B0B296A9CCFF099A42AA51B3 /* CommitmentEntity+Extensions.swift */,
 				F6326291AAE39E4AFCD24CCE /* FocusSession.swift */,
+				97783377BC95C90F0F9A8F1C /* GoalCelebrations.swift */,
 				414FAA12C134A64B5FAC53AB /* GoalEntity+Extensions.swift */,
 				529E683B34096D07B9E09CAE /* HistoryReconciler.swift */,
 				A88F270B7F0F3974C05332C0 /* Milestone.swift */,
@@ -361,6 +369,7 @@
 			isa = PBXGroup;
 			children = (
 				839DE3860FCAAD6AB1E2A92C /* CompletionView.swift */,
+				2872D6D8655654BC401B2EDD /* GoalCompletionView.swift */,
 			);
 			path = Completion;
 			sourceTree = "<group>";
@@ -586,6 +595,7 @@
 				A283F8AF4E8961B01CC187E3 /* ActiveFocusSessionTests.swift */,
 				C0AD7DD407E061FA944521B0 /* BulkDeletePlanTests.swift */,
 				5B04BCD065D66177775BAEC3 /* BulkEditTests.swift */,
+				2A474A73783965F67F63B89A /* GoalCelebrationTests.swift */,
 				DE80DE7AC4078992019CFD76 /* GoalCenterTests.swift */,
 				BC551CFE31C80A5743D2C5E7 /* GoalStreakTests.swift */,
 				7A63E683CB3E258852236030 /* MilestoneEvaluatorTests.swift */,
@@ -743,6 +753,7 @@
 				2BF8609A5C0D5C8E8B5056FB /* BulkDeletePlanTests.swift in Sources */,
 				546CE458B0DC4EBF63EBEFB5 /* BulkEditTests.swift in Sources */,
 				108D4C03526B8E2A3AF5B287 /* DaySnapshot.swift in Sources */,
+				9788CE51E1A404D62EF01466 /* GoalCelebrationTests.swift in Sources */,
 				06EAC9FB6A90CD312B69ED25 /* GoalCenterTests.swift in Sources */,
 				FADECE428C4516741B153F17 /* GoalStreakTests.swift in Sources */,
 				25E5D0B91F7DF7252785A5F4 /* MilestoneEvaluatorTests.swift in Sources */,
@@ -792,7 +803,9 @@
 				314212B747BA30BBAA823467 /* FirstRunNote.swift in Sources */,
 				3227E1A7B270863316DC1250 /* FocusSession.swift in Sources */,
 				A9856DBBB7B590698FE5C4ED /* FreshInstall.swift in Sources */,
+				312291A1BA73B19BF033C257 /* GoalCelebrations.swift in Sources */,
 				62199AF7749394EEB34489C9 /* GoalCenterView.swift in Sources */,
+				51F1EADA4A8F562E62446DBE /* GoalCompletionView.swift in Sources */,
 				8DC2D818FECF68F4351808F1 /* GoalCreateView.swift in Sources */,
 				96952B100095640D68BB1441 /* GoalDetailView.swift in Sources */,
 				B9B8319683994671D16A0B23 /* GoalEntity+Extensions.swift in Sources */,
@@ -859,6 +872,7 @@
 				0706AE82E45A2C513F2FF38A /* CommitmentEntity+Extensions.swift in Sources */,
 				BC72C0B559FB4A5A84E7284B /* DaySnapshot.swift in Sources */,
 				F18BDE5D78827C71E6133829 /* FocusSession.swift in Sources */,
+				102B1BDB9CB2196225506A94 /* GoalCelebrations.swift in Sources */,
 				44BE9612B982D4318CCBA0DC /* GoalEntity+Extensions.swift in Sources */,
 				8929EDBBCB9FF003DC3B3325 /* HistoryReconciler.swift in Sources */,
 				5FDBF2B5F80B33EC96191C60 /* Milestone.swift in Sources */,

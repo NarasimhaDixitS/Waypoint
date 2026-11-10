@@ -71,7 +71,7 @@ struct CascadeConfirmView: View {
                         .wpTypography(.body)
                         .foregroundStyle(ColorTokens.textSecondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
             }
         }
         .padding(18)

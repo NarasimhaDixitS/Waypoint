@@ -67,7 +67,7 @@ struct GoalCenterView: View {
                     NavigationLink(value: GoalRoute.goal(goal.objectID)) {
                         GoalCard(goal: goal)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
                 }
 
                 // Always present, even at zero. A card reading "nothing loose" is a useful
@@ -75,7 +75,7 @@ struct GoalCenterView: View {
                 NavigationLink(value: GoalRoute.ungrouped) {
                     ungroupedCard
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
 
                 if goals.isEmpty {
                     emptyNote

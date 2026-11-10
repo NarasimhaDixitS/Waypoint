@@ -59,6 +59,10 @@ enum FreshInstall {
         }
         FirstRunHint.resetAll()
 
+        // Which goals have already been celebrated. Kept out of `defaultsKeys` only because
+        // it is owned by `GoalCelebrations` and cleared through it, so the two can't drift.
+        GoalCelebrations.shared.forgetAll()
+
         // The Keychain item, which is the only part of this that survives deleting the app.
         TrialRecord.clear()
     }

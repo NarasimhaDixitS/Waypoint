@@ -46,7 +46,7 @@ struct ScheduleSetupView: View {
                                             .font(.system(size: 13))
                                             .foregroundStyle(ColorTokens.textMuted)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.wpRow)
                                     .accessibilityLabel("Delete \(commitment.name ?? "commitment")")
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 12, weight: .semibold))
@@ -54,7 +54,7 @@ struct ScheduleSetupView: View {
                                 }
                                 .wpCard()
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.wpRow)
                         }
 
                         Button {
@@ -70,7 +70,7 @@ struct ScheduleSetupView: View {
                                         .strokeBorder(ColorTokens.border, style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
                                 )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.wpRow)
                     }
                 }
                 .padding(.horizontal, 20)

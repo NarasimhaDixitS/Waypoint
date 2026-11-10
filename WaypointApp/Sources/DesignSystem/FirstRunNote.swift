@@ -73,7 +73,7 @@ struct FirstRunNote: View {
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
                 .padding(.trailing, -6)
                 .padding(.top, -4)
                 .accessibilityLabel("Dismiss")

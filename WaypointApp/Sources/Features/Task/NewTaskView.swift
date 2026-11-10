@@ -278,7 +278,7 @@ struct NewTaskView: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
         }
     }
 
@@ -301,7 +301,7 @@ struct NewTaskView: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
         }
     }
 
@@ -323,7 +323,7 @@ struct NewTaskView: View {
                         }
                     }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text("Duration")
@@ -341,7 +341,7 @@ struct NewTaskView: View {
                         }
                     }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
             }
         }
     }
@@ -501,7 +501,7 @@ struct NewTaskView: View {
                             )
                             .clipShape(Capsule())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
                 }
             }
 
@@ -613,7 +613,7 @@ struct NewTaskView: View {
                         .foregroundStyle(ColorTokens.textSecondary)
                         .frame(width: 32, height: 32)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
             }
         }
         .padding(.horizontal, 20)
@@ -651,7 +651,7 @@ struct NewTaskView: View {
                     .background(ColorTokens.warning.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
             }
         }
     }
@@ -668,7 +668,7 @@ struct NewTaskView: View {
             .background(ColorTokens.surface0)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 
     /// Two pill buttons replacing the old top-corner Cancel/Save — matches the reference's
@@ -686,7 +686,7 @@ struct NewTaskView: View {
                     .background(ColorTokens.surface0)
                     .clipShape(Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
 
             Button {
                 saveTask()
@@ -704,7 +704,7 @@ struct NewTaskView: View {
                     .clipShape(Capsule())
                     .opacity(title.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
             .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.horizontal, 20)
@@ -973,7 +973,7 @@ private struct DurationPickerSheet: View {
                         .stroke(selected ? theme.accentSwatch.color : ColorTokens.border, lineWidth: selected ? 1.6 : 1)
                 )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 }
 

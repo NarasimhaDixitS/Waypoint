@@ -175,7 +175,7 @@ struct SelectableTaskList: View {
                         .frame(width: 32, height: 44)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
                 .accessibilityLabel("Back")
             }
 
@@ -197,7 +197,7 @@ struct SelectableTaskList: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(theme.accentSwatch.color)
                     .frame(height: 44)
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
             } else if hasAnythingSelectable {
                 // Hidden rather than disabled when nothing on screen can be selected — a goal
                 // that finished last month has no forward tasks, and a pen that opens a mode
@@ -210,7 +210,7 @@ struct SelectableTaskList: View {
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
                 .accessibilityLabel("Select tasks")
             }
         }
@@ -243,7 +243,7 @@ struct SelectableTaskList: View {
                 .frame(height: 28)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
 
             if isOpen {
                 ForEach(group.tasks, id: \.objectID) { task in

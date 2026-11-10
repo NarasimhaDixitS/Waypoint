@@ -125,7 +125,7 @@ struct SettingsView: View {
                                 .foregroundStyle(ColorTokens.textMuted)
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
                     divider
                     NavigationLink {
                         SleepSetupView(buttonLabel: "Save")
@@ -138,7 +138,7 @@ struct SettingsView: View {
                                 .foregroundStyle(ColorTokens.textMuted)
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
                 }
                 .wpCard(padding: 0)
 
@@ -311,7 +311,7 @@ struct SettingsView: View {
                                 .foregroundStyle(ColorTokens.textSecondary)
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
                     .wpCard(padding: 0)
                 }
                 #endif
@@ -411,7 +411,7 @@ private var subscriptionCard: some View {
                     .foregroundStyle(ColorTokens.textMuted)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
         .wpCard(padding: 0)
     }
 
@@ -474,7 +474,7 @@ private var subscriptionCard: some View {
                 .background(isCurrent ? ColorTokens.textPrimary : ColorTokens.surface1)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 
     private var subscriptionDetail: String {
@@ -493,11 +493,26 @@ private var subscriptionCard: some View {
     }
 
 
+    /// The shape of every row on this screen — and, deliberately, its tap target.
+    ///
+    /// **`contentShape` belongs here rather than at each call site.** These rows are a
+    /// transparent `HStack`: a label, a `Spacer`, and usually a chevron. Hit testing follows
+    /// what a view draws, so without a declared shape the padding and the whole gap the
+    /// `Spacer` opens are dead, and only the text at one end and the glyph at the other can
+    /// be tapped. On a large phone that leaves most of a full-width row inert. Build 9 was
+    /// rejected under guideline 2.1(b) because of it: the reviewer tapped the middle of the
+    /// "tap to unlock" row, nothing happened, and the report came back saying the purchase
+    /// button was unresponsive.
+    ///
+    /// Putting it in the helper means it cannot be forgotten by the next row added, and it
+    /// covers the rows that aren't buttons at all — a `NavigationLink`, or a row wrapping a
+    /// `Picker` — which a button style would never reach.
     private func row<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         HStack {
             content()
         }
         .padding(14)
         .frame(minHeight: 44)
+        .contentShape(Rectangle())
     }
 }

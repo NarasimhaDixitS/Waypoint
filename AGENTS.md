@@ -14,9 +14,18 @@ it from scratch or re-asking the user.
 
 **The app is in TestFlight and being prepared for the App Store.** Builds through 1.0 (9) are
 uploaded and the public TestFlight link is live; build 9 is the one staged for review, and the
-monthly/annual products are gone from both App Store Connect and RevenueCat. Version 1.0 was
-**rejected** on 2026-10-27 (submission `d733a453`) under guidelines 2.1(b) and 3.1.2(c) — both
-causes are written up below, because both were avoidable and neither was a code bug.
+monthly/annual products are gone from both App Store Connect and RevenueCat.
+
+**Version 1.0 has been rejected twice.** First on 2026-10-27 (submission `d733a453`) under 2.1(b)
+and 3.1.2(c), both written up below, and neither a code bug. Then again on 2026-11-05 (submission
+`af0d5f65`, build 9) under **2.1(b) alone** — *"Subscription button was unresponsive"* — and that
+one **was** a code bug, in hit testing rather than in the store. The whole store side was ruled
+out first and is worth not re-deriving: the Paid Apps Agreement is Active, the RevenueCat
+in-app-purchase key reads valid, entitlement `pro` holds `waypoint.pro.lifetime`, the `default`
+offering is current and carries it, and a real sandbox purchase had completed against that exact
+configuration nine days before review. The cause was `.buttonStyle(.plain)` — see the hit-testing
+gotcha below. Apple reviews purchases in the sandbox and a product does **not** need prior
+approval to function during review, so `READY_TO_SUBMIT` is not a cause of a dead button.
 
 **Waypoint is sold once, not rented.** One non-consumable in App Store Connect:
 `waypoint.pro.lifetime`, $5.99, id `6827496691`, display name "Waypoint Pro". It replaces
@@ -135,7 +144,7 @@ Build:
 xcodebuild -project Waypoint.xcodeproj -scheme Waypoint -configuration Debug -sdk iphonesimulator -destination 'platform=iOS Simulator,id=<UDID>' build
 ```
 
-Test — **run the full suite** (253 tests across 24 files in `Tests/`). Don't rely on a stale
+Test — **run the full suite** (259 tests across 25 files in `Tests/`). Don't rely on a stale
 `-only-testing` list carried over from a previous session's notes — it's easy for a new test
 file to get silently excluded:
 ```
@@ -189,6 +198,7 @@ and tap through to a screen, which is the gap that led to shipping cards nobody 
 | `-wpFocusFill <0-1>` | …already that far through, and running |
 | `-wpPaywall` | The paywall, open |
 | `-wpTrial` | A fresh 14-day trial (the mirror of `-wpFree`) |
+| `-wpGoalDone` | The goal-completion celebration, staged |
 
 `-wpPaper`/`-wpStandard` are not a convenience: writing `themePalette` from the command line
 races the app's own preference flush and loses about as often as it wins, so a palette set that
@@ -341,6 +351,35 @@ cfprefsd gotcha below makes unwritable from the CLI. Ask the user to tap the sun
   This is how the leftover annual subscription was cleared so the lifetime purchase could be tested
   at all. Force-quit before looking — `customerInfo` is cached on device for a few minutes, so a
   plain background-and-return hands back the stale "you have Pro". Reattaching restores it.
+
+- **`.buttonStyle(.plain)` on a transparent label makes most of the button dead.** Hit testing
+  follows what a view *draws*, so a button whose label is a bare stack — a label, a `Spacer`, a
+  chevron — is tappable on the glyphs and nowhere else. The padding is dead, and so is the whole
+  gap the `Spacer` opens, which on a full-width row is most of it. This is what cost build 9 its
+  review under 2.1(b): the reviewer tapped the centre of Settings' "tap to unlock" row, nothing
+  happened, and the report came back saying the purchase button was unresponsive. **It is silent
+  — nothing warns, nothing logs, and it looks perfect in a screenshot.** The tab bar had it too,
+  with an explicit `frame(width: slotWidth)` and no declared shape, so the gaps between tabs did
+  nothing.
+
+  The fix is `.contentShape(Rectangle())`, and the house style now carries it: **use `.wpRow`
+  (`PressableRowStyle`) rather than `.plain`** and the frame becomes the target, with the press
+  animation and the light haptic thrown in. 68 buttons are on it; the one remaining `.plain` is
+  the tab bar slot, which is deliberate — `.wpRow` would scale it and that bar already runs a
+  spring on `activeIndex`. Put the shape on a shared helper where one exists (`SettingsView.row`
+  has it) rather than at call sites: a helper also covers the rows that aren't buttons at all,
+  like a `NavigationLink` or a row wrapping a `Picker`, which no button style can reach.
+
+- **Haptics go on the thing that outlives the tap.** The purchase success fires from
+  `MainTabView`, not `PaywallView`, because that sheet dismisses the instant the entitlement
+  lands and a haptic fired into a view mid-teardown may never play — and `MainTabView` covers
+  all six places the paywall can be presented from. Same for deletes, which live on `UndoToast`
+  where both delete paths converge, and for goal completion, presented from `MainTabView`
+  because four screens can finish a goal and all four can be dismissed by the same tap.
+  **Two haptics at one instant read as a stutter, not emphasis:** `TaskRowView` suppresses its
+  own success while a goal celebration is pending, which is the only reason finishing a goal
+  feels like one event. Everything uses `.sensoryFeedback`; there is not a single
+  `UIFeedbackGenerator` in the codebase and there shouldn't be.
 
 - **Verify the exported IPA, never the `.xcarchive`.** The archive's `.app` is signed for
   development and carries `get-task-allow: true`; export re-signs it for distribution and flips

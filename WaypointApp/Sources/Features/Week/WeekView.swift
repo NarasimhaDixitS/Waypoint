@@ -333,7 +333,7 @@ struct WeekView: View {
                 .background(selected ? Color.white : Color.clear)
                 .clipShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 
     /// Whichever week is open in the mode currently being browsed.
@@ -411,7 +411,7 @@ struct WeekView: View {
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
         .disabled(disabled)
         .opacity(disabled ? 0.3 : 1)
     }
@@ -556,7 +556,7 @@ struct WeekView: View {
                 .padding(16)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0) {
@@ -700,7 +700,7 @@ struct WeekView: View {
                 .padding(.vertical, 7)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.wpRow)
             .disabled(group.tasks.isEmpty)
             .accessibilityLabel("\(group.day.formatted(.dateTime.weekday(.wide).month().day())), \(group.tasks.count) tasks")
 
@@ -747,7 +747,7 @@ struct WeekView: View {
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 
     /// The running task, borrowed from Today but deliberately not a copy of it. Today's card
@@ -789,7 +789,7 @@ struct WeekView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.wpRow)
     }
 
     /// Marks only what isn't already visible — the same rule the badges on Today follow. A done

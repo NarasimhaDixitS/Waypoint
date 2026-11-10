@@ -837,7 +837,7 @@ struct TodayView: View {
                                 .background(theme.accentSwatch.color)
                                 .clipShape(Capsule())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.wpRow)
                         Spacer()
                     }
                     .padding(.top, -8)
@@ -1181,7 +1181,7 @@ struct TodayView: View {
                     .foregroundStyle(theme.accentSwatch.color)
                     .frame(height: 44)
                     .contentShape(Rectangle())
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
             } else {
                 sortMenuButton
                 if canEnterEditMode {
@@ -1196,7 +1196,7 @@ struct TodayView: View {
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
                     .accessibilityLabel("Select tasks")
                 }
             }
@@ -1216,7 +1216,7 @@ struct TodayView: View {
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
                 .accessibilityLabel("Toggle dark mode")
             }
         }
@@ -1327,7 +1327,7 @@ struct TodayView: View {
                     } label: {
                         goalCard(goal)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.wpRow)
                 }
                 .tag(index + 1)
             }
@@ -1346,7 +1346,7 @@ struct TodayView: View {
                 } label: {
                     addGoalCard
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.wpRow)
             }
             .tag(goals.count + 1)
         }
