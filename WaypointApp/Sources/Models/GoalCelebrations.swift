@@ -72,11 +72,15 @@ final class GoalCelebrations: ObservableObject {
     /// turns a single event into a stutter.
     var isCelebrating: Bool { pending != nil }
 
-    #if DEBUG
-    /// Lets `-wpFresh` put the app back to a state where goals can be finished again.
+    /// Puts the app back to a state where every goal can be finished again.
+    ///
+    /// **Not `#if DEBUG`**, though `-wpFresh` is the reason it exists. `FreshInstall.wipe` is
+    /// compiled in every configuration — Settings offers it as a button — and it is the one
+    /// place that must leave no trace of the app having been used. A guard here only made
+    /// the release build fail to compile, which is the cheap version of the real bug: a
+    /// "fresh install" that quietly remembers which goals you'd already finished.
     func forgetAll() {
         celebrated.removeAll()
         UserDefaults.standard.removeObject(forKey: Self.defaultsKey)
     }
-    #endif
 }
